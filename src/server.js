@@ -79,6 +79,22 @@ function createServer({ city, password = () => process.env.CITY_PASSWORD, public
       catch (e) { city.problem('guide', e); msg = e.message + ' Open the Guide for the fix.'; }
       res.writeHead(302, { location: '/?said=' + encodeURIComponent(msg) + '#settings' }); return res.end();
     }
+    // ---- OpenRouter: press Connect, sign in there, and the city gets its own AI key. Nothing to copy. ----
+    // The state rides in the path (OpenRouter adds ?code= to the callback); the owner must be signed in, and PKCE ties the code to this city.
+    if (p === '/connect/openrouter') {
+      const st = crypto.randomBytes(16).toString('hex'), link = city.ai.openRouterLink(origin(req) + '/connect/openrouter/done/' + st);
+      states.set('or:' + st, { until: Date.now() + 10 * 60e3, verifier: link.verifier });
+      res.writeHead(302, { location: link.url }); return res.end();
+    }
+    if (p.startsWith('/connect/openrouter/done/')) {
+      const key = 'or:' + p.split('/').pop(), s = states.get(key); states.delete(key);
+      let msg;
+      if (!s || s.until < Date.now()) msg = 'That sign-in took too long. Press Connect with OpenRouter again.';
+      else if (!url.searchParams.get('code')) msg = 'OpenRouter did not connect. Nothing changed.';
+      else try { const model = await city.ai.openRouterKey(url.searchParams.get('code'), s.verifier); city.departments().forEach(d => city.clearProblem(d.id)); msg = 'Your AI is connected through OpenRouter' + (model ? ', using ' + model : '') + '. Add a little credit at openrouter.ai, then Credits.'; }
+      catch (e) { city.problem('guide', e); msg = e.message; }
+      res.writeHead(302, { location: '/?said=' + encodeURIComponent(msg) + '#settings' }); return res.end();
+    }
     // ---- the home screen's API ----
     try {
       if (p === '/api/city3d') return json(res, 200, cityData(city));

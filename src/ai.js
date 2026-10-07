@@ -3,6 +3,7 @@
 // library; ChatGPT (OpenAI), Gemini (Google AI Studio), OpenRouter and any OpenAI-style service go through their standard
 // chat/completions API. The day's spending cap, and errors turned into steps the Guide can explain, work the same for all of them.
 // Keys are never printed, never sent to the page, and only ever sent to the AI service they belong to.
+const crypto = require('node:crypto');
 const AnthropicModule = require('@anthropic-ai/sdk');
 const Anthropic = AnthropicModule.default || AnthropicModule;
 
@@ -139,6 +140,25 @@ class AI {
     catch (e) { throw new CityError('ai_offline', 'The city could not reach ' + c.name + '.', e.message); }
     const text = await res.text(); let json = {}; try { json = JSON.parse(text); } catch (e) {}
     return { ok: res.ok, status: res.status, text: text.slice(0, 600), json };
+  }
+  // "Connect with OpenRouter": the owner signs in at OpenRouter and the city gets its own key, with nothing to copy.
+  // OAuth with PKCE: no app to register and no secret; the callback is the city's own address. One code, good for 10 minutes.
+  openRouterLink(callback) {
+    const verifier = crypto.randomBytes(32).toString('base64url'), challenge = crypto.createHash('sha256').update(verifier).digest('base64url');
+    return { verifier, url: 'https://openrouter.ai/auth?' + new URLSearchParams({ callback_url: callback, code_challenge: challenge, code_challenge_method: 'S256' }) };
+  }
+  async openRouterKey(code, verifier) {
+    const base = (this.bases.openrouter || PROVIDERS.openrouter.base).replace(/\/+$/, '');
+    const res = await this.fetch(base + '/auth/keys', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ code, code_verifier: verifier, code_challenge_method: 'S256' }) });
+    let j = {}; try { j = await res.json(); } catch (e) {}
+    if (!res.ok || !j.key) throw new CityError('ai_key_wrong', 'OpenRouter did not hand over a key. Press Connect with OpenRouter again.');
+    this.save({ provider: 'openrouter', key: j.key });
+    const list = await this.models();
+    if (!this.conf().model) {   // a sensible main model, so there is no model step: Claude Sonnet, else Haiku, else GPT, else Gemini Flash
+      const pick = [/^anthropic\/claude[\w.-]*sonnet/, /^anthropic\/claude[\w.-]*haiku/, /^openai\/gpt-[\d.]+(-mini)?$/, /^google\/gemini[\w.-]*flash/].map(re => list.find(m => re.test(m))).find(Boolean) || list[0];
+      if (pick) this.save({ provider: 'openrouter', model: pick });
+    }
+    return this.conf().model;
   }
   // The models this key can use (it checks the key at the same time, at no cost). Saved so Settings can list them.
   async models() {
