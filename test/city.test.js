@@ -143,7 +143,7 @@ test('the Guide checklist and Ask the guide work even before anything is set up'
   assert(g.fix.steps.some(s => s === 'Under Authorized redirect URIs, click Add URI and paste exactly: ' + redirect), 'the exact address to paste');
   const a = await guide.ask(city, 'How do I start?', { redirect });
   assert.strictEqual(a.by, 'checklist');
-  assert(/Tell the city about your business:\n1\. Open Settings\.[\s\S]*Choose your AI and add its key:\n1\. Open Settings, then Your AI\./.test(a.answer), a.answer);
+  assert(/Tell the city about your business:\n1\. Open Settings\.[\s\S]*Choose your AI and add its key:\n1\. Easiest: open Settings, then Your AI, and press Connect with OpenRouter\./.test(a.answer), a.answer);
   assert.deepStrictEqual(city.agents().find(x => x.id === L.id).blockedBy, 'your business details', 'business details come first: nothing generic gets written');
   await assert.rejects(city.runAgent(S.id), e => e.code === 'no_business');
   city.saveSettings({ business: 'Sam\'s Kitchens' });
