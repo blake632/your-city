@@ -1,17 +1,24 @@
-// Your Gmail, through Google's own sign-in. You make a Google "OAuth client" once (SETUP.md, step 3; the Guide walks you through
-// it), put its ID and secret in the GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET variables, then press Connect Google in the app.
+// Your Gmail, through Google's own sign-in. Your city runs on Railway; Google only gives it permission to read and draft your email.
+// You make a Google "OAuth client" once (SETUP.md, step 3; the Guide walks you through it), paste its ID and secret in Settings
+// (or set the GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET variables), then press Connect Google in the app.
 // Google gives the city a long-lived pass (a refresh token), kept in your city's database and never shown.
 // One permission only: Gmail read, label and draft (gmail.modify). A draft is sent only when you press Approve.
 const { CityError } = require('./ai');
 const SCOPES = ['openid', 'email', 'https://www.googleapis.com/auth/gmail.modify'];
 
 class Google {
-  constructor({ store, clientId = () => process.env.GOOGLE_CLIENT_ID, clientSecret = () => process.env.GOOGLE_CLIENT_SECRET, api = 'https://gmail.googleapis.com',
+  constructor({ store, clientId = () => (store.get('googleClient') || {}).id || process.env.GOOGLE_CLIENT_ID || '', clientSecret = () => (store.get('googleClient') || {}).secret || process.env.GOOGLE_CLIENT_SECRET || '', api = 'https://gmail.googleapis.com',
     tokenUrl = 'https://oauth2.googleapis.com/token', authBase = 'https://accounts.google.com/o/oauth2/v2/auth', userinfoUrl = 'https://openidconnect.googleapis.com/v1/userinfo', now = () => Date.now() } = {}) {
     Object.assign(this, { store, clientId, clientSecret, api, tokenUrl, authBase, userinfoUrl, now });
     this.access = null; this.labels = null;
   }
   configured() { return !!((this.clientId() || '').trim() && (this.clientSecret() || '').trim()); }
+  // The Client ID and secret pasted in Settings. A blank secret keeps the saved one.
+  saveClient({ id, secret }) {
+    const c = this.store.get('googleClient') || {}, next = { id: String(id != null ? id : c.id || '').trim(), secret: String(secret || '').trim() || c.secret || '' };
+    if (next.id && !/\.apps\.googleusercontent\.com$/.test(next.id)) throw new CityError('google_client', 'That does not look like a Google Client ID. It ends in .apps.googleusercontent.com.');
+    this.store.set('googleClient', next); this.access = null; return { id: next.id, secretSet: !!next.secret };
+  }
   connected() { return !!(this.store.get('google') || {}).refresh; }
   email() { return (this.store.get('google') || {}).email || ''; }
   authUrl(redirect, state) {

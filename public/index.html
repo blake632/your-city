@@ -94,6 +94,15 @@ label.f{display:block;margin:14px 0 6px;font-weight:600;font-size:15px}label.f s
   <section id="t-settings" hidden>
     <h1>Settings</h1><p class="sub">Tell the city about your business, choose your agents, and connect Gmail.</p>
     <div class="banner" id="said" hidden></div>
+    <h2>Your AI</h2>
+    <div class="box" style="padding:4px 16px 16px">
+      <label class="f">Which AI runs your city?<small>Any of these works. You pay that company for what your agents use.</small><select id="ai-provider"></select></label>
+      <label class="f" id="ai-baseRow" hidden>Its address (base URL)<small>For example https://api.groq.com/openai/v1. Your AI service's help pages list it.</small><input type="text" id="ai-baseUrl" placeholder="https://"></label>
+      <label class="f">Its API key<small id="ai-keyHelp"></small><input type="password" id="ai-key" autocomplete="off" placeholder="Paste your key"></label>
+      <label class="f">Main model<small>Your agents use this unless you pick another for one of them below.</small><input type="text" id="ai-model" list="ai-models" placeholder="Press Save and test to see your models"><datalist id="ai-models"></datalist></label>
+      <div class="chips"><button class="btn yes sm" id="aiSave">Save and test</button><span class="muted" id="aiSaid"></span></div>
+      <div id="aiFix"></div>
+    </div>
     <h2>Your business</h2>
     <div class="box" style="padding:4px 16px 16px">
       <label class="f">Business name<input type="text" id="s-business" placeholder="Sam's Kitchens"></label>
@@ -106,6 +115,11 @@ label.f{display:block;margin:14px 0 6px;font-weight:600;font-size:15px}label.f s
     </div>
     <h2>Gmail</h2>
     <div class="box" style="padding:14px 16px" id="gmail"></div>
+    <div class="box" style="padding:4px 16px 16px;margin-top:10px" id="gclient">
+      <label class="f">Google Client ID<small>From your Google "OAuth client" (the Guide shows how to make one, once).</small><input type="text" id="g-id" placeholder="....apps.googleusercontent.com"></label>
+      <label class="f">Google Client secret<input type="password" id="g-secret" autocomplete="off" placeholder="Paste the secret"></label>
+      <div class="chips"><button class="btn yes sm" id="gSave">Save</button><a class="chip" href="#guide">Show me the steps</a></div>
+    </div>
     <h2>Agents</h2>
     <div class="box" id="agents"></div>
     <h2>Add your own agent</h2>
@@ -126,6 +140,12 @@ label.f{display:block;margin:14px 0 6px;font-weight:600;font-size:15px}label.f s
       <label class="f">What should buzz your phone?<select id="s-alerts"><option value="leads">New leads only</option><option value="all">Everything that needs me</option><option value="off">Nothing</option></select></label>
       <p class="muted" id="alertHow"></p>
       <div class="chips" id="alertBtns"></div>
+    </div>
+    <h2>Your password</h2>
+    <div class="box" style="padding:4px 16px 16px" id="pwBox">
+      <label class="f">Current password<input type="password" id="pw-now" autocomplete="current-password"></label>
+      <label class="f">New password<input type="password" id="pw-new" autocomplete="new-password"></label>
+      <div class="chips"><button class="btn yes sm" id="pwSave">Change password</button></div>
     </div>
     <div class="chips" style="margin-top:28px"><a class="chip" href="/logout">Sign out</a></div>
   </section>
@@ -188,8 +208,8 @@ label.f{display:block;margin:14px 0 6px;font-weight:600;font-size:15px}label.f s
     if (S.firstRun || bad.length) {
       start.hidden = false;
       start.appendChild(el('b', { text: S.firstRun ? 'Welcome. Start here.' : 'Your setup needs ' + bad.length + ' thing' + (bad.length > 1 ? 's' : '') + '.' }));
-      start.appendChild(el('p', { cls: 'muted', style: 'margin:4px 0 8px', text: S.firstRun ? 'Tell the city about your business, then follow the Guide. It shows each step.' : bad[0].text }));
-      start.appendChild(el('div', { cls: 'chips' }, [S.firstRun ? el('a', { cls: 'chip strong', href: '#settings', text: 'Tell it about your business' }) : null, el('a', { cls: 'chip strong', href: '#guide', text: 'Open the Guide' })]));
+      start.appendChild(el('p', { cls: 'muted', style: 'margin:4px 0 8px', text: S.firstRun ? 'Pick your AI and tell the city about your business in Settings. Then follow the Guide. It shows each step.' : bad[0].text }));
+      start.appendChild(el('div', { cls: 'chips' }, [el('a', { cls: 'chip strong', href: '#settings', text: 'Open Settings' }), el('a', { cls: 'chip strong', href: '#guide', text: 'Open the Guide' })]));
     } else start.hidden = true;
     var ul = $('depts'); ul.innerHTML = '';
     var list = S.agents.slice().sort(function (a, b) { return (b.need ? 1 : 0) - (a.need ? 1 : 0) || (a.id === 'leads' ? -1 : b.id === 'leads' ? 1 : 0) || b.need - a.need; });
@@ -293,15 +313,18 @@ label.f{display:block;margin:14px 0 6px;font-weight:600;font-size:15px}label.f s
     if (!filled) { FIELDS.forEach(function (k) { if ($('s-' + k)) $('s-' + k).value = S.settings[k] == null ? '' : S.settings[k]; }); $('s-alerts').value = S.settings.alerts || 'leads'; filled = true; }
     $('spent').textContent = 'Spent today: $' + S.spend.today.toFixed(2) + ' of $' + S.spend.cap.toFixed(2) + '. Agents pause at the limit until tomorrow.';
     var said = new URLSearchParams(location.search).get('said'); $('said').hidden = !said; $('said').textContent = said || '';
+    renderAI();
+    $('gclient').hidden = S.google.connected; $('g-id').value = $('g-id').value || S.googleClient.id || ''; $('g-secret').placeholder = S.googleClient.secretSet ? 'Saved. Paste a new one to replace it.' : 'Paste the secret';
+    $('pwBox').hidden = S.passwordFrom === 'variable';
     var g = $('gmail'); g.innerHTML = '';
     if (S.google.connected) g.appendChild(el('div', {}, [el('p', { style: 'margin:0 0 8px', text: '✓ Connected to ' + (S.google.email || 'your Gmail') + '. The city reads, labels and drafts. It sends only when you press Send.' }),
       el('div', { cls: 'chips' }, [el('a', { cls: 'chip', href: '/connect/google', text: 'Connect again' }), el('button', { cls: 'chip', text: 'Disconnect', onclick: function () { if (confirm('Disconnect Gmail? The Leads and Mail room agents stop until you connect again.')) api('/api/google/disconnect', {}).then(load); } })])]));
     else if (S.google.configured) g.appendChild(el('div', {}, [el('p', { style: 'margin:0 0 8px', text: 'Ready to connect. Google will ask you to allow Gmail access.' }), el('a', { cls: 'btn yes sm', href: '/connect/google', style: 'display:inline-block;text-decoration:none', text: 'Connect Google' })]));
-    else g.appendChild(el('div', {}, [el('p', { style: 'margin:0 0 8px', text: 'First, a one-time setup in Google so the city may read your email. The Guide has every step.' }), el('a', { cls: 'chip strong', href: '#guide', text: 'Show me the steps' })]));
+    else g.appendChild(el('div', {}, [el('p', { style: 'margin:0', text: 'Your city runs on Railway. Google only gives it permission to read and draft your email. First, a one-time step in Google: the Guide has every click. Then paste the two values below.' })]));
     var box = $('agents'); box.innerHTML = '';
     S.agents.forEach(function (a) {
       var ev = el('select', {}, Object.keys(S.every).map(function (k) { return el('option', { value: k, text: S.every[k], selected: Number(k) === a.every }); }));
-      var md = el('select', {}, Object.keys(S.models).map(function (k) { return el('option', { value: k, text: S.models[k], selected: k === a.model }); }));
+      var md = el('select', {}, [el('option', { value: 'main', text: 'Main model (' + (S.ai.model || 'not picked yet') + ')', selected: !a.ownModel })].concat(Object.keys(S.models).map(function (k) { return el('option', { value: k, text: S.models[k], selected: k === a.ownModel }); })));
       var save = function (patch) { api('/api/agent', Object.assign({ id: a.id }, patch)).then(function () { toast('Saved.'); return load(); }).catch(function (e) { toast(e.message); }); };
       ev.onchange = function () { save({ every: ev.value }); }; md.onchange = function () { save({ model: md.value }); };
       box.appendChild(el('div', { cls: 'agent' }, [el('div', { cls: 'row' }, [el('div', {}, [el('b', { text: a.name }), ' ', el('span', { cls: 'pill ' + (a.on ? 'on' : 'off'), text: a.on ? 'On' : 'Off' })]),
@@ -311,9 +334,35 @@ label.f{display:block;margin:14px 0 6px;font-weight:600;font-size:15px}label.f s
         a.id === 'guide' ? null : el('div', { cls: 'chips' }, [el('button', { cls: 'chip', text: '▶ Run now', onclick: function (e) { var b = e.target; b.disabled = true; b.textContent = 'Working…'; api('/api/run', { agent: a.id }).then(function (r) { toast(r.said || 'Done.'); return load(); }).catch(function (err) { toast(err.message + ' The Guide has the fix.'); load(); }).then(function () { b.disabled = false; b.textContent = '▶ Run now'; }); } }),
           a.builtIn ? null : el('button', { cls: 'chip', text: 'Remove', onclick: function () { if (confirm('Remove "' + a.name + '"?')) api('/api/custom', { id: a.id }, 'DELETE').then(load); } })])]));
     });
-    if (!$('c-every').options.length) { Object.keys(S.every).forEach(function (k) { $('c-every').appendChild(el('option', { value: k, text: S.every[k], selected: k === '1440' })); }); Object.keys(S.models).forEach(function (k) { $('c-model').appendChild(el('option', { value: k, text: S.models[k] })); }); }
+    if (!$('c-every').options.length) { Object.keys(S.every).forEach(function (k) { $('c-every').appendChild(el('option', { value: k, text: S.every[k], selected: k === '1440' })); }); $('c-model').appendChild(el('option', { value: 'main', text: 'Main model' })); Object.keys(S.models).forEach(function (k) { $('c-model').appendChild(el('option', { value: k, text: S.models[k] })); }); }
     renderAlerts();
   }
+  // ---- Your AI: the service, its key, its address and the main model ----
+  var aiFilled = false;
+  function renderAI() {
+    var A = S.ai, sel = $('ai-provider');
+    if (!sel.options.length) Object.keys(A.services).forEach(function (k) { sel.appendChild(el('option', { value: k, text: A.services[k].name })); });
+    if (!aiFilled) { sel.value = A.provider; $('ai-baseUrl').value = A.baseUrl || ''; $('ai-model').value = A.model || ''; aiFilled = true; }
+    var V = A.services[sel.value] || {};
+    $('ai-baseRow').hidden = sel.value !== 'custom';
+    $('ai-key').placeholder = V.keySet ? (V.keyFrom === 'variable' ? 'Set as a Railway variable. Paste here to use another.' : 'Saved. Paste a new one to replace it.') : 'Paste your key';
+    $('ai-keyHelp').textContent = V.keyAt ? 'Get one at ' + V.keyAt + '.' : '';
+    var dl = $('ai-models'); dl.innerHTML = '';
+    if (sel.value === A.provider) Object.keys(S.models).forEach(function (k) { dl.appendChild(el('option', { value: k, text: S.models[k] })); });
+  }
+  $('ai-provider').onchange = function () { $('ai-model').value = (S.ai.services[this.value] || {}).model || ''; renderAI(); };
+  $('aiSave').onclick = function () {
+    var b = $('aiSave'); b.disabled = true; $('aiSaid').textContent = 'Testing…'; $('aiFix').innerHTML = '';
+    var body = { provider: $('ai-provider').value, key: $('ai-key').value, baseUrl: $('ai-baseUrl').value, model: $('ai-model').value };
+    api('/api/ai', body).then(function (r) {
+      $('ai-key').value = '';
+      if (r.ok) { $('aiSaid').textContent = r.needs ? '✓ The key works. Now pick a main model from the list and save again.' : '✓ Your AI works.'; toast('Saved.'); }
+      else { $('aiSaid').textContent = ''; $('aiFix').appendChild(el('div', { cls: 'banner' }, [el('b', { text: r.fix.title }), stepList(r.fix.steps, 'margin-top:8px')])); }
+      if (r.ok) aiFilled = false; return load();   // after a failed test, what they chose stays on screen next to its fix
+    }).catch(function (e) { $('aiSaid').textContent = ''; toast(e.message); }).then(function () { b.disabled = false; });
+  };
+  $('gSave').onclick = function () { api('/api/google/client', { id: $('g-id').value, secret: $('g-secret').value }).then(function () { $('g-secret').value = ''; toast('Saved. Now press Connect Google.'); return load(); }).catch(function (e) { toast(e.message); }); };
+  $('pwSave').onclick = function () { api('/api/password', { current: $('pw-now').value, next: $('pw-new').value }).then(function () { $('pw-now').value = ''; $('pw-new').value = ''; toast('Password changed.'); }).catch(function (e) { toast(e.message); }); };
   $('saveBiz').onclick = function () { var b = {}; FIELDS.forEach(function (k) { if (k !== 'dailyCap') b[k] = $('s-' + k).value; }); api('/api/settings', b).then(function () { toast('Saved.'); return load(); }).catch(function (e) { toast(e.message); }); };
   $('saveCap').onclick = function () { api('/api/settings', { dailyCap: $('s-dailyCap').value }).then(function () { toast('Saved.'); return load(); }).catch(function (e) { toast(e.message); }); };
   $('s-alerts').onchange = function () { api('/api/settings', { alerts: $('s-alerts').value }).then(function () { toast('Saved.'); }); };

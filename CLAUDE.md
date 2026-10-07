@@ -10,8 +10,9 @@ A small Node.js app: AI agents that sort email, answer leads and draft posts for
 - Every failure the owner can fix gets a plain-English fix in `src/guide.js` (`FIXES`): one action per step, naming the exact button. Throw a `CityError` with that code.
 
 ## Working on it
-- Node 22, CommonJS, two packages. No build step. Run `npm test` (offline: fake Gmail and fake Anthropic in `test/fakes.js`) before every push.
-- AI calls go through `src/ai.js` only (official `@anthropic-ai/sdk`, the owner's chosen model, the daily budget).
+- Node 22, CommonJS, two packages. No build step. Run `npm test` (offline: fake Gmail, fake Anthropic and fake OpenAI-style service in `test/fakes.js`) before every push.
+- AI calls go through `src/ai.js` only: any AI the owner picks (Claude through the official `@anthropic-ai/sdk`; ChatGPT, Gemini, OpenRouter or any OpenAI-style service through `chat/completions`), the owner's chosen model, the daily budget.
+- No Railway variable is required except `DATABASE_URL`. The owner chooses the password on first visit and pastes the AI key and the Google client in Settings; variables still work, and Settings win. Keys live only in the store and never go back to the page.
 - Gmail calls go through `src/google.js` only (scope `gmail.modify`).
 - The home screen is one file, `public/index.html`. Keep it readable on a phone at 400px with no sideways scrolling.
 - The owner is usually not technical: short words, one idea per line, in the app and in the docs.

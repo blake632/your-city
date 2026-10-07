@@ -10,12 +10,12 @@ test('sign-in, the home screen\'s data (never a secret), deciding, settings and 
   const A = await fakeAnthropic(() => ({ text: 'Hi' })), G = await fakeGoogle();
   const store = await Store.open({ memory: true }); let pw = '';
   const google = new Google({ store, clientId: () => 'cid', clientSecret: () => 'sec', api: G.url, tokenUrl: G.url + '/token', userinfoUrl: G.url + '/userinfo' });
-  const city = new City({ store, ai: new AI({ store, apiKey: () => 'secret-ai-key', baseURL: A.url }), google, log: { error() {} } });
+  const city = new City({ store, ai: new AI({ store, env: {}, apiKey: () => 'secret-ai-key', baseURL: A.url }), google, log: { error() {} } });
   const srv = createServer({ city, password: () => pw, publicUrl: () => '', log: { error() {} } }), base = await listen(srv);
   try {
-    // before CITY_PASSWORD: the "Almost there" page, which variables are set (yes or no only)
+    // no password yet: the first visit chooses one (here the CITY_PASSWORD variable is set right after, and wins)
     const first = await (await fetch(base + '/')).text();
-    assert(/Almost <em>there<\/em>/.test(first) && /CITY_PASSWORD/.test(first) && !/secret-ai-key/.test(first));
+    assert(/Choose the password that opens it/.test(first) && !/secret-ai-key/.test(first));
     pw = 'open sesame';
     const post = (p, b, h) => fetch(base + p, { method: 'POST', headers: Object.assign({ 'content-type': 'application/json' }, h || {}), body: JSON.stringify(b || {}), redirect: 'manual' });
     assert(/Enter your city password/.test(await (await fetch(base + '/')).text()), 'the sign-in page');

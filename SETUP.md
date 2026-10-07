@@ -4,26 +4,36 @@ This is the full guide. The Guide inside your city shows the same steps, with yo
 
 ## 1. Run your city on Railway
 
-1. Make your own copy of this repository: on GitHub click **Use this template**, then **Create a new repository** (or click **Fork**).
+1. Make your own copy of this repository: on GitHub click **Fork**, then **Create fork**.
 2. Sign in at railway.com with GitHub. Click **New Project**, then **Deploy from GitHub repo**, and pick your copy.
 3. Add a database: in the project click **Create** (or **+ New**), then **Database**, then **PostgreSQL**. Without it, your city forgets everything each time Railway redeploys.
-4. Click your app (not the database), then the **Variables** tab, and add:
-   - `CITY_PASSWORD`: a password only you know. It opens your city.
-   - `ANTHROPIC_API_KEY`: your AI key (step 2 below).
-   - `DATABASE_URL`: type exactly `${{Postgres.DATABASE_URL}}`.
+4. Click your app (not the database), then the **Variables** tab, then **New Variable**. Name: `DATABASE_URL`. Value: type exactly `${{Postgres.DATABASE_URL}}`. This is the only variable you need.
 5. Click **Settings**. Under **Networking**, click **Generate Domain**. That address is your city.
 6. Railway restarts the app after each change. Wait a minute, then open your address.
+7. **Choose your password** on the first page. The first person to choose one becomes the owner, so do it right away. You can change it later in **Settings → Your password**.
 
-If the page says "Almost there", the `CITY_PASSWORD` variable is missing. The page lists which other variables are set.
+## 2. Choose your AI and add its key
 
-## 2. Get your AI key
+Your agents can run on any of these. Pick one in **Settings → Your AI**:
 
-1. Go to console.anthropic.com and sign in or make an account.
-2. Click **Billing** and add credit. $5 to $10 is plenty to start.
-3. Click **API Keys**, then **Create Key**. Copy it.
-4. In Railway, put it in the `ANTHROPIC_API_KEY` variable. No spaces before or after.
+| AI | Where to get a key | Where to add credit |
+|---|---|---|
+| Claude (Anthropic) | console.anthropic.com, then API Keys, then Create Key | console.anthropic.com, then Billing |
+| ChatGPT models (OpenAI) | platform.openai.com, then API keys, then Create new secret key | platform.openai.com, then Settings, then Billing |
+| Gemini (Google AI Studio) | aistudio.google.com, then Get API key, then Create API key | aistudio.google.com, then Billing |
+| Any model through OpenRouter | openrouter.ai, then Keys, then Create Key | openrouter.ai, then Credits |
+| Another service that works like OpenAI (Groq, Together, Mistral, Ollama...) | That service's API keys page | That service's billing page |
 
-Your city never spends more in a day than the **Daily AI budget** in Settings (it starts at $3). When the budget is used up, agents pause until tomorrow.
+1. Make an account with the AI you picked and add a little credit. $5 to $10 is plenty to start.
+2. Make an API key and copy it.
+3. In your city, open **Settings → Your AI**. Pick your AI from the list.
+4. For "Another service": paste its address too (its help pages list it, for example `https://api.groq.com/openai/v1`).
+5. Paste the key and press **Save and test**. The city checks the key and lists the models it can use. It costs nothing.
+6. Pick a **Main model** from the list and press **Save and test** again. Your agents use it unless you pick another model for one of them under **Agents**.
+
+Your key is kept in your city's database. It never shows on the page again, and a key that does not work never replaces one that does. Each AI keeps its own key, so you can switch back and forth.
+
+Your city never spends more in a day than the **Daily AI budget** in Settings (it starts at $3). When the budget is used up, agents pause until tomorrow. For Claude the city knows the exact prices. For other services it estimates, so check your AI account's usage page now and then.
 
 ## 3. Let your city read Gmail (one time)
 
@@ -40,8 +50,8 @@ Your city runs on Railway, not on Google. This step only gives it permission to 
 6. Open **Clients**, click **Create client**, and choose **Web application**.
 7. Under **Authorized redirect URIs**, click **Add URI** and paste your city address followed by `/connect/google/callback`. The Guide shows the exact line to paste. Example: `https://my-city.up.railway.app/connect/google/callback`
 8. Click **Create**. Copy the **Client ID** and the **Client secret**.
-9. In Railway, add two variables: `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`.
-10. Wait a minute, open your city, go to **Settings**, and press **Connect Google**.
+9. In your city, open **Settings → Gmail**. Paste the **Client ID** and the **Client secret**, and press **Save**.
+10. Press **Connect Google**.
 11. Google may say it has not verified the app. That is expected: it is your own app. Click **Advanced**, then **Go to My City**, then allow Gmail access.
 
 The city asks Google for one permission: read, label and draft your email. It sends an email only when you press **Send the email** on a card.
@@ -79,15 +89,15 @@ On Android and computers, use Chrome or Edge and tap **Turn on alerts**.
 
 ## Fixes for common problems
 
-- **"Almost there" page:** add the `CITY_PASSWORD` variable in Railway.
-- **"That password is not right":** it is the `CITY_PASSWORD` value in Railway, exactly.
-- **Agents say "Waiting for your AI key":** add `ANTHROPIC_API_KEY` in Railway.
-- **"Your AI key is not working":** make a new key at console.anthropic.com and replace the variable.
-- **"Out of credit":** add credit at console.anthropic.com, under Billing.
+- **The city asks for a password you never chose, or you forgot yours:** in Railway, click your app, then Variables. Add `CITY_PASSWORD` with a new password. It takes over in a minute and signs everyone else out.
+- **Agents say "Waiting for your AI key":** open Settings, then Your AI. Pick your AI, paste its key, press Save and test.
+- **"Your AI key is not working":** make a new key on your AI's website (the table in step 2) and paste it in Settings, then Your AI.
+- **"Out of credit":** add credit on your AI's website (the table in step 2).
+- **"That AI model is not available to you":** press Save and test in Settings, then Your AI, and pick a model from the list.
 - **"Today's AI budget is used up":** raise the Daily AI budget in Settings, or wait until tomorrow.
 - **Google says "redirect_uri_mismatch" (Error 400):** the redirect address in your Google client is not exact. Copy the line from the Guide into **Authorized redirect URIs**, save, and wait 5 minutes.
 - **Google says "access blocked" or the app is in testing:** publish the app (step 3.5), or add yourself under Audience, Test users.
 - **"Google disconnected your Gmail":** publish the app (step 3.5), then press Connect Google again.
 - **"Turn on the Gmail API":** open the link on the card, click Enable, wait two minutes.
-- **Settings vanish after a redeploy:** you have no database. Do step 1.3 and set `DATABASE_URL`.
+- **Settings vanish after a redeploy:** you have no database. Do step 1.3 and 1.4.
 - **No address to open:** in Railway, Settings, Networking, Generate Domain.

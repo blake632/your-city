@@ -1,7 +1,7 @@
 // The city: your settings, your agents, the cards waiting for you, what each agent did, and the clock that runs them.
 // Rules that never bend: nothing is sent, posted or deleted without your click. Agents write drafts and cards; you approve.
 const crypto = require('node:crypto');
-const { CityError, MODELS, DEFAULT_MODEL } = require('./ai');
+const { CityError, MODELS } = require('./ai');
 const guide = require('./guide');
 const { addressOf, nameOf } = require('./google');
 
@@ -41,7 +41,9 @@ class City {
   }
   agentConf(a) {
     const c = (this.store.get('agents', {}) || {})[a] || {}, b = BUILT_IN[a] || this.custom(a) || {};
-    return { on: b.always ? true : c.on !== undefined ? !!c.on : (b.on !== undefined ? b.on : true), model: MODELS[c.model] ? c.model : (b.model && MODELS[b.model] ? b.model : DEFAULT_MODEL), every: Number(c.every) || b.every || 1440 };
+    // model: what this agent runs on; ownModel: its own pick ('' = the main model chosen under Your AI)
+    const own = c.model !== undefined ? c.model : (b.model || '');
+    return { on: b.always ? true : c.on !== undefined ? !!c.on : (b.on !== undefined ? b.on : true), model: this.ai.modelFor(own), ownModel: own && this.ai.modelFor(own) === own ? own : '', every: Number(c.every) || b.every || 1440 };
   }
   agentOn(a) { return this.agentConf(a).on; }
   setAgent(a, { on, model, every }) {
@@ -49,7 +51,7 @@ class City {
     if (this.custom(a)) return this.saveCustom(Object.assign({}, this.custom(a), on !== undefined ? { on: !!on } : {}, model ? { model } : {}, every ? { every: Number(every) } : {}));
     const all = this.store.get('agents', {}), c = all[a] || {};
     if (on !== undefined && !BUILT_IN[a].always) c.on = !!on;
-    if (model && MODELS[model]) c.model = model;
+    if (model !== undefined) c.model = model === 'main' ? '' : this.ai.conf().provider === 'anthropic' ? (MODELS[model] ? model : c.model) : String(model).trim().slice(0, 120);
     if (every && EVERY[every]) c.every = Number(every);
     all[a] = c; this.store.set('agents', all); return c;
   }
@@ -57,7 +59,7 @@ class City {
   custom(a) { return this.customs().find(c => c.id === a) || null; }
   saveCustom(c) {
     const clean = { id: c.id && /^c-[\w-]+$/.test(c.id) ? c.id : 'c-' + id(), name: String(c.name || 'My agent').slice(0, 60), instructions: String(c.instructions || '').slice(0, 6000),
-      every: EVERY[c.every] ? Number(c.every) : 1440, model: MODELS[c.model] ? c.model : DEFAULT_MODEL, review: c.review !== false, on: c.on !== false };
+      every: EVERY[c.every] ? Number(c.every) : 1440, model: !c.model || c.model === 'main' ? '' : String(c.model).trim().slice(0, 120), review: c.review !== false, on: c.on !== false };
     if (!clean.instructions.trim()) throw new Error('Tell the agent what to do.');
     const list = this.customs().filter(x => x.id !== clean.id); list.push(clean); this.store.set('custom', list.slice(-20)); return clean;
   }
@@ -72,7 +74,7 @@ class City {
   blockedBy(a) {
     const needs = (BUILT_IN[a] || { needs: ['ai'] }).needs;
     if (needs.length && !this.settings().business.trim()) return 'your business details';   // nothing generic gets written before it knows the business
-    if (needs.includes('ai') && !this.ai.ready()) return 'your AI key';
+    if (needs.includes('ai') && this.ai.needs()) return this.ai.needs();
     if (needs.includes('google') && !this.google.connected()) return 'Gmail';
     return '';
   }
@@ -214,7 +216,7 @@ class City {
   async runAgent(agent) {
     const job = agent === 'mailroom' || agent === 'leads' ? this.jobs().find(j => j.key === 'inbox') : this.jobs().find(j => j.key === agent);
     const why = this.blockedBy(agent);
-    if (!job) throw new CityError(why === 'Gmail' ? (this.google.configured() ? 'google_not_connected' : 'google_no_client') : why === 'your AI key' ? 'no_ai_key' : why ? 'no_business' : 'agent_off', why ? 'That agent is waiting for ' + why + '.' : 'That agent is turned off.');
+    if (!job) throw new CityError(why === 'Gmail' ? (this.google.configured() ? 'google_not_connected' : 'google_no_client') : why === 'your AI key' ? 'no_ai_key' : why === 'your AI model' ? 'no_ai_model' : why === 'your AI service address' ? 'no_ai_address' : why ? 'no_business' : 'agent_off', why ? 'That agent is waiting for ' + why + '.' : 'That agent is turned off.');
     return this.runJob(job);
   }
   async runJob(job) {

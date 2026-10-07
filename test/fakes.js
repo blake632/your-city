@@ -17,6 +17,24 @@ async function fakeAnthropic(answer) {
   let shut = false; return { url: await listen(srv), calls, close: () => { if (!shut) { shut = true; srv.close(); srv.closeAllConnections(); } } };
 }
 
+// An OpenAI-style service (ChatGPT, Gemini, OpenRouter, Groq...): /chat/completions and /models. answer() gets the same
+// { output_config.format.schema, messages[0].content } shape as the Anthropic fake, so one answer function serves both.
+async function fakeOpenAI(answer, { models = ['gpt-test', 'text-embedding-3-small'], reject = () => null, keys = null } = {}) {
+  const calls = [];
+  const srv = http.createServer(async (req, res) => {
+    const raw = await read(req), b = raw ? JSON.parse(raw) : {}; calls.push({ url: req.url, method: req.method, headers: req.headers, body: b });
+    const send = (code, obj) => { res.writeHead(code, { 'content-type': 'application/json' }); res.end(JSON.stringify(obj)); };
+    if (keys && !keys.includes(String(req.headers.authorization || '').replace(/^Bearer /, ''))) return send(401, { error: { message: 'Incorrect API key provided.' } });
+    if (req.url.endsWith('/models')) return send(200, { object: 'list', data: models.map((id, i) => ({ id, created: 100 - i })) });
+    const no = reject(b, calls.length); if (no) return send(no.status, { error: { message: no.error } });
+    const schema = b.response_format && b.response_format.json_schema && b.response_format.json_schema.schema;
+    const a = answer({ output_config: schema ? { format: { schema } } : undefined, messages: [{ content: b.messages[1].content }] }, calls.length) || { text: 'ok' };
+    if (a.status) return send(a.status, { error: { message: a.error || 'error', type: a.type || 'error' } });
+    const text = typeof a.text === 'string' ? a.text : (a.fence ? '```json\n' + JSON.stringify(a.text) + '\n```' : JSON.stringify(a.text));
+    send(200, { id: 'c' + calls.length, object: 'chat.completion', model: b.model, choices: [{ index: 0, finish_reason: a.finish || 'stop', message: { role: 'assistant', content: a.refusal ? null : text, refusal: a.refusal ? 'no' : null } }], usage: { prompt_tokens: 1000, completion_tokens: 200 } });
+  });
+  let shut = false; return { url: await listen(srv), calls, close: () => { if (!shut) { shut = true; srv.close(); srv.closeAllConnections(); } } };
+}
 // A tiny Gmail: messages, labels, drafts, the token endpoint and userinfo.
 async function fakeGoogle({ messages = [] } = {}) {
   const g = { messages: Object.fromEntries(messages.map(m => [m.id, m])), labels: [{ id: 'INBOX', name: 'INBOX' }], drafts: {}, sent: [], modified: [], calls: [], tokenError: null, gmailError: null, n: 0 };
@@ -51,4 +69,4 @@ async function fakeGoogle({ messages = [] } = {}) {
 }
 // A draft's text: decode the base64 body of the raw message.
 const draftText = raw => { const [h, b] = raw.split('\r\n\r\n'); return { head: h, body: Buffer.from(b.replace(/\r\n/g, ''), 'base64').toString('utf8') }; };
-module.exports = { fakeAnthropic, fakeGoogle, draftText, listen };
+module.exports = { fakeAnthropic, fakeOpenAI, fakeGoogle, draftText, listen };

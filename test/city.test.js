@@ -28,7 +28,7 @@ async function setup({ messages = [LEAD, ASK, NEWS], ai = answer } = {}) {
   const A = await fakeAnthropic(ai), G = await fakeGoogle({ messages: JSON.parse(JSON.stringify(messages)) });
   open.push(A.close, G.close);
   const store = await Store.open({ memory: true }), pushed = [];
-  const city = new City({ store, ai: new AI({ store, apiKey: () => 'test-key', baseURL: A.url }), log: { error() {} },
+  const city = new City({ store, ai: new AI({ store, env: {}, apiKey: () => 'test-key', baseURL: A.url }), log: { error() {} },
     google: new Google({ store, clientId: () => 'cid', clientSecret: () => 'sec', api: G.url, tokenUrl: G.url + '/token', userinfoUrl: G.url + '/userinfo' }),
     push: { notify: async m => { pushed.push(m); return 1; } } });
   city.saveSettings({ business: 'Sam\'s Kitchens', owner: 'Sam', about: 'Kitchen remodels in Austin.', signature: 'Sam\nSam\'s Kitchens\n512 555 0199' });
@@ -55,7 +55,7 @@ test('the AI layer: the chosen model and effort, safety fallbacks, the spend met
     u.close();
   }
   const store = await Store.open({ memory: true });
-  await assert.rejects(new AI({ store, apiKey: () => '' }).ask({ system: 's', prompt: 'x' }), e => e.code === 'no_ai_key');
+  await assert.rejects(new AI({ store, env: {}, apiKey: () => '' }).ask({ system: 's', prompt: 'x' }), e => e.code === 'no_ai_key');
 });
 
 test('the inbox: each new email is sorted and labeled; a lead and a question get drafts on cards; nothing is sent', async () => {
@@ -129,7 +129,7 @@ test('the Guide: a failure becomes one How to fix it card with exact steps, clos
 
 test('the Guide checklist and Ask the guide work even before anything is set up', async () => {
   const store = await Store.open({ memory: true });
-  const city = new City({ store, ai: new AI({ store, apiKey: () => '' }), google: new Google({ store, clientId: () => '', clientSecret: () => '' }), log: { error() {} } });
+  const city = new City({ store, ai: new AI({ store, env: {}, apiKey: () => '' }), google: new Google({ store, clientId: () => '', clientSecret: () => '' }), log: { error() {} } });
   const redirect = 'https://my-city.up.railway.app/connect/google/callback';
   const list = guide.checks(city, { redirect });
   assert.deepStrictEqual(list.map(c => [c.id, c.ok]), [['business', false], ['ai', false], ['db', true], ['google', false], ['budget', true]]);
@@ -137,7 +137,7 @@ test('the Guide checklist and Ask the guide work even before anything is set up'
   assert(g.fix.steps.some(s => s === 'Under Authorized redirect URIs, click Add URI and paste exactly: ' + redirect), 'the exact address to paste');
   const a = await guide.ask(city, 'How do I start?', { redirect });
   assert.strictEqual(a.by, 'checklist');
-  assert(/Tell the city about your business:\n1\. Open Settings\.[\s\S]*Add your AI key:\n1\. Go to console\.anthropic\.com/.test(a.answer), a.answer);
+  assert(/Tell the city about your business:\n1\. Open Settings\.[\s\S]*Choose your AI and add its key:\n1\. Open Settings, then Your AI\./.test(a.answer), a.answer);
   assert.deepStrictEqual(city.agents().find(x => x.id === 'leads').blockedBy, 'your business details', 'business details come first: nothing generic gets written');
   await assert.rejects(city.runAgent('social'), e => e.code === 'no_business');
   city.saveSettings({ business: 'Sam\'s Kitchens' });
@@ -145,7 +145,7 @@ test('the Guide checklist and Ask the guide work even before anything is set up'
   await assert.rejects(city.runAgent('leads'), e => e.code === 'no_ai_key');
   // with an AI key, Ask the guide answers from SETUP.md and the checklist
   const A = await fakeAnthropic(() => ({ text: '1. Open Settings.\n2. Press Connect Google.' })); open.push(A.close);
-  const city2 = new City({ store, ai: new AI({ store, apiKey: () => 'k', baseURL: A.url }), google: new Google({ store, clientId: () => 'c', clientSecret: () => 's' }), log: { error() {} } });
+  const city2 = new City({ store, ai: new AI({ store, env: {}, apiKey: () => 'k', baseURL: A.url }), google: new Google({ store, clientId: () => 'c', clientSecret: () => 's' }), log: { error() {} } });
   const b = await guide.ask(city2, 'How do I connect Gmail?', { redirect });
   assert.deepStrictEqual([b.by, b.answer], ['ai', '1. Open Settings.\n2. Press Connect Google.']);
   assert(/SETUP GUIDE:\n# /.test(A.calls[0].body.messages[0].content) && /PROBLEM: Connect your Gmail/.test(A.calls[0].body.messages[0].content), 'it reads the setup guide and the checklist');
