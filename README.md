@@ -29,7 +29,7 @@ Your city runs on Railway. Nothing runs on Google: Google only gives your city p
 
 ## Start in 5 minutes
 
-[![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/deploy/6s-uoS?referralCode=6eIidp&utm_medium=integration&utm_source=template&utm_campaign=generic)
+[![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/deploy/your-city?referralCode=6eIidp&utm_medium=integration&utm_source=template&utm_campaign=generic)
 
 1. Click **Deploy on Railway** above. No GitHub account needed.
 2. Sign in to Railway (Google or email works).

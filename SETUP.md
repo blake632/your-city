@@ -6,7 +6,7 @@ This is the full guide. The Guide inside your city shows the same steps, with yo
 
 The easy way: one button.
 
-[![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/deploy/6s-uoS?referralCode=6eIidp&utm_medium=integration&utm_source=template&utm_campaign=generic)
+[![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/deploy/your-city?referralCode=6eIidp&utm_medium=integration&utm_source=template&utm_campaign=generic)
 
 1. Click **Deploy on Railway**. Sign in to Railway (Google or email works; no GitHub needed).
 2. Type the password you want for your city (at least 8 characters) and press **Deploy**.
