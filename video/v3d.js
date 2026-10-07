@@ -1,14 +1,14 @@
 // The video: the 3D city (video mode) with vdirector.js on top, drawn frame by frame and encoded to a 1080x1920 MP4.
 //   node v3d.js stills 1.5 9 20 ...   a few frames as PNGs, to check
 //   node v3d.js                        the whole video: 3 workers draw a third each, then the pieces are joined
-//   node v3d.js short                  the 30-second teaser (vout/your-city-30.mp4)
+//   node v3d.js short                  the 1-minute teaser (vout/your-city-short.mp4)
 // A worker fast-forwards the world (without drawing) to its first frame, so the pieces meet exactly.
 let chromium; try { ({ chromium } = require('playwright')); } catch (e) { ({ chromium } = require('/opt/node22/lib/node_modules/playwright')); }
 const { spawn, execFileSync } = require('child_process'), fs = require('fs'), path = require('path'), os = require('os');
 // A Mac draws with its own graphics chip; a server with none draws in software (SwiftShader), about 10x slower.
 const GPU = process.platform === 'darwin', ARGS = GPU ? ['--use-angle=metal', '--ignore-gpu-blocklist'] : ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'];
 const CUT = process.argv[2] === 'short' || process.env.VCUT === 'short' ? 'short' : 'full'; process.env.VCUT = CUT;   // workers inherit it
-const FPS = 30, DUR = { full: 104, short: 30 }[CUT], N = Math.round(DUR * FPS), DIR = __dirname, OUTDIR = path.join(DIR, 'vout'), W = 405, H = 720, DPR = 2;
+const FPS = 30, DUR = { full: 104, short: 62.5 }[CUT], N = Math.round(DUR * FPS), DIR = __dirname, OUTDIR = path.join(DIR, 'vout'), W = 405, H = 720, DPR = 2;
 fs.mkdirSync(OUTDIR, { recursive: true }); fs.mkdirSync(path.join(DIR, 'shots'), { recursive: true });
 const FILES = { '/__v/fonts/': path.join(DIR, 'fonts'), '/__v/assets/': path.join(DIR, 'vassets') };
 
@@ -63,7 +63,7 @@ async function stills(base, times) {
     await Promise.all([...Array(parts).keys()].map(i => { const out = path.join(OUTDIR, 'seg' + i + '.mp4'); segs.push(out);
       return new Promise((res, rej) => { const p = spawn(process.execPath, [__filename, 'worker', s.base, String(cut[i]), String(cut[i + 1]), out], { stdio: 'inherit' }); p.on('close', c => c ? rej(new Error('worker ' + i + ' failed')) : res()); }); }));
     fs.writeFileSync(path.join(OUTDIR, 'list.txt'), segs.map(f => "file '" + f + "'").join('\n'));
-    const final = path.join(OUTDIR, CUT === 'short' ? 'your-city-30.mp4' : 'your-city.mp4');
+    const final = path.join(OUTDIR, CUT === 'short' ? 'your-city-short.mp4' : 'your-city.mp4');
     execFileSync('ffmpeg', ['-y', '-loglevel', 'error', '-f', 'concat', '-safe', '0', '-i', path.join(OUTDIR, 'list.txt'), '-f', 'lavfi', '-i', 'anullsrc=r=44100:cl=stereo',
       '-c:v', 'copy', '-c:a', 'aac', '-b:a', '128k', '-shortest', '-movflags', '+faststart', final]);
     console.log('WROTE', final);
