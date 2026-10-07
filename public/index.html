@@ -1,0 +1,350 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Your City</title>
+<link rel="manifest" href="/manifest.webmanifest"><link rel="icon" href="/icon.svg"><link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes"><meta name="theme-color" content="#f6f3ec">
+<style>
+:root{color-scheme:light;--bg:#f6f3ec;--card:#fffdf8;--lift:#efe9dd;--ink:#1a1813;--dim:rgba(26,24,19,.64);--line:rgba(26,24,19,.13);--line2:rgba(26,24,19,.24);
+  --accent:#8a5a2b;--good:#2f6b3a;--bad:#9a3f2e;--tint:rgba(138,90,43,.09);--on-ink:#f6f3ec;--serif:Georgia,"Times New Roman",serif;--sans:system-ui,-apple-system,"Segoe UI",sans-serif;--shadow:0 18px 40px -28px rgba(26,24,19,.35)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){color-scheme:dark;--bg:#14120f;--card:#1c1915;--lift:#25211b;--ink:#efe9dd;--dim:rgba(239,233,221,.66);--line:rgba(239,233,221,.12);--line2:rgba(239,233,221,.24);
+  --accent:#d2a36c;--good:#8fc79a;--bad:#e49a88;--tint:rgba(210,163,108,.12);--on-ink:#14120f;--shadow:0 18px 40px -28px rgba(0,0,0,.7)}}
+:root[data-theme="dark"]{color-scheme:dark;--bg:#14120f;--card:#1c1915;--lift:#25211b;--ink:#efe9dd;--dim:rgba(239,233,221,.66);--line:rgba(239,233,221,.12);--line2:rgba(239,233,221,.24);
+  --accent:#d2a36c;--good:#8fc79a;--bad:#e49a88;--tint:rgba(210,163,108,.12);--on-ink:#14120f}
+*{box-sizing:border-box}[hidden]{display:none!important}
+html,body{margin:0;background:var(--bg);color:var(--ink);font:17px/1.5 var(--sans);-webkit-font-smoothing:antialiased}
+a{color:var(--accent)}button,input,select,textarea{font:inherit;color:inherit}
+.wrap{max-width:760px;margin:0 auto;padding:16px 16px calc(96px + env(safe-area-inset-bottom,0px))}
+header{display:flex;align-items:center;gap:12px;padding:6px 0 14px}
+.brand{flex:1;min-width:0}.brand small{display:block;font:600 11px/1.3 var(--sans);letter-spacing:.14em;text-transform:uppercase;color:var(--accent)}
+.brand b{font:400 1.7rem/1.1 var(--serif)}.brand b em{color:var(--accent)}
+nav.tabs{position:fixed;left:0;right:0;bottom:0;display:flex;justify-content:center;gap:4px;padding:8px 8px calc(8px + env(safe-area-inset-bottom,0px));background:var(--card);border-top:1px solid var(--line);z-index:20}
+nav.tabs button{flex:0 1 150px;border:0;background:none;border-radius:12px;padding:8px 6px;font-weight:600;font-size:14px;display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer;color:var(--dim);position:relative}
+nav.tabs button[aria-current]{background:var(--ink);color:var(--on-ink)}nav.tabs .ic{font-size:20px;line-height:1}
+nav.tabs .n{position:absolute;top:2px;right:calc(50% - 30px);background:var(--accent);color:#fff;border-radius:999px;font-size:11px;padding:0 6px;line-height:17px}
+h1{font:400 2rem/1.1 var(--serif);margin:4px 0 6px}h2{font:600 13px/1.4 var(--sans);letter-spacing:.12em;text-transform:uppercase;color:var(--dim);margin:28px 0 10px}
+.sub{color:var(--dim);margin:0 0 18px;font-size:15px}.muted{color:var(--dim)}.err{color:var(--bad)}
+.list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px}
+.dept{display:flex;align-items:center;gap:14px;width:100%;text-align:left;border:1px solid var(--line);background:var(--card);border-radius:14px;padding:15px 16px;cursor:pointer;box-shadow:var(--shadow)}
+.dept .nm{flex:1;min-width:0}.dept .nm b{display:block;font:400 1.3rem/1.2 var(--serif)}.dept .nm span{font-size:13px;color:var(--dim)}
+.dept .cnt{text-align:right;font-size:13px;color:var(--dim);white-space:nowrap}.dept .cnt>*{display:block}.dept .cnt b{display:block;color:var(--accent);font-size:15px}.dept .cnt .bad{color:var(--bad);font-weight:600}
+.dept.first{background:var(--tint);border-left:3px solid var(--accent)}.dept.quiet .nm b{color:var(--dim)}
+.back{display:inline-block;margin-bottom:8px;text-decoration:none;font-weight:600}
+.tabs2{display:flex;gap:6px;border-bottom:1px solid var(--line);margin:8px 0 16px}
+.tabs2 button{border:0;background:none;padding:10px 12px;font-weight:600;color:var(--dim);border-bottom:2px solid transparent;cursor:pointer}
+.tabs2 button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--ink)}
+.tabs2 b{margin-left:6px;background:var(--accent);color:#fff;border-radius:999px;padding:0 7px;font-size:12px}.tabs2 b.zero{background:var(--lift);color:var(--dim)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px;box-shadow:var(--shadow)}
+.card .place{font:600 11px/1.4 var(--sans);letter-spacing:.12em;text-transform:uppercase;color:var(--accent)}
+.card .head{font:400 1.5rem/1.2 var(--serif);margin:4px 0 12px}
+.lead{background:var(--tint);border-left:3px solid var(--accent);border-radius:0 12px 12px 0;padding:12px 16px;margin:0 0 12px}.lead b{font:400 1.25rem/1.2 var(--serif)}
+.mail{border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin:0 0 12px;background:var(--bg)}
+.mail .h{font-size:14px;color:var(--dim)}.mail .body{white-space:pre-wrap;margin-top:8px}
+.steps{margin:0 0 12px;padding-left:22px}.steps li{margin:6px 0;overflow-wrap:anywhere}.mail .body,.answer,.check .t{overflow-wrap:anywhere}
+.big{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
+.btn{border:0;border-radius:14px;padding:15px 20px;font-weight:700;font-size:16px;cursor:pointer;flex:1 1 150px}
+.btn.yes{background:var(--ink);color:var(--on-ink)}.btn.no{background:none;border:1px solid var(--line2)}.btn.sm{flex:0 0 auto;padding:10px 16px;font-size:15px}
+.btn:disabled{opacity:.5;cursor:default}
+.chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.chip{border:1px solid var(--line2);background:none;border-radius:999px;padding:8px 14px;font-size:14px;cursor:pointer;text-decoration:none;color:var(--ink)}
+.chip.strong{font-weight:600;background:var(--card)}
+.fb{margin-top:12px}textarea,input[type=text],input[type=number],select{width:100%;border:1px solid var(--line2);border-radius:12px;background:var(--card);padding:12px;font-size:16px}
+label.f{display:block;margin:14px 0 6px;font-weight:600;font-size:15px}label.f small{display:block;font-weight:400;color:var(--dim)}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.row>*{flex:1 1 220px}
+.box{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:4px 16px;box-shadow:var(--shadow)}
+.check{display:flex;gap:12px;padding:14px 0;border-bottom:1px solid var(--line);align-items:flex-start}.check:last-child{border-bottom:0}
+.check .ok{width:26px;height:26px;border-radius:50%;display:grid;place-items:center;flex:0 0 26px;font-weight:700;background:var(--lift)}
+.check.good .ok{color:var(--good)}.check.bad .ok{color:#fff;background:var(--bad)}.check .t{flex:1}.check .t b{display:block}
+.upd{list-style:none;margin:0;padding:0}.upd li{padding:12px 0;border-bottom:1px solid var(--line)}.upd small{color:var(--dim);display:block}
+.upd pre,.answer{white-space:pre-wrap;font:inherit;margin:8px 0 0;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+.agent{padding:14px 0;border-bottom:1px solid var(--line)}.agent:last-child{border-bottom:0}.agent b{font:400 1.15rem/1.2 var(--serif)}
+.pill{display:inline-block;border:1px solid var(--line2);border-radius:999px;padding:2px 10px;font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase}
+.pill.on{color:var(--good);border-color:currentColor}.pill.off{color:var(--dim)}
+.banner{background:var(--tint);border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:0 14px 14px 0;padding:14px 16px;margin:0 0 16px}
+.allclear{text-align:center;padding:50px 10px}.allclear .ok{font:400 4rem/1 var(--serif);color:var(--accent)}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(90px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--on-ink);padding:12px 18px;border-radius:12px;z-index:40;max-width:calc(100% - 32px);font-size:15px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header><div class="brand"><small id="biz">Your business</small><b>Your <em>City</em></b></div></header>
+  <section id="t-depts">
+    <div id="home">
+      <div class="banner" id="startHere" hidden></div>
+      <h1>Departments</h1><p class="sub">Who needs you, and what each one did. Tap one.</p>
+      <ul class="list" id="depts"><li class="muted">Loading…</li></ul>
+    </div>
+    <div id="dept" hidden>
+      <a class="back" href="#" id="back">‹ All departments</a>
+      <h1 id="deptName"></h1><p class="sub" id="deptAbout"></p>
+      <div class="tabs2" role="tablist"><button role="tab" id="tabNeed">Needs you<b id="nNeed">0</b></button><button role="tab" id="tabDone">Updates<b id="nDone">0</b></button></div>
+      <div id="need"></div><div id="done" hidden></div>
+    </div>
+  </section>
+  <section id="t-guide" hidden>
+    <h1>Guide</h1><p class="sub">Your setup, step by step. Anything not working shows here with exactly what to do.</p>
+    <div class="box" id="checks"></div>
+    <h2>Ask the guide</h2>
+    <textarea id="q" rows="3" placeholder="Something not working? Ask in your own words."></textarea>
+    <div class="chips"><button class="btn yes sm" id="askGo">Ask</button><span class="muted" id="thinking"></span></div>
+    <div id="answer"></div>
+  </section>
+  <section id="t-settings" hidden>
+    <h1>Settings</h1><p class="sub">Tell the city about your business, choose your agents, and connect Gmail.</p>
+    <div class="banner" id="said" hidden></div>
+    <h2>Your business</h2>
+    <div class="box" style="padding:4px 16px 16px">
+      <label class="f">Business name<input type="text" id="s-business" placeholder="Sam's Kitchens"></label>
+      <label class="f">Your name<input type="text" id="s-owner" placeholder="Sam Lee"></label>
+      <label class="f">About your business<small>What you sell, where, who you serve, and facts the agents may say (hours, how you work). They never invent prices or promises.</small><textarea id="s-about" rows="5"></textarea></label>
+      <label class="f">How you write<small>Your voice, in a sentence or two.</small><textarea id="s-voice" rows="2"></textarea></label>
+      <label class="f">Your email signature<textarea id="s-signature" rows="4" placeholder="Sam Lee&#10;Sam's Kitchens&#10;512 555 0199"></textarea></label>
+      <label class="f">How to answer a new lead<small>The Leads agent follows this for every first reply.</small><textarea id="s-leadReply" rows="4"></textarea></label>
+      <div class="chips"><button class="btn yes sm" id="saveBiz">Save</button></div>
+    </div>
+    <h2>Gmail</h2>
+    <div class="box" style="padding:14px 16px" id="gmail"></div>
+    <h2>Agents</h2>
+    <div class="box" id="agents"></div>
+    <h2>Add your own agent</h2>
+    <div class="box" style="padding:4px 16px 16px">
+      <label class="f">Name<input type="text" id="c-name" placeholder="Review booster"></label>
+      <label class="f">What should it do?<small>Plain words. For example: "Every Monday, give me 3 ideas to get more Google reviews this week."</small><textarea id="c-instructions" rows="4"></textarea></label>
+      <div class="row"><label class="f">How often<select id="c-every"></select></label><label class="f">AI model<select id="c-model"></select></label></div>
+      <label class="f" style="font-weight:400"><input type="checkbox" id="c-review" checked> Show me what it makes before keeping it</label>
+      <div class="chips"><button class="btn yes sm" id="addAgent">Add agent</button></div>
+    </div>
+    <h2>Daily AI budget</h2>
+    <div class="box" style="padding:4px 16px 16px">
+      <label class="f">Most the agents may spend in a day (US dollars)<small id="spent"></small><input type="number" id="s-dailyCap" min="0.5" step="0.5"></label>
+      <div class="chips"><button class="btn yes sm" id="saveCap">Save</button></div>
+    </div>
+    <h2>Phone alerts</h2>
+    <div class="box" style="padding:4px 16px 16px">
+      <label class="f">What should buzz your phone?<select id="s-alerts"><option value="leads">New leads only</option><option value="all">Everything that needs me</option><option value="off">Nothing</option></select></label>
+      <p class="muted" id="alertHow"></p>
+      <div class="chips" id="alertBtns"></div>
+    </div>
+    <div class="chips" style="margin-top:28px"><a class="chip" href="/logout">Sign out</a></div>
+  </section>
+</div>
+<nav class="tabs" aria-label="Sections">
+  <button data-tab="depts"><span class="ic">✓</span>Departments<span class="n" id="nAll" hidden></span></button>
+  <button data-tab="guide"><span class="ic">🧭</span>Guide<span class="n" id="nGuide" hidden></span></button>
+  <button data-tab="settings"><span class="ic">⚙</span>Settings</button>
+</nav>
+<div class="toast" id="toast" hidden></div>
+<script>
+(function () {
+  var $ = function (id) { return document.getElementById(id); };
+  function el(tag, a, kids) {
+    var e = document.createElement(tag); a = a || {};
+    Object.keys(a).forEach(function (k) { if (k === 'cls') e.className = a[k]; else if (k === 'text') e.textContent = a[k]; else if (k.slice(0, 2) === 'on') e.addEventListener(k.slice(2), a[k]); else if (a[k] !== null && a[k] !== undefined && a[k] !== false) e.setAttribute(k, a[k] === true ? '' : a[k]); });
+    (kids || []).forEach(function (c) { if (c !== null && c !== undefined) e.appendChild(typeof c === 'string' ? document.createTextNode(c) : c); });
+    return e;
+  }
+  function toast(t) { var x = $('toast'); x.textContent = t; x.hidden = false; clearTimeout(toast.t); toast.t = setTimeout(function () { x.hidden = true; }, 4000); }
+  function api(path, body, method) {
+    return fetch(path, { method: method || (body ? 'POST' : 'GET'), credentials: 'same-origin', headers: body ? { 'content-type': 'application/json' } : {}, body: body ? JSON.stringify(body) : undefined })
+      .then(function (r) { return r.json().catch(function () { return {}; }).then(function (j) { if (r.status === 401) { location.reload(); } if (!r.ok) throw new Error(j.error || 'That did not work.'); return j; }); });
+  }
+  function ago(ts) { var m = Math.round((Date.now() - ts) / 6e4); return m < 1 ? 'just now' : m < 60 ? m + ' min ago' : m < 1440 ? Math.round(m / 60) + 'h ago' : Math.round(m / 1440) + 'd ago'; }
+  var S = null, tab = 'depts', dept = '', dtab = 'need', at = {}, want = null;
+
+  // ---- loading and routing: #<agent>, #<agent>/updates, #<agent>/card/<id>, #guide, #settings ----
+  function load() { return api('/api/state').then(function (s) { S = s; render(); }).catch(function (e) { $('depts').innerHTML = ''; $('depts').appendChild(el('li', { cls: 'err', text: e.message })); }); }
+  function route() {
+    var h = location.hash.slice(1), m = /^([\w-]+)(?:\/(updates|card\/([\w-]+)))?$/.exec(h) || [];
+    if (h === 'guide' || h === 'settings') { show(h); return; }
+    dept = m[1] || ''; dtab = m[2] === 'updates' ? 'done' : 'need'; if (m[3]) want = m[3];
+    show('depts');
+  }
+  function show(t) {
+    tab = t; ['depts', 'guide', 'settings'].forEach(function (k) { $('t-' + k).hidden = k !== t; });
+    document.querySelectorAll('nav.tabs button').forEach(function (b) { if (b.dataset.tab === t) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current'); });
+    if (S) render(); window.scrollTo(0, 0);
+  }
+  document.querySelectorAll('nav.tabs button').forEach(function (b) { b.onclick = function () { location.hash = b.dataset.tab === 'depts' ? '' : b.dataset.tab; if (b.dataset.tab === 'depts') { dept = ''; show('depts'); } }; });
+  window.addEventListener('hashchange', route);
+  $('back').onclick = function (e) { e.preventDefault(); location.hash = ''; };
+  $('tabNeed').onclick = function () { location.hash = dept; };
+  $('tabDone').onclick = function () { location.hash = dept + '/updates'; };
+
+  function render() {
+    $('biz').textContent = S.settings.business || 'Your business';
+    var n = S.cards.filter(function (c) { return c.kind !== 'fix'; }).length, bad = S.checks.filter(function (c) { return !c.ok; }).length + S.cards.filter(function (c) { return c.kind === 'fix'; }).length;
+    $('nAll').hidden = !n; $('nAll').textContent = n; $('nGuide').hidden = !bad; $('nGuide').textContent = bad;
+    if (tab === 'depts') { if (dept) renderDept(); else renderHome(); }
+    if (tab === 'guide') renderGuide();
+    if (tab === 'settings') renderSettings();
+  }
+  // ---- Departments ----
+  function renderHome() {
+    $('home').hidden = false; $('dept').hidden = true;
+    var start = $('startHere'); start.innerHTML = '';
+    var bad = S.checks.filter(function (c) { return !c.ok; });
+    if (S.firstRun || bad.length) {
+      start.hidden = false;
+      start.appendChild(el('b', { text: S.firstRun ? 'Welcome. Start here.' : 'Your setup needs ' + bad.length + ' thing' + (bad.length > 1 ? 's' : '') + '.' }));
+      start.appendChild(el('p', { cls: 'muted', style: 'margin:4px 0 8px', text: S.firstRun ? 'Tell the city about your business, then follow the Guide. It shows each step.' : bad[0].text }));
+      start.appendChild(el('div', { cls: 'chips' }, [S.firstRun ? el('a', { cls: 'chip strong', href: '#settings', text: 'Tell it about your business' }) : null, el('a', { cls: 'chip strong', href: '#guide', text: 'Open the Guide' })]));
+    } else start.hidden = true;
+    var ul = $('depts'); ul.innerHTML = '';
+    var list = S.agents.slice().sort(function (a, b) { return (b.need ? 1 : 0) - (a.need ? 1 : 0) || (a.id === 'leads' ? -1 : b.id === 'leads' ? 1 : 0) || b.need - a.need; });
+    list.forEach(function (a) {
+      var done = S.updates.filter(function (u) { return u.agent === a.id; }).length;
+      var state = a.need ? el('b', { text: a.need + ' need' + (a.need > 1 ? '' : 's') + ' you' }) : !a.on ? el('span', { text: 'Off' }) : a.blockedBy ? el('span', { cls: 'bad', text: 'Waiting for ' + a.blockedBy }) : el('span', { text: a.last ? 'Ran ' + ago(a.last.at) : 'Nothing waiting' });
+      ul.appendChild(el('li', {}, [el('button', { cls: 'dept' + (a.need ? '' : ' quiet') + (a.id === 'leads' && a.need ? ' first' : ''), onclick: function () { location.hash = a.id + (a.need ? '' : '/updates'); } }, [
+        el('span', { cls: 'nm' }, [el('b', { text: a.name }), el('span', { text: a.about })]),
+        el('span', { cls: 'cnt' }, [state, done ? el('span', { text: done + ' update' + (done > 1 ? 's' : '') }) : null]), el('span', { text: '›', cls: 'muted' })])]));
+    });
+  }
+  function renderDept() {
+    $('home').hidden = true; $('dept').hidden = false;
+    var a = S.agents.filter(function (x) { return x.id === dept; })[0];
+    if (!a) { location.hash = ''; return; }
+    var cards = S.cards.filter(function (c) { return c.agent === dept; }), ups = S.updates.filter(function (u) { return u.agent === dept; });
+    $('deptName').textContent = a.name; $('deptAbout').textContent = a.about;
+    $('nNeed').textContent = cards.length; $('nNeed').className = cards.length ? '' : 'zero'; $('nDone').textContent = ups.length; $('nDone').className = ups.length ? '' : 'zero';
+    $('tabNeed').setAttribute('aria-selected', String(dtab === 'need')); $('tabDone').setAttribute('aria-selected', String(dtab === 'done'));
+    $('need').hidden = dtab !== 'need'; $('done').hidden = dtab !== 'done';
+    if (dtab === 'done') return renderUpdates(ups);
+    var box = $('need'); box.innerHTML = '';
+    if (!cards.length) { box.appendChild(el('div', { cls: 'allclear' }, [el('div', { cls: 'ok', text: '✓' }), el('h1', { text: 'All caught up' }), el('p', { cls: 'muted', text: a.blockedBy ? 'This agent is waiting for ' + a.blockedBy + '. The Guide shows how.' : 'Nothing here needs you.' })])); return; }
+    if (want) { var wi = cards.map(function (c) { return c.id; }).indexOf(want); if (wi > -1) at[dept] = wi; want = null; }
+    var i = Math.min(at[dept] || 0, cards.length - 1);
+    box.appendChild(el('p', { cls: 'muted', style: 'margin:0 0 8px;font-size:13px;letter-spacing:.1em', text: (i + 1) + ' OF ' + cards.length }));
+    box.appendChild(card(cards[i], function () { at[dept] = (i + 1) % cards.length; renderDept(); }));
+  }
+  function renderUpdates(ups) {
+    var box = $('done'); box.innerHTML = '';
+    if (!ups.length) { box.appendChild(el('p', { cls: 'muted', text: 'Nothing yet.' })); return; }
+    box.appendChild(el('ul', { cls: 'upd' }, ups.map(function (u) {
+      var more = u.text2 ? el('pre', { hidden: true, text: u.text2 }) : null;
+      return el('li', {}, [el('div', { text: u.text }), el('small', { text: ago(u.ts) }), more ? el('div', { cls: 'chips' }, [el('button', { cls: 'chip', text: 'Show', onclick: function (e) { more.hidden = !more.hidden; e.target.textContent = more.hidden ? 'Show' : 'Hide'; } }),
+        el('button', { cls: 'chip', text: 'Copy', onclick: function () { copy(u.text2); } })]) : null, more]);
+    })));
+  }
+  function stepList(steps, style) {
+    return el('ol', { cls: 'steps', style: style || null }, steps.map(function (s) {
+      var m = /paste exactly: (\S+)/.exec(s);
+      return el('li', {}, [s, m ? el('div', { cls: 'chips', style: 'margin-top:6px' }, [el('button', { cls: 'chip strong', text: 'Copy the address', onclick: function () { copy(m[1]); } })]) : null]);
+    }));
+  }
+  function copy(t) { (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).then(function () { toast('Copied.'); }).catch(function () { toast('Select the text and copy it.'); }); }
+  // One card: what it is, what goes out exactly, and the buttons.
+  function card(c, skip) {
+    var kids = [el('div', { cls: 'place', text: (S.agents.filter(function (a) { return a.id === c.agent; })[0] || { name: c.agent }).name + ' · ' + ago(c.ts) }), el('div', { cls: 'head', text: c.title })];
+    if (c.lead) {
+      var L = c.lead, tel = String(L.phone || '').replace(/[^\d+]/g, '');
+      kids.push(el('div', { cls: 'lead' }, [el('div', {}, [el('b', { text: L.name || L.email || 'A new lead' }), L.came ? ' · came in ' + L.came : '']),
+        el('div', { cls: 'muted', text: [L.phone, L.email].filter(Boolean).join(' · ') }), L.wants ? el('div', { text: 'Wants: ' + L.wants }) : null,
+        tel.replace(/\D/g, '').length >= 10 ? el('div', { cls: 'chips' }, [el('a', { cls: 'chip strong', href: 'tel:' + tel, text: '📞 Call' }), el('a', { cls: 'chip strong', href: 'sms:' + tel, text: '💬 Text' })]) : null]));
+    }
+    if (c.came) kids.push(el('details', { cls: 'mail' }, [el('summary', { text: 'They wrote: ' + c.came.subject }), el('div', { cls: 'body', text: c.came.text })]));
+    var bodyEl = null;
+    if (c.email) { bodyEl = el('div', { cls: 'body', text: c.email.body }); kids.push(el('div', { cls: 'mail' }, [el('div', { cls: 'h', text: 'To: ' + c.email.to }), el('div', { cls: 'h', text: 'Subject: ' + c.email.subject }), bodyEl])); }
+    else if (c.body) { bodyEl = el('div', { cls: 'body', text: c.body }); kids.push(el('div', { cls: 'mail' }, [bodyEl])); }
+    if (c.photo) kids.push(el('p', { cls: 'muted', text: 'Photo to use: ' + c.photo }));
+    if (c.steps) { if (c.about) kids.push(el('p', { cls: 'muted', text: c.about })); kids.push(stepList(c.steps)); }
+    var buttons = el('div', { cls: 'big' });
+    var go = function (decision, b) { b.disabled = true; api('/api/decide', { id: c.id, decision: decision }).then(function (r) { toast(r.said || (decision === 'decline' ? 'Declined.' : 'Done.')); return load(); }).catch(function (e) { b.disabled = false; toast(e.message); load(); }); };
+    var yes = c.kind === 'fix' ? 'Got it' : c.email ? 'Send the email' : c.kind === 'post' ? 'Use it' : 'Keep it', no = c.email ? 'Don\'t send' : 'Dismiss';
+    if ((c.actions || []).indexOf('approve') > -1) {
+      var by = el('button', { cls: 'btn yes', text: yes, onclick: function () { if (c.email && !confirm('Send this email to ' + c.email.to + ' now?')) return; go('approve', by); } }); buttons.appendChild(by);
+      var bn = el('button', { cls: 'btn no', text: no, onclick: function () { go('decline', bn); } }); buttons.appendChild(bn);
+    } else { var bg = el('button', { cls: 'btn yes', text: 'Got it', onclick: function () { go('got_it', bg); } }); buttons.appendChild(bg); }
+    kids.push(buttons);
+    var fb = el('div', { cls: 'fb', hidden: true }), ta = el('textarea', { rows: 3, placeholder: 'What should change? For example: shorter, and ask about their budget.' });
+    fb.appendChild(ta); fb.appendChild(el('div', { cls: 'chips' }, [el('button', { cls: 'btn yes sm', text: 'Rewrite it', onclick: function (e) { var b = e.target; b.disabled = true; b.textContent = 'Rewriting…';
+      api('/api/feedback', { id: c.id, note: ta.value }).then(function (r) { toast('Rewritten. Look it over.'); bodyEl.textContent = r.card.email ? r.card.email.body : r.card.body; fb.hidden = true; ta.value = ''; return load(); })
+        .catch(function (err) { toast(err.message); }).then(function () { b.disabled = false; b.textContent = 'Rewrite it'; }); } })]));
+    kids.push(el('div', { cls: 'chips' }, [c.kind !== 'fix' && bodyEl ? el('button', { cls: 'chip', text: '✎ Needs feedback', onclick: function () { fb.hidden = !fb.hidden; if (!fb.hidden) ta.focus(); } }) : null,
+      c.gmail ? el('a', { cls: 'chip', href: c.gmail, target: '_blank', rel: 'noopener', text: 'Open in Gmail' }) : null,
+      bodyEl && !c.email ? el('button', { cls: 'chip', text: 'Copy', onclick: function () { copy(bodyEl.textContent); } }) : null,
+      c.kind === 'fix' ? el('button', { cls: 'chip', text: '? Ask the guide', onclick: function () { $('q').value = 'I see "' + c.title + '". What do I do?'; location.hash = 'guide'; } }) : null,
+      el('button', { cls: 'chip', text: 'Skip →', onclick: skip })]));
+    kids.push(fb);
+    return el('div', { cls: 'card' }, kids);
+  }
+  // ---- Guide ----
+  function renderGuide() {
+    var box = $('checks'); box.innerHTML = '';
+    S.checks.forEach(function (c) {
+      var steps = c.fix ? stepList(c.fix.steps, 'margin-top:8px') : null;
+      box.appendChild(el('div', { cls: 'check ' + (c.ok ? 'good' : 'bad') }, [el('span', { cls: 'ok', text: c.ok ? '✓' : '!' }), el('div', { cls: 't' }, [el('b', { text: c.text }), steps])]));
+    });
+    var fixes = S.cards.filter(function (c) { return c.kind === 'fix'; });
+    fixes.forEach(function (c) { box.appendChild(el('div', { cls: 'check bad' }, [el('span', { cls: 'ok', text: '!' }), el('div', { cls: 't' }, [el('b', { text: c.title }), el('span', { cls: 'muted', text: c.about || '' }), stepList(c.steps, 'margin-top:8px'),
+      el('button', { cls: 'chip', text: 'Got it', onclick: function () { api('/api/decide', { id: c.id, decision: 'got_it' }).then(load).catch(function (e) { toast(e.message); }); } })])])); });
+  }
+  $('askGo').onclick = function () {
+    var q = $('q').value.trim(); if (!q) { $('q').focus(); return; }
+    $('askGo').disabled = true; $('thinking').textContent = 'Thinking…'; $('answer').innerHTML = '';
+    api('/api/ask', { question: q }).then(function (r) { $('answer').appendChild(el('div', { cls: 'answer', text: r.answer })); })
+      .catch(function (e) { $('answer').appendChild(el('p', { cls: 'err', text: e.message })); })
+      .then(function () { $('askGo').disabled = false; $('thinking').textContent = ''; });
+  };
+  // ---- Settings ----
+  var FIELDS = ['business', 'owner', 'about', 'voice', 'signature', 'leadReply', 'dailyCap'], filled = false;
+  function renderSettings() {
+    if (!filled) { FIELDS.forEach(function (k) { if ($('s-' + k)) $('s-' + k).value = S.settings[k] == null ? '' : S.settings[k]; }); $('s-alerts').value = S.settings.alerts || 'leads'; filled = true; }
+    $('spent').textContent = 'Spent today: $' + S.spend.today.toFixed(2) + ' of $' + S.spend.cap.toFixed(2) + '. Agents pause at the limit until tomorrow.';
+    var said = new URLSearchParams(location.search).get('said'); $('said').hidden = !said; $('said').textContent = said || '';
+    var g = $('gmail'); g.innerHTML = '';
+    if (S.google.connected) g.appendChild(el('div', {}, [el('p', { style: 'margin:0 0 8px', text: '✓ Connected to ' + (S.google.email || 'your Gmail') + '. The city reads, labels and drafts. It sends only when you press Send.' }),
+      el('div', { cls: 'chips' }, [el('a', { cls: 'chip', href: '/connect/google', text: 'Connect again' }), el('button', { cls: 'chip', text: 'Disconnect', onclick: function () { if (confirm('Disconnect Gmail? The Leads and Mail room agents stop until you connect again.')) api('/api/google/disconnect', {}).then(load); } })])]));
+    else if (S.google.configured) g.appendChild(el('div', {}, [el('p', { style: 'margin:0 0 8px', text: 'Ready to connect. Google will ask you to allow Gmail access.' }), el('a', { cls: 'btn yes sm', href: '/connect/google', style: 'display:inline-block;text-decoration:none', text: 'Connect Google' })]));
+    else g.appendChild(el('div', {}, [el('p', { style: 'margin:0 0 8px', text: 'First, a one-time setup in Google so the city may read your email. The Guide has every step.' }), el('a', { cls: 'chip strong', href: '#guide', text: 'Show me the steps' })]));
+    var box = $('agents'); box.innerHTML = '';
+    S.agents.forEach(function (a) {
+      var ev = el('select', {}, Object.keys(S.every).map(function (k) { return el('option', { value: k, text: S.every[k], selected: Number(k) === a.every }); }));
+      var md = el('select', {}, Object.keys(S.models).map(function (k) { return el('option', { value: k, text: S.models[k], selected: k === a.model }); }));
+      var save = function (patch) { api('/api/agent', Object.assign({ id: a.id }, patch)).then(function () { toast('Saved.'); return load(); }).catch(function (e) { toast(e.message); }); };
+      ev.onchange = function () { save({ every: ev.value }); }; md.onchange = function () { save({ model: md.value }); };
+      box.appendChild(el('div', { cls: 'agent' }, [el('div', { cls: 'row' }, [el('div', {}, [el('b', { text: a.name }), ' ', el('span', { cls: 'pill ' + (a.on ? 'on' : 'off'), text: a.on ? 'On' : 'Off' })]),
+        a.always ? null : el('div', { style: 'flex:0 0 auto' }, [el('button', { cls: 'chip', text: a.on ? 'Turn off' : 'Turn on', onclick: function () { save({ on: !a.on }); } })])]),
+        el('p', { cls: 'muted', style: 'margin:4px 0', text: a.about }),
+        a.id === 'guide' ? null : el('div', { cls: 'row' }, [el('label', { cls: 'f', style: 'margin:6px 0' }, ['Model', md]), a.id === 'mailroom' || a.id === 'leads' || a.id === 'social' || !a.builtIn ? el('label', { cls: 'f', style: 'margin:6px 0' }, ['How often', ev]) : null]),
+        a.id === 'guide' ? null : el('div', { cls: 'chips' }, [el('button', { cls: 'chip', text: '▶ Run now', onclick: function (e) { var b = e.target; b.disabled = true; b.textContent = 'Working…'; api('/api/run', { agent: a.id }).then(function (r) { toast(r.said || 'Done.'); return load(); }).catch(function (err) { toast(err.message + ' The Guide has the fix.'); load(); }).then(function () { b.disabled = false; b.textContent = '▶ Run now'; }); } }),
+          a.builtIn ? null : el('button', { cls: 'chip', text: 'Remove', onclick: function () { if (confirm('Remove "' + a.name + '"?')) api('/api/custom', { id: a.id }, 'DELETE').then(load); } })])]));
+    });
+    if (!$('c-every').options.length) { Object.keys(S.every).forEach(function (k) { $('c-every').appendChild(el('option', { value: k, text: S.every[k], selected: k === '1440' })); }); Object.keys(S.models).forEach(function (k) { $('c-model').appendChild(el('option', { value: k, text: S.models[k] })); }); }
+    renderAlerts();
+  }
+  $('saveBiz').onclick = function () { var b = {}; FIELDS.forEach(function (k) { if (k !== 'dailyCap') b[k] = $('s-' + k).value; }); api('/api/settings', b).then(function () { toast('Saved.'); return load(); }).catch(function (e) { toast(e.message); }); };
+  $('saveCap').onclick = function () { api('/api/settings', { dailyCap: $('s-dailyCap').value }).then(function () { toast('Saved.'); return load(); }).catch(function (e) { toast(e.message); }); };
+  $('s-alerts').onchange = function () { api('/api/settings', { alerts: $('s-alerts').value }).then(function () { toast('Saved.'); }); };
+  $('addAgent').onclick = function () {
+    api('/api/custom', { name: $('c-name').value, instructions: $('c-instructions').value, every: $('c-every').value, model: $('c-model').value, review: $('c-review').checked })
+      .then(function (r) { toast('Added "' + r.agent.name + '". Press Run now to try it.'); $('c-name').value = ''; $('c-instructions').value = ''; return load(); }).catch(function (e) { toast(e.message); });
+  };
+  // ---- phone alerts (web push; on iPhone, add the city to the Home Screen first) ----
+  var IOS = /iPhone|iPad|iPod/.test(navigator.userAgent), STANDALONE = (window.matchMedia && matchMedia('(display-mode: standalone)').matches) || navigator.standalone === true;
+  var canPush = 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window, swReg = null;
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/sw.js').then(function (r) { swReg = r; if (tab === 'settings') renderAlerts(); }).catch(function () {});
+    navigator.serviceWorker.addEventListener('message', function (e) { var h = String((e.data && e.data.go) || '').replace(/^[^#]*/, ''); if (h) location.hash = h; });
+  }
+  var keyBytes = function (k) { var s = String(k).replace(/-/g, '+').replace(/_/g, '/'), raw = atob(s + '==='.slice((s.length + 3) % 4)), out = new Uint8Array(raw.length); for (var i = 0; i < raw.length; i++) out[i] = raw.charCodeAt(i); return out; };
+  function renderAlerts() {
+    var box = $('alertBtns'); box.innerHTML = '';
+    if (!canPush) { $('alertHow').textContent = IOS && !STANDALONE ? 'On iPhone: tap Share, then Add to Home Screen. Open the city from your Home Screen, sign in, and turn alerts on here.' : 'This browser cannot show alerts. Try Safari or Chrome.'; return; }
+    (swReg ? swReg.pushManager.getSubscription() : Promise.resolve(null)).then(function (sub) {
+      $('alertHow').textContent = sub ? 'Alerts are on for this device.' : 'Turn alerts on for this device.';
+      box.appendChild(sub ? el('button', { cls: 'chip', text: 'Send a test', onclick: function () { api('/api/push', { test: true }).then(function (r) { toast(r.ok ? 'Test sent.' : 'The test did not arrive.'); }); } }) : el('button', { cls: 'btn yes sm', text: 'Turn on alerts', onclick: function () {
+        Notification.requestPermission().then(function (p) { if (p !== 'granted') throw new Error('Alerts are blocked. Allow notifications for this site in your settings.'); return api('/api/push'); })
+          .then(function (k) { return swReg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: keyBytes(k.key) }); })
+          .then(function (s) { return api('/api/push', { sub: s.toJSON() }); }).then(function () { return api('/api/push', { test: true }); })
+          .then(function () { toast('Alerts are on. A test is on its way.'); renderAlerts(); }).catch(function (e) { toast(e.message); });
+      } }));
+      if (sub) box.appendChild(el('button', { cls: 'chip', text: 'Turn off', onclick: function () { api('/api/push', { endpoint: sub.endpoint }, 'DELETE').then(function () { return sub.unsubscribe(); }).then(renderAlerts); } }));
+    });
+  }
+  route(); load(); setInterval(function () { if (!document.hidden) load(); }, 60000);
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,18 @@
+{
+  "name": "city-starter",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Your own AI office: agents that sort your email, answer new leads and draft posts. Nothing sends without your click.",
+  "type": "commonjs",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "start": "node src/main.js",
+    "test": "node --test test/*.test.js"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.131.0",
+    "pg": "^8.23.1"
+  }
+}
