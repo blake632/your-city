@@ -30,7 +30,7 @@
     VISITS.push({ a: ts - (o.lead || 0), b: tx, gap: o.gap || .9, kicker: o.kicker || 'How it works', steps }); return o.cut ? tx : tx + 1.65; };
   const cap = (a, b, h, p, s) => CAPS.push([a, b, h, p, s]);
   const QUOTES = [{ yes: false, text: 'I hate this. It says nothing.' }, { yes: false, text: 'Generic. Feels automated.' }, { yes: true, text: 'I\'d reply to this email.' }, { yes: true, text: 'Warm, and it asks one clear question.' }];
-  const BOOK = { name: 'Bookkeeping', does: 'File every invoice and receipt each week, and tell me what is due.' }, CRYPTO = { name: 'Crypto Desk', does: 'Paper-trade a small test portfolio and report weekly. Paper only.' };
+  const BOOK = { name: 'Bookkeeping', does: 'File every invoice and receipt each week, and tell me what is due.' }, CRYPTO = { name: 'Crypto Desk', does: 'Paper-trade a small test portfolio and report weekly. Paper only.' }, STORE = { name: 'Store Desk', does: 'Find products worth testing, write the listings, and walk me through setting up Shopify step by step.' };
   let ROWS = [];
   if (!SHORT) {
     // The story: a new email comes in, the Mail Room sorts it, Leads writes the reply, the judges score it; then a tour of the other departments,
@@ -69,71 +69,78 @@
   } else {
     // The teaser, for someone who has never used AI. Hook: "I just connected my Gmail" -> a scan sweeps the city, the lights come on, the inbox
     // sorts itself -> Leads writes the reply -> a post is tested on a live (simulated) audience -> small talk -> the day's work flows in ->
-    // it builds a department it needs -> you ask for a crypto desk: Research searches GitHub, the School tests on paper, it goes up ->
+    // it builds a department it needs -> you ask for a Daily Planner: Research searches GitHub, the School tests it, it goes up -> the #1 teaches the rest ->
     // switch the AI brain -> the end card. Light trails = agents passing work.
-    window.__vdur = 80.5;
+    window.__vdur = 90;
     const RISE = Object.assign({}, CITY, { az: CITY.az - 1.1, el: 1.3, dist: CITY.dist * 2.1, pitch: 1.08 });
     const A2 = Object.assign({}, S.A1, { az: .1 }), A3 = Object.assign({}, S.A1, { az: .58 });
-    const CA1 = spot(-72, -35, 2, .25, .6, 60, .1), CA2 = spot(-72, -35, 2, .4, .55, 50, .1);   // the break area (the judges' lot, after they leave), not too close
+    const CA1 = spot(-81, -35, 2, -.15, .55, 54, .1), CA2 = spot(-63, -35, 2, .45, .52, 50, .1);   // the break area (the judges' lot, after they leave): a slow pan across the groups, not too close
+    const ST1 = spot(-7, 37.5, 4, -.6, .5, 56, .05), ST2 = spot(-7, 37.5, 4, -.4, .46, 48, .05);   // the week's #1 on stage, from the back of the crowd
     const R1 = spot(36, -37.5, 9, -.25, .42, 72), R2 = spot(36, -37.5, 9, -.05, .38, 62), SC1 = spot(72, -37.5, 8, -.3, .42, 72), SC2 = spot(72, -37.5, 8, -.5, .38, 64);
-    MOVES.push([0, 7, RISE, CITY], [17.55, 19, CITY, S.J1], [19, 27.9, S.J1, S.J2], [27.9, 34, CA1, CA2], [34, 35, CA2, S.A1], [35, 39, S.A1, A2],
-      [39, 40.4, A2, S.B1], [40.4, 42.8, S.B1, S.B2], [42.8, 44.2, S.B2, CITY], [49, 50.4, CITY, R1], [50.4, 55, R1, R2], [55, 56.2, R2, SC1], [56.2, 59.2, SC1, SC2],
-      [59.2, 60.6, SC2, S.X1], [60.6, 64, S.X1, S.X2], [64, 65.4, S.X2, S.P1], [65.4, 70, S.P1, S.P2], [70, 71.6, S.P2, S.A1], [71.6, 74.2, S.A1, A3], [74.2, 80.5, A3, FIN]);
-    visit(K.L, 9.7, 3.8, 'Answers every new customer, in your voice.', ['Dana wants a new kitchen this spring.', 'Leads writes her a warm reply.', 'You wake up. You tap Send.'], { lead: .6 });
+    MOVES.push([0, 7, RISE, CITY], [17.55, 19, CITY, S.J1], [19, 32.2, S.J1, S.J2], [32.2, 38.3, CA1, CA2], [38.3, 39.3, CA2, S.A1], [39.3, 43.3, S.A1, A2],
+      [43.3, 44.7, A2, S.B1], [44.7, 47.1, S.B1, S.B2], [47.1, 48.5, S.B2, CITY], [53.3, 54.7, CITY, R1], [54.7, 59.3, R1, R2], [59.3, 60.5, R2, SC1], [60.5, 63.5, SC1, SC2],
+      [63.5, 64.9, SC2, S.X1], [64.9, 68.3, S.X1, S.X2], [68.3, 69.7, S.X2, S.P1], [69.7, 74.3, S.P1, S.P2], [74.3, 75.7, S.P2, ST1], [75.7, 79.5, ST1, ST2], [79.5, 81.1, ST2, S.A1], [81.1, 83.7, S.A1, A3], [83.7, 90, A3, FIN]);
+    visit(K.L, 9.7, 3.8, 'Answers every new customer, in your voice.', ['Dana wants a new kitchen this spring.', 'Leads writes her a warm reply.', 'Not quite right? Write feedback. It rewrites it.', 'You tap Send.'], { lead: .6, gap: .7 });
+    const OHQ = [{ yes: false, text: 'No time or address. I’d scroll past.' }, { yes: false, text: 'Every remodeler says this.' }, { yes: true, text: 'Saturday, and it’s free? I’d go.' }, { yes: true, text: 'A real kitchen near me? Yes.' }];
     const POSTQ = [{ yes: false, text: 'Every remodeler posts this.' }, { yes: false, text: 'Too vague. Where is it?' }, { yes: true, text: 'Same walls, new kitchen? I’d stop.' }, { yes: true, text: 'Love a before and after. Saving it.' }];
     // the break: agents from every department meet in little groups on the lot, facing each other; afterwards they go home
     const GROUPS = [[-80, -40, ['hall_0', 'hall_2', 'd0_1']], [-65, -41, ['research_0', 'research_1', 'd1_1']], [-80, -29, ['school_0', 'school_2', 'd2_1']], [-64, -29, ['d2_2', 'd2_3', 'd3_1']], [-72, -34, ['d4_0', 'd4_1']]];
     const meet = () => GROUPS.forEach(([gx, gz, ids]) => ids.forEach((id, i) => { const ch = C.cityChars[id]; if (!ch) return; const a = i / ids.length * Math.PI * 2, x = gx + Math.sin(a) * 1.5, z = gz + Math.cos(a) * 1.5;
       ch.root.position.x = x; ch.root.position.z = z; ch.root.rotation.y = Math.atan2(gx - x, gz - z); ch.pose = i < 2 ? 'talk' : 'stand'; }));
     const home = () => GROUPS.forEach(([, , ids]) => ids.forEach(id => { const ch = C.cityChars[id]; if (ch && ch.home) { ch.root.position.x = ch.home.x; ch.root.position.z = ch.home.z; ch.root.rotation.y = ch.home.rot; ch.pose = 'stand'; } }));
-    DIPS.push(27.9);
-    EVENTS.push([17.7, () => C.judgeCrowd(ROWS, POSTQ, [0, 0])], [23.1, () => C.judgeCrowd(ROWS, QUOTES, [0, 0])], [27.9, () => { C.clearCrowd(); meet(); }], [35.6, home], [39.8, () => C.addDept(BOOK)], [59.6, () => C.addDept(CRYPTO)]);
-    W.quotes = t => { const u = t < 23.1 ? t - 17.6 : t - 23.1; return u < 1.6 ? 0 : u < 2.1 ? 1 : u < 3.4 ? 2 : u < 3.9 ? 3 : 4; };   // the post's reactions, then the email's
-    W.connect = { win: [-1, 3], tap: 1.1, on: 1.3 }; W.scan = [2.8, 4.6, K.M]; W.count = [3.1, 4.9];
-    W.trials = [{ win: [18.2, 23], flip: 20.4, done: 22.2, head: 'Instagram', ph: '📷 The finished kitchen, morning light', q: 'Would you stop scrolling?', yes1: 23, yes2: 74,
-        one: 'Come see a kitchen we just finished.', two: 'Same walls. Whole new kitchen. This 1970s galley in Crestview now opens to the dining room. ✨' },
-      { win: [23.2, 27.7], flip: 25, done: 26.6, head: 'Leads · Reply to Dana', ph: 'To: Dana Ruiz', q: 'Would you reply to this email?', yes1: 18, yes2: 74,
+    DIPS.push(32.2);
+    EVENTS.push([17.7, () => C.judgeCrowd(ROWS, POSTQ, [0, 0])], [22.7, () => C.judgeCrowd(ROWS, OHQ, [0, 0])], [27.3, () => C.judgeCrowd(ROWS, QUOTES, [0, 0])], [32.2, () => { C.clearCrowd(); meet(); }], [39.9, home], [44.1, () => C.addDept(BOOK)], [63.9, () => C.addDept(STORE)]);
+    W.quotes = t => { const u = t - (t < 22.7 ? 18.2 : t < 27.3 ? 22.8 : 27.4); return u < 1.2 ? 0 : u < 1.7 ? 1 : u < 2.6 ? 2 : u < 3.1 ? 3 : 4; };   // each test: two boos, the rewrite, two cheers
+    W.connect = { win: [-1, 2.7], tap: 1.1, on: 1.3 }; W.scan = [2.7, 4, K.M]; W.count = [4.5, 6.2]; W.tron = { t: 4, at: K.M, speed: 150 };
+    W.trials = [{ win: [18.2, 22.6], flip: 20.2, done: 21.8, head: 'Instagram post', aud: '96 simulated Instagram users', ph: '📷 The finished kitchen, morning light', q: 'Would you stop scrolling?', yes1: 23, yes2: 74,
+        one: 'New kitchen done. Check it out!', two: 'Same walls. Whole new kitchen. This 1970s galley in Crestview now opens to the dining room. ✨' },
+      { win: [22.8, 27.2], flip: 24.8, done: 26.4, head: 'Open House invite', aud: '96 simulated Austin homeowners', ph: '4410 Shoal Creek Blvd · this Saturday', q: 'Would you come see it?', yes1: 27, yes2: 71,
+        one: 'Come see a kitchen we just finished. Open house this weekend.', two: 'This Saturday, 10 to 2: walk through a finished kitchen remodel in Crestview. Free, no sign-up.' },
+      { win: [27.4, 31.9], flip: 29.4, done: 31, head: 'Email to a new customer', aud: '96 simulated customers', ph: 'To: Dana Ruiz · asked about a kitchen remodel', q: 'Would you reply to this?', yes1: 18, yes2: 74,
         one: 'Thanks for your interest. Let us know if you have questions.', two: 'Hi Dana, opening the wall to the dining room is one of our favorite projects. When would you like the work to start?' }];
-    W.prop = [36.4, 39.4, 38.7]; W.end = 77.4;
-    W.ask = [43.4, 49]; W.type = [43.9, 1.6]; W.send = 45.7; W.reply = 46; W.askText = 'Build me a crypto trading firm';
-    W.replyHtml = '<b>Your city</b>On it! Here’s the plan:<br>1. Research scans GitHub for the best tools.<br>2. The School tests them on paper.<br>3. Your Crypto Desk learns trade strategies with paper money.';
+    W.prop = [41.2, 43.9, 43.2]; W.auto = { win: [38.4, 41], tap: 40.2, on: 40.35 }; W.end = 86.9;
+    W.ask = [47.7, 53.3]; W.type = [48.2, 1.6]; W.send = 50; W.reply = 50.3; W.askText = 'Find me the best products to sell and build me a Shopify store';
+    W.replyHtml = '<b>Your city</b>On it! I can’t open accounts for you, so you stay in charge. Here’s the plan:<br>1. Research finds products worth testing.<br>2. A Store Desk writes every listing.<br>3. Your Shopify setup, step by step.';
+    W.plan = { win: [65.2, 68.2], head: 'This week · Store Desk', rows: [['✓', '3 products worth testing, and why'], ['✓', 'A listing written for each one'], ['✓', 'Your Shopify setup, step by step'], ['→', 'Waiting for your OK']] };
     // the scan lights the city from the Mail Room outward
-    const MR = C.DK[K.M]; W.lit = {}; C.DEPTS.forEach(d => { W.lit[d.k] = 3 + Math.hypot(d.bx - MR.bx, d.bz - MR.bz) / 150 * 1.5; });
+    W.lit = {};   // filled in by the light trails below: each department lights up when its trail arrives
     // agents passing work: ambient light trails all the time, plus the ones that carry a message
     let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647, KS = C.DEPTS.map(d => d.k);
     W.arcs = []; W.msgs = [];
     for (let t = 1.6, i = 0; t < 3.2; t += .12, i++) W.arcs.push({ t, a: 'web' + (i % 5), b: K.M, dur: 1.3 });   // the inbox pours in
-    for (let t = 4, i = 0; t < 8; t += .16, i++) W.arcs.push({ t, a: K.M, b: KS[Math.floor(rnd() * KS.length)], dur: 1.4 });   // and gets sorted out
-    for (let t = 7; t < 76; t += .26) { const a = KS[Math.floor(rnd() * KS.length)], b = KS[Math.floor(rnd() * KS.length)]; if (a !== b) W.arcs.push({ t, a, b, dur: 1.5 + rnd() * .6 }); }
-    for (let t = 49.8, i = 0; t < 54.8; t += .14, i++) W.arcs.push(i % 2 ? { t, a: 'web' + (i % 5), b: 'research', dur: 1.4 } : { t, a: 'research', b: 'web' + (i % 5), dur: 1.4 });   // Research <-> the internet
-    for (let t = 55.8; t < 58.8; t += .18) W.arcs.push({ t, a: 'school', b: KS[Math.floor(rnd() * KS.length)], dur: 1.5 });
+    for (let t = 5, i = 0; t < 9; t += .1, i++) W.arcs.push({ t, a: K.M, b: KS[Math.floor(rnd() * KS.length)], dur: 1.4 });   // then the sorting keeps flowing
+    for (let t = 7; t < 85.5; t += .13) { const a = KS[Math.floor(rnd() * KS.length)], b = KS[Math.floor(rnd() * KS.length)]; if (a !== b) W.arcs.push({ t, a, b, dur: 1.5 + rnd() * .6 }); }
+    for (let t = 54.1, i = 0; t < 59.1; t += .14, i++) W.arcs.push(i % 2 ? { t, a: 'web' + (i % 5), b: 'research', dur: 1.4 } : { t, a: 'research', b: 'web' + (i % 5), dur: 1.4 });   // Research <-> the internet
+    for (let t = 60.1; t < 63.1; t += .18) W.arcs.push({ t, a: 'school', b: KS[Math.floor(rnd() * KS.length)], dur: 1.5 });
     const msg = (t, a, b, text, head, life) => { W.arcs.push({ t, a, b, dur: 1.6, big: true }); W.msgs.push({ t, a, b, text, head, life }); };
-    msg(4.2, K.M, K.L, 'New customer: Dana wants a new kitchen.', 0, 2); msg(4.75, K.M, 'hall', 'A customer asked about parking. Reply drafted.', 'Mail Room', 2);
-    msg(5.3, K.M, 'hall', 'Receipt from the tile supplier. Filed.', 'Mail Room', 2); msg(5.85, K.M, 'hall', 'Newsletter. Skipped.', 'Mail Room', 2); msg(6.4, K.M, 'hall', 'Spam. It never gets a reply.', 'Mail Room', 2);
-    msg(35.2, K.I, 'hall', '3 posts ready for your OK.', 0, 2.1); msg(36.5, 'd3', 'hall', 'A review request for the Hendersons is ready.', 0, 2.1);
-    msg(50.4, 'research', 'web1', 'Searching GitHub for the best paper-trading tools…', 'Research desk'); msg(51.9, 'web3', 'research', 'Found one: 1,840 stars. Checking it’s safe…', 'Research desk');
-    msg(53.4, 'research', 'school', 'It’s safe. Sending it to class.'); msg(56.4, 'school', 'hall', 'Passed its practice trades on paper. Ready to work.', 'The School');
-    W.talk = [[28.5, 30.9, 'hall_0', 'So… how about this weather?'], [29.1, 30.9, 'hall_2', 'I don’t go outside.'],
-      [29.7, 32.1, 'research_0', 'How are the kids?'], [30.3, 32.1, 'research_1', 'What kids? I’m a robot.'],
-      [30.9, 33.3, 'school_0', 'Big weekend plans?'], [31.5, 33.3, 'school_2', 'I work weekends. I love it.'],
-      [32, 34, 'd2_2', 'Did you watch the game?'], [32.5, 34, 'd2_3', 'I read every email instead.']];
-    W.model = { win: [70.6, 74.4], seq: [[0, 'Claude', '#e07a4f'], [71.4, 'ChatGPT', '#10a37f'], [72.2, 'Gemini', '#4f8df5'], [73, 'Kimi', '#8b6cff'], [73.8, 'Claude', '#e07a4f']] };
-    cap(-1, 2.8, 'I just connected <em>my Gmail.</em>', 'Watch what happens.');   // the hook: on screen from the first frame
-    cap(3, 6.3, '<span class="n">1,000</span> AI helpers <em>get to work.</em>', 'It reads your inbox and sorts every email.');
-    cap(6.5, 9.5, 'Your day, <em>already sorted.</em>', 'Replies drafted. Receipts filed. Junk gone.');
-    cap(17.8, 22.9, 'Every post and email is tested <em>on a live audience.</em>', '96 AI people react. Weak drafts get rewritten.', 'Simulated by AI, not real people.');
-    cap(23.1, 27.6, 'Your emails too. <em>Only the best reaches you.</em>', '');
-    cap(28.2, 33.8, 'On their break, they try <em>to act human.</em>', '');
-    cap(35, 38.6, 'All day, every day. <em>While you live your life.</em>', 'Posts, reviews, invites. All waiting for your OK.');
-    cap(39.8, 42.7, 'It sees what’s missing. <em>Then builds it.</em>', 'A new department, working by tonight.');
-    cap(43, 48.8, 'Want something new? <em>Just ask.</em>', '');
-    cap(49.2, 54.8, 'It searches the internet <em>for the best way to do it.</em>', 'Then checks every tool is real and safe.');
-    cap(55.2, 59.1, 'New skills get tested. <em>Only the best graduate.</em>', 'Every week, your whole city gets smarter.');
-    cap(59.6, 63.9, 'Your <em>Crypto Desk</em> is going up.', 'Learning trade strategies with paper money.');
-    cap(64.4, 67.2, 'It’s a real economy. <em>Agents compete.</em>', 'The best grades win sports cars and yachts.');
-    cap(67.4, 70, 'Bad grades? <em>They lose the house.</em>', '', 'Kidding. They’re robots.');
-    cap(70.4, 74.3, 'Runs on <em>any AI</em> you choose.', 'Switch the brain anytime. The city keeps working.');
-    cap(74.6, 77.2, 'Your city <em>never sleeps.</em>', '1,000 helpers. One goal: your life, easier.');
+    msg(5, K.M, K.L, 'New customer: Dana wants a new kitchen.', 0, 2); msg(5.5, K.M, 'hall', 'A customer asked about parking. Reply drafted.', 'Mail Room', 2);
+    msg(6, K.M, 'hall', 'Receipt from the tile supplier. Filed.', 'Mail Room', 2); msg(6.5, K.M, 'hall', 'Newsletter. Skipped.', 'Mail Room', 2); msg(7, K.M, 'hall', 'Spam. It never gets a reply.', 'Mail Room', 2);
+    msg(39.5, K.I, 'hall', '3 posts ready for your OK.', 0, 2.1); msg(40.8, 'd3', 'hall', 'A review request for the Hendersons is ready.', 0, 2.1);
+    msg(54.7, 'research', 'web1', 'Searching GitHub for the best store tools…', 'Research desk'); msg(56.2, 'web3', 'research', 'Found one: 1,840 stars. Checking it’s safe…', 'Research desk');
+    msg(57.7, 'research', 'school', 'It’s safe. Sending it to class.'); msg(60.7, 'school', 'hall', 'Passed its practice listings. Ready to work.', 'The School');
+    W.talk = [[32.8, 35.2, 'hall_0', 'So… how about this weather?'], [33.4, 35.2, 'hall_2', 'I don’t go outside.'],
+      [34, 36.4, 'research_0', 'How are the kids?'], [34.6, 36.4, 'research_1', 'What kids? I’m a robot.'],
+      [35.2, 37.6, 'school_0', 'Big weekend plans?'], [35.8, 37.6, 'school_2', 'I work weekends. I love it.'],
+      [36.3, 38.3, 'd2_2', 'Did you watch the game?'], [36.8, 38.3, 'd2_3', 'I read every email instead.']];
+    W.model = { win: [80.1, 83.9], seq: [[0, 'Claude', '#e07a4f'], [80.9, 'ChatGPT', '#10a37f'], [81.7, 'Gemini', '#4f8df5'], [82.5, 'Kimi', '#8b6cff'], [83.3, 'Claude', '#e07a4f']] };
+    cap(-1, 2.6, 'I just connected <em>my Gmail.</em>', 'Watch what happens.');   // the hook: on screen from the first frame
+    cap(2.7, 4.1, 'Scanning <em>your email…</em>', '');
+    cap(4.4, 7.4, '<span class="n">1,000</span> AI helpers <em>get to work.</em>', 'It reads your inbox and sorts every email.');
+    cap(7.6, 9.6, 'Your day, <em>already sorted.</em>', 'Replies drafted. Receipts filed. Junk gone.');
+    cap(17.8, 22.6, 'Before you see anything, <em>an audience tests it.</em>', 'Weak drafts get rewritten.', 'Simulated by AI, not real people.');
+    cap(22.8, 27.2, 'Every department’s work <em>gets judged.</em>', 'By the people it’s meant for.');
+    cap(27.4, 31.9, 'Even the emails <em>to your customers.</em>', 'Only the best ever reaches you.');
+    cap(38.6, 42.9, 'Teach it with feedback. <em>Then let it run.</em>', 'When it works the way you do, one tap turns on autopilot.');
+    cap(44.1, 47, 'It sees what’s missing. <em>Then builds it.</em>', 'A new department, working by tonight.');
+    cap(47.3, 53.1, 'Want something new? <em>Just ask.</em>', '');
+    cap(53.5, 59.1, 'It searches the internet <em>for the best way to do it.</em>', 'Then checks every tool is real and safe.');
+    cap(59.5, 63.4, 'New skills get tested. <em>Only the best graduate.</em>', 'Every week, your whole city gets smarter.');
+    cap(63.9, 68.2, 'Your <em>Store Desk</em> is going up.', 'Products worth testing. Listings written. Your setup, step by step.');
+    cap(68.7, 71.5, 'It’s a real economy. <em>Agents compete.</em>', 'The best grades win sports cars and yachts.');
+    cap(71.7, 74.3, 'Bad grades? <em>They lose the house.</em>', '', 'Kidding. They’re robots.');
+    cap(74.6, 79.3, 'The #1 agent <em>teaches the rest.</em>', 'Every week, the best one shares its secret. Every department learns it.');
+    cap(79.9, 83.8, 'Runs on <em>any AI</em> you choose.', 'Switch the brain anytime. The city keeps working.');
+    cap(84.1, 86.7, 'Your city <em>never sleeps.</em>', '1,000 helpers. One goal: your life, easier.');
   }
   if (W.send) TAPS.push([W.send, center('.ask .field i')]);
   if (W.prop) TAPS.push([W.prop[2], center('.prop .vbtn i')]);
@@ -174,11 +181,18 @@
   .gm .row{display:flex;align-items:center;gap:10px;margin-bottom:8px}.gm .addr{flex:1;font:500 13.5px Inter,sans-serif;color:rgba(240,236,228,.8)}
   .gm .go{padding:11px 14px;border-radius:12px;background:#fbf7ef;color:#1a1813;font:700 14px Inter,sans-serif;font-style:normal;white-space:nowrap}.gm .go.on{background:#3ed69b;color:#06210f}
   .scan{position:absolute;left:0;top:0;border-radius:50%;border:2px solid rgba(191,227,255,.95);box-shadow:0 0 34px rgba(191,227,255,.85),inset 0 0 34px rgba(191,227,255,.5);z-index:-1;opacity:0}
+  .post .aud{font:600 11.5px Inter,sans-serif;color:#9fd3ff;margin:-4px 0 9px}
   .post .ph{height:52px;border-radius:12px;background:linear-gradient(135deg,#3a3326,#1d2230);display:flex;align-items:center;justify-content:center;font:600 12.5px Inter,sans-serif;color:rgba(240,236,228,.7);margin-bottom:10px}
   .post .tx{font:500 14px/1.4 Inter,sans-serif;color:#fbf7ef;margin-bottom:10px;min-height:39px}
   .post .tally{display:flex;justify-content:space-between;align-items:center;font:600 12.5px Inter,sans-serif;color:rgba(240,236,228,.75);margin-bottom:10px}.post .ct{font:800 14px Inter,sans-serif}
   .post .ok{position:absolute;right:12px;top:11px;padding:5px 10px;border-radius:999px;background:#f0cf86;color:#0b0d14;font:800 10.5px Inter,sans-serif;font-style:normal;opacity:0}
   .arcs{position:absolute;inset:0;width:100%;height:100%;z-index:-1;overflow:visible;filter:drop-shadow(0 0 4px rgba(255,255,255,.6))}.arcs path{fill:none;stroke-linecap:round}
+  .flash{position:absolute;inset:0;background:radial-gradient(circle at 50% 55%,#fff,rgba(255,240,200,.6) 40%,rgba(255,255,255,0) 75%);mix-blend-mode:screen;opacity:0}
+  .plan .row{display:flex;gap:12px;align-items:baseline;margin-bottom:9px;opacity:0}.plan .row i{flex:none;width:44px;font:800 13px Inter,sans-serif;font-style:normal;color:#f0cf86}.plan .row span{font:600 14.5px/1.3 Inter,sans-serif;color:#fbf7ef}
+  .auto .bar{height:8px;border-radius:4px;background:rgba(255,255,255,.12);margin-bottom:12px;overflow:hidden}.auto .bar i{display:block;height:100%;background:#f0cf86}
+  .auto .row{display:flex;align-items:center;gap:10px;margin-bottom:8px}.auto .n{flex:1;font:700 14px Inter,sans-serif;color:#fbf7ef}
+  .auto .go{padding:11px 14px;border-radius:12px;background:rgba(255,255,255,.14);color:rgba(240,236,228,.6);font:700 14px Inter,sans-serif;font-style:normal}.auto .go.ready{background:#f0cf86;color:#0b0d14}.auto .go.on{background:#3ed69b;color:#06210f}
+  .ask .field span.long{white-space:normal;font-size:15px;line-height:1.3}
   .wash{position:absolute;inset:0;z-index:-1;mix-blend-mode:screen;opacity:0}
   .msg{position:absolute;left:0;top:0;max-width:220px;padding:9px 12px 10px;border-radius:14px;background:rgba(9,12,21,.92);border:1px solid rgba(255,255,255,.1);border-top:2px solid var(--c);color:#f6f3ec;font:500 13px/1.35 Inter,sans-serif;box-shadow:0 10px 26px rgba(0,0,0,.5),0 0 18px -6px var(--c);opacity:0}
   .msg b{display:block;font:700 9px/1.2 Inter,sans-serif;letter-spacing:.12em;text-transform:uppercase;color:var(--c);margin-bottom:4px}
@@ -209,7 +223,24 @@
   const gm = W.connect && el('card gm', '<b>Gmail</b><div class="row"><span class="addr">sam@samskitchens.com</span><i class="go">Connect Google</i></div>');
   if (gm) TAPS.push([W.connect.tap, center('.gm .go')]);
   const rings = W.scan ? [0, .35].map(d => ({ d, e: el('scan', '') })) : [];
-  const trials = (W.trials || []).map(P => Object.assign({ e: el('card post', '<b>' + P.head + ' · <span class="dn"></span></b><div class="ph">' + P.ph + '</div><div class="tx"></div><div class="tally"><span>' + P.q + '</span><span class="ct"></span></div><i class="ok">4.4 / 5 · Ready for your OK</i>') }, P));
+  const trials = (W.trials || []).map(P => Object.assign({ e: el('card post', '<b>' + P.head + ' · <span class="dn"></span></b><div class="aud">Judged by ' + P.aud + '</div><div class="ph">' + P.ph + '</div><div class="tx"></div><div class="tally"><span>' + P.q + '</span><span class="ct"></span></div><i class="ok">4.4 / 5 · Ready for your OK</i>') }, P));
+  // Tron light trails: straight neon lines racing along the streets from the Mail Room, turning at right angles, into every department and off to the
+  // horizon. Streets run halfway between the blocks; the trails stay lit like light-cycle walls, then fade.
+  const tron = W.tron && (() => { const T = W.tron, M = C.DK[T.at], Y = .5, S0 = [M.bx, M.bz + 18], bikes = [], g = document.createElementNS(NS, 'g'); svg.appendChild(g);
+    const add = (pts, col, w) => { let L = 0; const seg = pts.slice(1).map((p, i) => { const l = Math.hypot(p[0] - pts[i][0], p[1] - pts[i][1]); L += l; return l; });
+      const e = document.createElementNS(NS, 'polyline'), h = document.createElementNS(NS, 'circle'); e.setAttribute('fill', 'none'); e.setAttribute('stroke', col); e.setAttribute('stroke-width', w); e.setAttribute('stroke-linejoin', 'miter'); h.setAttribute('r', '3'); h.setAttribute('fill', '#fff'); g.append(e, h);
+      const b = { pts, seg, L, e, h }; bikes.push(b); return b; };
+    C.DEPTS.forEach(d => { if (d.k === T.at) { W.lit[d.k] = T.t; return; } const X = d.bx + 18, b = add([S0, [X, S0[1]], [X, d.bz + 18], [d.bx, d.bz + 18]], d.col, 2.6); W.lit[d.k] = T.t + b.L / T.speed; });
+    [[400, 0], [-400, 0], [0, 400], [0, -400]].forEach(([dx, dz], i) => [-36, 0, 36].forEach((o, j) => { const st = dx ? [S0[0], S0[1] + o] : [S0[0] + o, S0[1]]; add([st, [st[0] + dx, st[1] + dz]], ['#57e1ff', '#f0cf86', '#ff5a9a', '#7dffb0'][(i + j) % 4], 2); }));   // the explosion outward
+    return { bikes, Y }; })();
+  if (W.tron) W.boom = { t: W.tron.t, at: W.tron.at, n: 0 };   // just the flash
+  const boom = W.boom && (() => { let sd = 11; const r = () => (sd = (sd * 16807) % 2147483647) / 2147483647, cols = C.DEPTS.map(d => d.col).concat(['#ffffff', '#f0cf86', '#bfe3ff']);
+    const g = document.createElementNS(NS, 'g'); svg.appendChild(g); const flash = el('flash', '');
+    return { flash, sparks: [...Array(W.boom.n)].map(() => { const e = document.createElementNS(NS, 'line'); e.setAttribute('stroke-linecap', 'round'); g.appendChild(e);
+      return { e, a: r() * Math.PI * 2, v: 260 + r() * 520, life: 1 + r() * .9, w: 1.4 + r() * 2.2, c: cols[Math.floor(r() * cols.length)] }; }) }; })();
+  const plan = W.plan && el('card plan', '<b>' + W.plan.head + '</b>' + W.plan.rows.map(([h, x]) => '<div class="row"><i>' + h + '</i><span>' + x + '</span></div>').join(''));
+  const auto = W.auto && el('card auto', '<b>Leads</b><div class="bar"><i></i></div><div class="row"><span class="n"></span><i class="go">Turn on autopilot</i></div>');
+  if (auto) TAPS.push([W.auto.tap, center('.auto .go')]);
   const taps = TAPS.map(([a, at]) => ({ a, at, e: el('tap', '') }));
   const chips = el('vchips', '<b>Your AI, your pick</b>' + ['Claude', 'ChatGPT', 'Gemini', 'OpenRouter', 'Groq', 'Mistral', 'Ollama'].map(x => '<span>' + x + '</span>').join(''));
   const end = el('vend', '<h1>Your <em>City</em></h1><h2>All you\'ll ever need.</h2><p style="margin:16px 0 0;font:600 14px Inter,sans-serif;color:rgba(240,236,228,.85)">Over 1,000 agents. One goal: make your life easier.</p><div class="pill">Message me to get started</div><small>Sample business shown. 1,000+ agents: 10 departments, each judged by 104 simulated AI judges.</small>');
@@ -224,7 +255,7 @@
     if (show(grade, W.grade, t, 0)) grade.style.transform = 'scale(' + (0.8 + 0.2 * ease(cl((t - W.grade[0]) / .45))) + ')';
     if (show(prop, W.prop, t, 30)) { const bu = (t - W.prop[2]) / .7; prop.querySelector('.vbtn i').style.transform = bu > 0 && bu < .35 ? 'scale(.94)' : 'none'; }
     if (show(ask, W.ask, t, 30)) {
-      const n = Math.round(cl((t - W.type[0]) / W.type[1]) * ASK.length); askTxt.textContent = n ? ASK.slice(0, n) + (t < W.send && Math.floor(t * 2.5) % 2 ? '|' : '') : 'Ask your city for anything…'; askTxt.className = n ? '' : 'ph';
+      const n = Math.round(cl((t - W.type[0]) / W.type[1]) * ASK.length); askTxt.textContent = n ? ASK.slice(0, n) + (t < W.send && Math.floor(t * 2.5) % 2 ? '|' : '') : 'Ask your city for anything…'; askTxt.className = n ? (ASK.length > 36 ? 'long' : '') : 'ph';
       if (t > W.send + .1) askTxt.textContent = ''; const rp = ask.querySelector('.reply'), r0 = W.reply || 1e9; rp.style.opacity = cl((t - r0) / .4); rp.style.transform = 'translateY(' + ((1 - ease(cl((t - r0) / .45))) * 10) + 'px)'; }
     taps.forEach(p => { const u = (t - p.a) / .7; if (u <= 0 || u >= 1) { p.e.style.opacity = 0; return; } const q = p.at(); p.e.style.opacity = 1 - u; p.e.style.transform = 'translate3d(' + q.x.toFixed(1) + 'px,' + q.y.toFixed(1) + 'px,0) scale(' + (.5 + u * 1.4) + ')'; });
     if (show(chips, W.chips, t, 40)) chips.querySelectorAll('span').forEach((s, i) => { s.style.opacity = cl((t - W.chips[0] - .3 - i * .16) / .25); });
@@ -233,7 +264,7 @@
     const city = C.mode === 'city' && !C.trans; let n = 0;
     (W.arcs || []).forEach(a => { const u = (t - a.t) / a.dur; if (!city || u <= 0 || u > 1.3) return; const head = Math.min(u, 1), tail = Math.max(0, head - (a.big ? .45 : .3)), f = u > 1 ? 1 - (u - 1) / .3 : 1;
       let d = ''; for (let i = 0; i <= 12; i++) { const q = C.projectXY(bez(a.P, tail + (head - tail) * i / 12)); if (q.z > 1) return; d += (i ? 'L' : 'M') + q.x.toFixed(1) + ' ' + q.y.toFixed(1); }
-      const s = strand(n++), hq = C.projectXY(bez(a.P, head)); s.g.style.display = ''; s.g.style.opacity = f; s.p.setAttribute('d', d); s.p.setAttribute('stroke', a.col); s.p.setAttribute('stroke-width', a.big ? 2.6 : 1.6);
+      const s = strand(n++), hq = C.projectXY(bez(a.P, head)); s.g.style.display = ''; s.g.style.opacity = f; s.p.setAttribute('d', d); s.p.setAttribute('stroke', a.col); s.p.setAttribute('stroke-width', a.big ? 2.8 : 1.9);
       s.c.setAttribute('cx', hq.x.toFixed(1)); s.c.setAttribute('cy', hq.y.toFixed(1)); s.c.setAttribute('fill', a.big ? '#fff' : a.col); s.c.style.display = u < 1 ? '' : 'none'; });
     pool.forEach((s, i) => { if (i >= n) s.g.style.display = 'none'; });
     const placed = [];
@@ -254,6 +285,18 @@
       post.querySelector('.dn').textContent = two ? 'Draft 2' : 'Draft 1'; post.querySelector('.tx').textContent = two ? P.two : P.one;
       const ct = post.querySelector('.ct'); ct.textContent = n + ' of 96 said yes'; ct.style.color = two && n > 60 ? '#3ed69b' : '#ff7a85';
       post.querySelector('.ok').style.opacity = cl((t - P.done) / .4); post.style.boxShadow = '0 16px 40px rgba(0,0,0,.6),0 0 ' + (40 * cl(1 - Math.abs(t - P.flip) / .5)).toFixed(0) + 'px #f0cf86'; });
+    if (tron) { const tb = t - W.tron.t; tron.bikes.forEach(b => { const d = tb * W.tron.speed, f = tb <= 0 ? 0 : d < b.L ? 1 : cl(1 - (d - b.L) / W.tron.speed / .9); if (f <= 0 || !city) { b.e.style.display = b.h.style.display = 'none'; return; }
+      const pts = [b.pts[0]]; let left = Math.min(d, b.L); for (let i = 0; i < b.seg.length && left > 0; i++) { const p0 = b.pts[i], p1 = b.pts[i + 1], u = Math.min(1, left / b.seg[i]); pts.push([p0[0] + (p1[0] - p0[0]) * u, p0[1] + (p1[1] - p0[1]) * u]); left -= b.seg[i]; }
+      const q = pts.map(p => C.projectXY(new V3(p[0], tron.Y, p[1]))); if (q.some(v => v.z > 1)) { b.e.style.display = b.h.style.display = 'none'; return; }
+      b.e.style.display = ''; b.e.style.opacity = f; b.e.setAttribute('points', q.map(v => v.x.toFixed(1) + ',' + v.y.toFixed(1)).join(' ')); const hd = q[q.length - 1];
+      b.h.style.display = d < b.L ? '' : 'none'; b.h.setAttribute('cx', hd.x.toFixed(1)); b.h.setAttribute('cy', hd.y.toFixed(1)); }); }
+    if (boom) { const tb = t - W.boom.t, o = C.projectXY(end3(W.boom.at)); boom.flash.style.opacity = tb >= 0 ? cl(1 - tb / .45) * .55 : 0;
+      boom.sparks.forEach(p => { const u = tb / p.life; if (tb <= 0 || u >= 1) { p.e.style.display = 'none'; return; } const at = s => { const d = p.v * s * (1 - .38 * s); return [o.x + Math.cos(p.a) * d, o.y + Math.sin(p.a) * d + 150 * s * s]; };
+        const [x1, y1] = at(Math.max(0, tb - .09)), [x2, y2] = at(tb); p.e.style.display = ''; p.e.setAttribute('x1', x1.toFixed(1)); p.e.setAttribute('y1', y1.toFixed(1)); p.e.setAttribute('x2', x2.toFixed(1)); p.e.setAttribute('y2', y2.toFixed(1));
+        p.e.setAttribute('stroke', p.c); p.e.setAttribute('stroke-width', p.w.toFixed(1)); p.e.style.opacity = (1 - u) * (1 - u); }); }
+    if (plan && show(plan, W.plan.win, t, 30)) plan.querySelectorAll('.row').forEach((r, i) => { const a = W.plan.win[0] + .3 + i * .45; r.style.opacity = cl((t - a) / .3); r.style.transform = 'translateX(' + ((1 - ease(cl((t - a) / .4))) * 14) + 'px)'; });
+    if (auto && show(auto, W.auto.win, t, 30)) { const f = lin(.62, 1, ease(cl((t - W.auto.win[0] - .2) / 1.3))), on = t >= W.auto.on, go = auto.querySelector('.go');   // learning how you work, then ready
+      auto.querySelector('.n').textContent = f < 1 ? 'Learning how you work…' : 'Ready when you are'; auto.querySelector('.bar i').style.width = (f * 100).toFixed(1) + '%'; go.textContent = on ? '✓ Autopilot on' : 'Turn on autopilot'; go.className = 'go' + (on ? ' on' : f >= 1 ? ' ready' : ''); }
     dip.style.opacity = DIPS.reduce((m, c) => Math.max(m, t <= c ? cl(1 - (c - t) / .22) : cl(1 - (t - c) / .3)), 0);   // a quick dip to dark around each cut
   }
   // The page's CSS fades and pulses run on the wall clock, but a frame takes far longer to draw than 1/30 s, so they jumped from frame to frame.

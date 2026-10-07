@@ -1,14 +1,14 @@
 // The video: the 3D city (video mode) with vdirector.js on top, drawn frame by frame and encoded to a 1080x1920 MP4.
 //   node v3d.js stills 1.5 9 20 ...   a few frames as PNGs, to check
 //   node v3d.js                        the whole video: 3 workers draw a third each, then the pieces are joined
-//   node v3d.js short                  the 80-second teaser (vout/your-city-short.mp4)
+//   node v3d.js short                  the 90-second teaser (vout/your-city-short.mp4)
 // A worker fast-forwards the world (without drawing) to its first frame, so the pieces meet exactly.
 let chromium; try { ({ chromium } = require('playwright')); } catch (e) { ({ chromium } = require('/opt/node22/lib/node_modules/playwright')); }
 const { spawn, execFileSync } = require('child_process'), fs = require('fs'), path = require('path'), os = require('os');
 // A Mac draws with its own graphics chip; a server with none draws in software (SwiftShader), about 10x slower.
 const GPU = process.platform === 'darwin', ARGS = GPU ? ['--use-angle=metal', '--ignore-gpu-blocklist'] : ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'];
 const CUT = process.argv[2] === 'short' || process.env.VCUT === 'short' ? 'short' : 'full'; process.env.VCUT = CUT;   // workers inherit it
-const FPS = 30, DUR = { full: 104, short: 80.5 }[CUT], N = Math.round(DUR * FPS), DIR = __dirname, OUTDIR = path.join(DIR, 'vout'), W = 405, H = 720, DPR = 2;
+const FPS = 30, DUR = { full: 104, short: 90 }[CUT], N = Math.round(DUR * FPS), DIR = __dirname, OUTDIR = path.join(DIR, 'vout'), W = 405, H = 720, DPR = 2;
 fs.mkdirSync(OUTDIR, { recursive: true }); fs.mkdirSync(path.join(DIR, 'shots'), { recursive: true });
 const FILES = { '/__v/fonts/': path.join(DIR, 'fonts'), '/__v/assets/': path.join(DIR, 'vassets') };
 
