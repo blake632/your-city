@@ -80,6 +80,7 @@ function createServer({ city, password = () => process.env.CITY_PASSWORD, public
     try {
       if (p === '/api/state') return json(res, 200, Object.assign(state(city, city.redirect), { passwordFrom: envPw() ? 'variable' : 'app' }));
       if (p === '/api/decide' && req.method === 'POST') { const b = await body(req); return json(res, 200, await city.decide(String(b.id || ''), String(b.decision || ''))); }
+      if (p === '/api/answer' && req.method === 'POST') { const b = await body(req); return json(res, 200, await city.answer(String(b.id || ''), b.answer)); }
       if (p === '/api/feedback' && req.method === 'POST') { const b = await body(req); const c = await city.feedback(String(b.id || ''), b.note); return json(res, 200, { ok: true, card: c }); }
       if (p === '/api/settings' && req.method === 'POST') { city.saveSettings(await body(req)); return json(res, 200, { ok: true }); }
       if (p === '/api/agent' && req.method === 'POST') { const b = await body(req); city.setAgent(String(b.id || ''), b); return json(res, 200, { ok: true }); }

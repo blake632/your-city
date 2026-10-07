@@ -435,7 +435,11 @@ label.ck{display:flex;gap:10px;align-items:flex-start;margin:14px 0 6px;font-wei
     var buttons = el('div', { cls: 'big' });
     var go = function (decision, b) { b.disabled = true; api('/api/decide', { id: c.id, decision: decision }).then(function (r) { toast(r.said || (decision === 'decline' ? 'Declined.' : 'Done.')); return load(); }).catch(function (e) { b.disabled = false; toast(e.message); load(); }); };
     var yes = c.kind === 'fix' ? 'Got it' : c.email ? 'Send the email' : c.kind === 'post' ? 'Use it' : 'Keep it', no = c.email ? 'Don\'t send' : 'Dismiss';
-    if ((c.actions || []).indexOf('approve') > -1) {
+    if ((c.actions || []).indexOf('answer') > -1) {   // a department asks you something it needs
+      var ans = el('textarea', { rows: 3, placeholder: 'Your answer. It is kept for next time too.' }); kids.push(ans);
+      var bs = el('button', { cls: 'btn yes', text: 'Send answer', onclick: function () { bs.disabled = true; api('/api/answer', { id: c.id, answer: ans.value }).then(function (r) { toast(r.said); return load(); }).catch(function (e) { bs.disabled = false; toast(e.message); }); } });
+      buttons.appendChild(bs); var bd = el('button', { cls: 'btn no', text: 'Skip it', onclick: function () { go('decline', bd); } }); buttons.appendChild(bd);
+    } else if ((c.actions || []).indexOf('approve') > -1) {
       var by = el('button', { cls: 'btn yes', text: yes, onclick: function () { if (c.email && !confirm('Send this email to ' + c.email.to + ' now?')) return; go('approve', by); } }); buttons.appendChild(by);
       var bn = el('button', { cls: 'btn no', text: no, onclick: function () { go('decline', bn); } }); buttons.appendChild(bn);
     } else { var bg = el('button', { cls: 'btn yes', text: 'Got it', onclick: function () { go('got_it', bg); } }); buttons.appendChild(bg); }

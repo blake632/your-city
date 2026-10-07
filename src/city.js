@@ -72,7 +72,8 @@ class City {
     const kind = KINDS[d.kind] ? d.kind : 'own';
     return { id: d.id && /^[\w-]{1,40}$/.test(d.id) ? d.id : 'd-' + id(), kind, name: String(d.name || '').trim().slice(0, 40) || 'New department', does: String(d.does || '').trim().slice(0, 4000),
       every: EVERY[d.every] ? Number(d.every) : (PICKS.find(p => p.kind === kind) || { every: 1440 }).every, model: !d.model || d.model === 'main' ? '' : String(d.model).trim().slice(0, 120),
-      review: d.review !== false, judge: !!d.judge, audience: String(d.audience || '').trim().slice(0, 300), on: d.on !== false, panel: d.panel || null, at: d.at || this.now() };
+      review: d.review !== false, judge: !!d.judge, audience: String(d.audience || '').trim().slice(0, 300), on: d.on !== false, panel: d.panel || null, at: d.at || this.now(),
+      facts: Array.isArray(d.facts) ? d.facts.slice(-20) : [] };
   }
   // Build a department, or change one. Changing what it does or who it is for makes a fresh panel next time it is judged.
   saveDepartment(input) {
@@ -174,6 +175,28 @@ class City {
       ' Use only facts from these notes and from the message itself; never invent prices, dates, availability or promises. If a fact is missing, ask for it or say ' + who + ' will confirm. Plain text, no markdown.' +
       (s.signature ? ' End with this signature exactly:\n' + s.signature : '');
   }
+  // ---- departments ask you questions ----
+  // What the owner told a department, for its prompts.
+  factsOf(D) { return (D.facts || []).length ? '\n\nWHAT THE OWNER TOLD YOU (use these facts):\n' + D.facts.map(f => '- ' + f.q + ' ' + f.a).join('\n') : ''; }
+  static ASK = '\n\nIf you cannot do this job well because one fact is missing (an address, a date, a price, a name, a detail only the owner knows) and it is not in the notes, do not guess: reply with only this one line: QUESTION FOR THE OWNER: <one short question>.';
+  // A reply that is only a question becomes a card that asks the owner. Returns the question, or ''.
+  askedIn(text) { const m = /^\s*QUESTION FOR THE OWNER:\s*(.+)$/im.exec(String(text || '')); return m && String(text).replace(m[0], '').trim().length < 40 ? m[1].trim().slice(0, 300) : ''; }
+  ask(D, question) {
+    if (this.waiting().some(c => c.agent === D.id && c.kind === 'ask')) return;   // one open question per department at a time
+    this.addCard({ agent: D.id, kind: 'ask', title: D.name + ' asks: ' + question, question, body: '', actions: ['answer'] });
+    this.update(D.id, 'Asked you: ' + question);
+  }
+  // Your answer is kept with the department, the card closes, and the department tries again with it.
+  async answer(cardId, text) {
+    const c = this.store.doc('cards', cardId), D = c && this.department(c.agent);
+    if (!c || c.status !== 'waiting' || c.kind !== 'ask') throw new Error('That question is gone.');
+    text = String(text || '').trim().slice(0, 1000); if (!text) throw new Error('Write your answer.');
+    if (D) this.saveDepartment({ id: D.id, facts: (D.facts || []).concat([{ q: c.question, a: text, at: this.now() }]) });
+    Object.assign(c, { status: 'answered', answer: text, decidedAt: this.now() }); this.store.put('cards', c.id, c);
+    this.update(c.agent, 'You answered: ' + text.slice(0, 160));
+    if (D && D.on) Promise.resolve().then(() => this.runAgent(D.id)).catch(() => {});   // it works again right away; its card arrives when done
+    return { ok: true, said: 'Thanks. ' + (D ? D.name : 'It') + ' is working on it again.' };
+  }
   // ---- the departments' work ----
   // A department's own rewrite, used by Needs feedback and by the panel.
   async rewriteFor(d, text, note) {
@@ -252,7 +275,7 @@ class City {
       return false; }
     const first = await this.ai.ask({ model: this.agentConf(D.id).model, effort: 'medium', maxTokens: 8000,
       system: this.voice(s) + ' You write the first reply to a new customer. Follow the owner\'s reply guide exactly.',
-      prompt: 'REPLY GUIDE:\n' + D.does + '\n\nTHE CUSTOMER\nName: ' + (lead.name || '(unknown)') + '\nEmail: ' + email + (lead.phone ? '\nPhone: ' + lead.phone : '') + '\nWhat they want: ' + lead.wants + '\nCame in: ' + lead.came +
+      prompt: 'REPLY GUIDE:\n' + D.does + this.factsOf(D) + '\n\nTHE CUSTOMER\nName: ' + (lead.name || '(unknown)') + '\nEmail: ' + email + (lead.phone ? '\nPhone: ' + lead.phone : '') + '\nWhat they want: ' + lead.wants + '\nCame in: ' + lead.came +
         '\n\nTHEIR MESSAGE:\n' + m.text.slice(0, 4000) + '\n\nWrite only the email body, from the greeting to the signature.' });
     const { text: body, judged } = await this.judged(D, first);
     const direct = email === sender && !robotFrom;   // they wrote to you themselves: reply on their thread; a form notice (even with their Reply-To): a new email to them
@@ -279,7 +302,7 @@ class City {
     const effort = await this.jevEffort(D.does);
     const r = await this.ai.ask({ model: this.agentConf(D.id).model, effort, maxTokens: 12000, schema: POSTS_SCHEMA,
       system: this.voice(Object.assign({}, s, { signature: '' })) + ' You write social media posts.',
-      prompt: 'Today is ' + new Date(this.now()).toDateString() + '.\n\nWHAT THE OWNER WANTS:\n' + D.does + '\n\nEach post: the platform, the post text with a few fitting hashtags, and the kind of real photo the owner should use. Never describe a photo as if it already exists.' });
+      prompt: 'Today is ' + new Date(this.now()).toDateString() + '.\n\nWHAT THE OWNER WANTS:\n' + D.does + this.factsOf(D) + '\n\nEach post: the platform, the post text with a few fitting hashtags, and the kind of real photo the owner should use. Never describe a photo as if it already exists.' });
     const posts = (r.posts || []).slice(0, 5);
     for (const p of posts.slice().reverse()) {   // the first post shows first
       const { text: body, judged } = await this.judged(D, p.text);
@@ -290,8 +313,11 @@ class City {
   async runOwn(D) {
     const s = this.settings(), effort = await this.jevEffort(D.does);
     const write = extra => this.ai.ask({ model: this.agentConf(D.id).model, effort, maxTokens: 12000, system: this.voice(Object.assign({}, s, { signature: '' })) + ' You are the owner\'s department "' + D.name + '". Be short and useful.',
-      prompt: 'Today is ' + new Date(this.now()).toDateString() + '.\n\nWHAT THIS DEPARTMENT DOES:\n' + D.does + (D.audience ? '\n\nWHO THE WORK IS FOR: ' + D.audience : '') + (extra || '') });
-    let first = await write(), check = await this.jevWorkCheck(D.does, first), redone = false;
+      prompt: 'Today is ' + new Date(this.now()).toDateString() + '.\n\nWHAT THIS DEPARTMENT DOES:\n' + D.does + (D.audience ? '\n\nWHO THE WORK IS FOR: ' + D.audience : '') + this.factsOf(D) + City.ASK + (extra || '') });
+    let first = await write();
+    const q = this.askedIn(first);
+    if (q) { this.ask(D, q); return 'Asked you a question first.'; }
+    let check = await this.jevWorkCheck(D.does, first), redone = false;
     if (check.done !== null && check.done < 0.35) {   // Jev says it is not finished: one more try, kept only if Jev likes it better
       const again = await write('\n\nA checker found your last try unfinished (something missing or left as a placeholder). Do the whole job this time.\n\nYOUR LAST TRY:\n' + first.slice(0, 6000));
       const c2 = await this.jevWorkCheck(D.does, again);

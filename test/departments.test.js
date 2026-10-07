@@ -83,3 +83,24 @@ test('a city from before departments keeps what it was really using, with the sa
   assert.deepStrictEqual(fresh.city.departments(), [], 'not connected to Gmail and nothing used: nothing carried over');
   assert(PICKS.every(p => p.name && p.does && p.what), 'every ready-made department explains itself');
 });
+
+test('a department asks you when a fact is missing; your answer is kept and it works again with it', async () => {
+  let asked = 0;
+  const { A, city: c } = await city(b => { const p = b.messages[0].content;
+    if (b.output_config && b.output_config.format) return { text: {} };
+    if (/WHAT THE OWNER TOLD YOU[\s\S]*4410 Shoal Creek/.test(p)) return { text: 'Open house at 4410 Shoal Creek, Saturday 10 to 2.' };
+    asked++; return { text: 'QUESTION FOR THE OWNER: What is the address of the open house?' }; });
+  const d = c.saveDepartment({ name: 'Open house', does: 'Write the open house invite.', judge: false });
+  assert.strictEqual(await c.runAgent(d.id), 'Asked you a question first.');
+  const q = c.waiting()[0];
+  assert.deepStrictEqual([q.kind, q.title, q.actions], ['ask', 'Open house asks: What is the address of the open house?', ['answer']]);
+  await c.runAgent(d.id); assert.strictEqual(c.waiting().filter(x => x.kind === 'ask').length, 1, 'one open question at a time');
+  await assert.rejects(c.answer(q.id, ' '), /Write your answer/);
+  const r = await c.answer(q.id, '4410 Shoal Creek Blvd');
+  assert.strictEqual(r.said, 'Thanks. Open house is working on it again.');
+  for (let i = 0; i < 20 && !c.waiting().some(x => x.kind === 'note'); i++) await new Promise(res => setTimeout(res, 25));
+  const card = c.waiting().find(x => x.kind === 'note');
+  assert.strictEqual(card.body, 'Open house at 4410 Shoal Creek, Saturday 10 to 2.');
+  assert.deepStrictEqual(c.department(d.id).facts.map(f => [f.q, f.a]), [['What is the address of the open house?', '4410 Shoal Creek Blvd']]);
+  assert(/QUESTION FOR THE OWNER/.test(A.calls.find(x => !x.body.output_config || !x.body.output_config.format).body.messages[0].content), 'every job may ask instead of guessing');
+});
