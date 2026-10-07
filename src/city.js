@@ -3,20 +3,28 @@
 const crypto = require('node:crypto');
 const { CityError, MODELS } = require('./ai');
 const guide = require('./guide');
+const { judge } = require('./judge');
 const { addressOf, nameOf } = require('./google');
 
 const EVERY = { 10: 'every 10 minutes', 60: 'every hour', 1440: 'every day', 10080: 'every week' };
-// The built-in agents. Turn each on or off and give it a model in Settings; add your own there too.
-const BUILT_IN = {
-  leads: { name: 'Leads', about: 'Spots new customers in your email and writes your first reply, fast.', needs: ['ai', 'google'], every: 10, effort: 'medium' },
-  mailroom: { name: 'Mail room', about: 'Sorts your new email into labels and writes a reply for each one that needs you.', needs: ['ai', 'google'], every: 10, effort: 'low' },
-  social: { name: 'Social posts', about: 'Writes 3 posts for the week from what you tell it about your business. It never posts anything.', needs: ['ai'], every: 10080, effort: 'medium' },
-  guide: { name: 'Guide', about: 'Checks your setup and tells you exactly how to fix anything that is not working.', needs: [], every: 1, always: true, effort: 'low' },
-};
+const LEAD_REPLY = 'Thank them for reaching out. Ask the one question that matters most for their request (for example: when they want to start, or where the job is). Offer a quick call and give the phone number from the signature. Under 80 words.';
+// What a department can be. Most do exactly what the owner writes ("own"). Three come with a skill: they read Gmail or write posts.
+const KINDS = { own: { needs: ['ai'] }, leads: { needs: ['ai', 'google'], one: true }, mailroom: { needs: ['ai', 'google'], one: true }, social: { needs: ['ai'] } };
+// Ready-made departments to start from. The owner can rename each one and change what it does. A new city has none of them.
+const PICKS = [
+  { kind: 'leads', name: 'Leads', what: 'Reads your Gmail, spots new customers and writes your first reply.', does: LEAD_REPLY, every: 10, audience: 'People who just asked about what I sell', judge: true },
+  { kind: 'mailroom', name: 'Mail room', what: 'Sorts your new email into labels and drafts a reply for each one that needs you.', does: 'Keep replies short and friendly. Answer only what they asked.', every: 10, audience: '', judge: false },
+  { kind: 'social', name: 'Social media', what: 'Writes posts for the week. It never posts anything.', does: 'Write 3 posts for this week for Instagram and Facebook, from what I tell you about my business.', every: 10080, audience: 'People nearby who follow local businesses online', judge: true },
+  { kind: 'own', name: 'Reviews', what: 'Ideas to get more reviews.', does: 'Every Monday, give me 3 simple ideas to get more Google reviews this week.', every: 10080, audience: '', judge: false },
+  { kind: 'own', name: 'Newsletter', what: 'A short email to your customers.', does: 'Write a short email to my past customers: one useful tip, one thing that is new, and a friendly sign-off.', every: 10080, audience: 'Past customers', judge: true },
+  { kind: 'own', name: 'Ads', what: 'Short ads for the week.', does: 'Write 3 short ads for this week, each a headline and two lines, for Facebook and Google.', every: 10080, audience: 'People nearby who might need what I sell', judge: true },
+];
+const MAX_DEPTS = 12;
+// The Guide is not a department: it is City Hall, always on.
+const GUIDE = { id: 'guide', name: 'City Hall', about: 'The Guide. Checks your setup and tells you exactly how to fix anything that is not working.' };
 const DEFAULT_SETTINGS = {
   business: '', owner: '', about: '', voice: 'Short, friendly and clear. No hype, no exclamation points.', signature: '',
-  leadReply: 'Thank them for reaching out. Ask the one question that matters most for their request (for example: when they want to start, or where the job is). Offer a quick call and give the phone number from the signature. Under 80 words.',
-  dailyCap: 3, alerts: 'leads',
+  dailyCap: 3, alerts: 'all',
 };
 const LABELS = { lead: 'City/Lead', needs_reply: 'City/Needs reply', fyi: 'City/FYI', receipt: 'City/Receipts', newsletter: 'City/Newsletters', spam: 'City/Junk?' };
 const SORT_SCHEMA = { type: 'object', additionalProperties: false, required: ['kind', 'summary', 'lead'], properties: {
@@ -39,40 +47,72 @@ class City {
     const keep = {}; Object.keys(DEFAULT_SETTINGS).forEach(k => { if (s[k] !== undefined) keep[k] = k === 'dailyCap' ? Math.max(0.5, Math.min(100, Number(s[k]) || DEFAULT_SETTINGS.dailyCap)) : String(s[k]).slice(0, 6000); });
     return this.store.set('settings', Object.assign(this.store.get('settings', {}), keep));
   }
+  // ---- departments: the owner names each one and says what it does ----
+  departments() {
+    let list = this.store.get('departments', null);
+    if (!Array.isArray(list)) list = this.store.set('departments', this.migrate());
+    return list;
+  }
+  department(a) { return this.departments().find(d => d.id === a) || null; }
+  byKind(k) { return this.departments().find(d => d.kind === k && d.on) || null; }
+  // A city made before departments: the agents it was really using become departments, with the same ids so their cards stay put.
+  migrate() {
+    const old = this.store.get('agents', {}) || {}, raw = this.store.get('settings', {}) || {}, out = [];
+    const used = k => this.store.list('cards').some(c => c.agent === k) || this.store.list('updates').some(u => u.agent === k);
+    const from = (kind, x) => { const p = PICKS.find(q => q.kind === kind), set = {}; Object.keys(x).forEach(k => { if (x[k] !== undefined) set[k] = x[k]; });
+      return this.clean(Object.assign({ id: kind, kind, name: p.name, does: p.does, every: p.every, audience: p.audience, judge: false, on: true }, set)); };
+    if (this.google.connected()) ['leads', 'mailroom'].forEach(k => { const o = old[k] || {}; if (o.on !== false) out.push(from(k, { every: o.every, model: o.model, does: k === 'leads' && raw.leadReply ? raw.leadReply : undefined })); });
+    if ((old.social || {}).on !== false && used('social')) out.push(from('social', { every: (old.social || {}).every, model: (old.social || {}).model }));
+    (this.store.get('custom', []) || []).forEach(c => out.push(this.clean({ id: c.id, kind: 'own', name: c.name, does: c.instructions, every: c.every, model: c.model, review: c.review, on: c.on, judge: false })));
+    return out;
+  }
+  clean(d) {
+    const kind = KINDS[d.kind] ? d.kind : 'own';
+    return { id: d.id && /^[\w-]{1,40}$/.test(d.id) ? d.id : 'd-' + id(), kind, name: String(d.name || '').trim().slice(0, 40) || 'New department', does: String(d.does || '').trim().slice(0, 4000),
+      every: EVERY[d.every] ? Number(d.every) : (PICKS.find(p => p.kind === kind) || { every: 1440 }).every, model: !d.model || d.model === 'main' ? '' : String(d.model).trim().slice(0, 120),
+      review: d.review !== false, judge: !!d.judge, audience: String(d.audience || '').trim().slice(0, 300), on: d.on !== false, panel: d.panel || null, at: d.at || this.now() };
+  }
+  // Build a department, or change one. Changing what it does or who it is for makes a fresh panel next time it is judged.
+  saveDepartment(input) {
+    const patch = {}; Object.keys(input || {}).forEach(k => { if (input[k] !== undefined && input[k] !== null) patch[k] = input[k]; });   // only what was given changes
+    const list = this.departments(), cur = patch.id ? list.find(d => d.id === patch.id) : null;
+    if (patch.id && !cur) throw new Error('No such department.');
+    const next = Object.assign({}, cur || { kind: patch.kind || 'own' }, patch, cur ? { kind: cur.kind, id: cur.id } : { id: undefined });
+    if (patch.model !== undefined && this.ai.conf().provider === 'anthropic' && patch.model !== 'main' && patch.model && !MODELS[patch.model]) next.model = cur ? cur.model : '';
+    const d = this.clean(next);
+    if (!d.does) throw new Error('Say what it should do, in plain words.');
+    if (cur && (patch.does !== undefined && patch.does !== cur.does || patch.audience !== undefined && patch.audience !== cur.audience) && !patch.panel) d.panel = null;
+    if (!cur) {
+      if (list.length >= MAX_DEPTS) throw new Error('A city has room for ' + MAX_DEPTS + ' departments. Remove one first.');
+      if (KINDS[d.kind].one && list.some(x => x.kind === d.kind)) throw new Error('You already have a ' + PICKS.find(p => p.kind === d.kind).name + ' department. Open it to change it.');
+    }
+    this.store.set('departments', cur ? list.map(x => x.id === d.id ? d : x) : list.concat([d]));
+    return d;
+  }
+  removeDepartment(a) {
+    if (!this.department(a)) throw new Error('No such department.');
+    this.store.set('departments', this.departments().filter(d => d.id !== a));
+    this.waiting().filter(c => c.agent === a).forEach(c => { Object.assign(c, { status: 'closed', decidedAt: this.now() }); this.store.put('cards', c.id, c); });
+  }
   agentConf(a) {
-    const c = (this.store.get('agents', {}) || {})[a] || {}, b = BUILT_IN[a] || this.custom(a) || {};
-    // model: what this agent runs on; ownModel: its own pick ('' = the main model chosen under Your AI)
-    const own = c.model !== undefined ? c.model : (b.model || '');
-    return { on: b.always ? true : c.on !== undefined ? !!c.on : (b.on !== undefined ? b.on : true), model: this.ai.modelFor(own), ownModel: own && this.ai.modelFor(own) === own ? own : '', every: Number(c.every) || b.every || 1440 };
+    const d = this.department(a), own = d ? d.model : '';
+    // model: what it runs on; ownModel: its own pick ('' = the main model chosen under Your AI)
+    return { on: a === 'guide' ? true : !!(d && d.on), model: this.ai.modelFor(own), ownModel: own && this.ai.modelFor(own) === own ? own : '', every: a === 'guide' ? 1 : (d && d.every) || 1440 };
   }
   agentOn(a) { return this.agentConf(a).on; }
   setAgent(a, { on, model, every }) {
-    if (!BUILT_IN[a] && !this.custom(a)) throw new Error('No such agent.');
-    if (this.custom(a)) return this.saveCustom(Object.assign({}, this.custom(a), on !== undefined ? { on: !!on } : {}, model ? { model } : {}, every ? { every: Number(every) } : {}));
-    const all = this.store.get('agents', {}), c = all[a] || {};
-    if (on !== undefined && !BUILT_IN[a].always) c.on = !!on;
-    if (model !== undefined) c.model = model === 'main' ? '' : this.ai.conf().provider === 'anthropic' ? (MODELS[model] ? model : c.model) : String(model).trim().slice(0, 120);
-    if (every && EVERY[every]) c.every = Number(every);
-    all[a] = c; this.store.set('agents', all); return c;
+    if (a === 'guide') return null;
+    return this.saveDepartment(Object.assign({ id: a }, on !== undefined ? { on: !!on } : {}, model !== undefined ? { model } : {}, every && EVERY[every] ? { every: Number(every) } : {}));
   }
-  customs() { return this.store.get('custom', []); }
-  custom(a) { return this.customs().find(c => c.id === a) || null; }
-  saveCustom(c) {
-    const clean = { id: c.id && /^c-[\w-]+$/.test(c.id) ? c.id : 'c-' + id(), name: String(c.name || 'My agent').slice(0, 60), instructions: String(c.instructions || '').slice(0, 6000),
-      every: EVERY[c.every] ? Number(c.every) : 1440, model: !c.model || c.model === 'main' ? '' : String(c.model).trim().slice(0, 120), review: c.review !== false, on: c.on !== false };
-    if (!clean.instructions.trim()) throw new Error('Tell the agent what to do.');
-    const list = this.customs().filter(x => x.id !== clean.id); list.push(clean); this.store.set('custom', list.slice(-20)); return clean;
-  }
-  removeCustom(a) { this.store.set('custom', this.customs().filter(c => c.id !== a)); }
   agents() {
-    const list = Object.entries(BUILT_IN).map(([k, b]) => ({ id: k, name: b.name, about: b.about, needs: b.needs, builtIn: true, always: !!b.always }))
-      .concat(this.customs().map(c => ({ id: c.id, name: c.name, about: c.instructions.slice(0, 140), needs: ['ai'], builtIn: false, instructions: c.instructions, review: c.review })));
-    const cards = this.waiting(), runs = this.store.get('runs', {});
-    return list.map(a => Object.assign(a, this.agentConf(a.id), { need: cards.filter(c => c.agent === a.id).length, last: runs[a.id] || null, blockedBy: this.blockedBy(a.id) }));
+    const cards = this.waiting(), runs = this.store.get('runs', {}), ups = this.store.list('updates');
+    const list = this.departments().map(d => ({ id: d.id, kind: d.kind, name: d.name, about: d.does.slice(0, 160), does: d.does, audience: d.audience, judge: d.judge, review: d.review, panel: d.panel, needs: KINDS[d.kind].needs, at: d.at }))
+      .concat([{ id: 'guide', kind: 'guide', name: GUIDE.name, about: GUIDE.about, needs: [], always: true }]);
+    return list.map(a => Object.assign(a, this.agentConf(a.id), { need: cards.filter(c => c.agent === a.id).length, done: ups.filter(u => u.agent === a.id).length, last: runs[a.id] || null, blockedBy: this.blockedBy(a.id) }));
   }
-  // What an agent is waiting for before it can work: 'AI key' or 'Gmail'.
+  // What a department is waiting for before it can work: your business details, your AI, or Gmail.
   blockedBy(a) {
-    const needs = (BUILT_IN[a] || { needs: ['ai'] }).needs;
+    const d = this.department(a), needs = d ? KINDS[d.kind].needs : [];
     if (needs.length && !this.settings().business.trim()) return 'your business details';   // nothing generic gets written before it knows the business
     if (needs.includes('ai') && this.ai.needs()) return this.ai.needs();
     if (needs.includes('google') && !this.google.connected()) return 'Gmail';
@@ -132,10 +172,17 @@ class City {
       ' Use only facts from these notes and from the message itself; never invent prices, dates, availability or promises. If a fact is missing, ask for it or say ' + who + ' will confirm. Plain text, no markdown.' +
       (s.signature ? ' End with this signature exactly:\n' + s.signature : '');
   }
-  // ---- the agents' work ----
-  // Leads and Mail room share one look at the inbox: the AI sorts each new email, labels it, and the right agent drafts.
+  // ---- the departments' work ----
+  // A department's own rewrite, used by Needs feedback and by the panel.
+  async rewriteFor(d, text, note) {
+    return this.ai.ask({ model: this.agentConf(d.id).model, effort: 'medium', maxTokens: 8000,
+      system: this.voice(this.settings()) + ' Rewrite the draft as asked. Keep every fact. Never add prices, dates or promises that are not in the notes. Return only the new text.',
+      prompt: 'THE DRAFT:\n' + text + '\n\nWHAT TO CHANGE:\n' + note });
+  }
+  judged(d, text) { return judge(this, d, text, (t, note) => this.rewriteFor(d, t, note)); }   // the panel reads it as its people would
+  // Leads and Mail room share one look at the inbox: the AI sorts each new email, labels it, and the right department drafts.
   async inbox() {
-    const s = this.settings(), me = this.google.email().toLowerCase(), seen = this.store.get('seen', []);
+    const s = this.settings(), me = this.google.email().toLowerCase(), seen = this.store.get('seen', []), L = this.byKind('leads'), M = this.byKind('mailroom');
     const ids = (await this.google.search('in:inbox newer_than:2d -label:city-seen', 10)).map(m => m.id).filter(x => !seen.includes(x));
     let drafted = 0, sorted = 0;
     for (const mid of ids) {
@@ -144,77 +191,86 @@ class City {
       seen.push(mid); this.store.set('seen', seen.slice(-500));
       const from = addressOf(m.from);
       if (from && from === me) { await this.google.label(mid, ['City/Seen']); continue; }
-      const sort = await this.ai.ask({ model: this.agentConf('mailroom').model, effort: 'low', maxTokens: 4000, schema: SORT_SCHEMA,
+      const sort = await this.ai.ask({ model: M ? this.agentConf(M.id).model : this.ai.modelFor(''), effort: 'low', maxTokens: 4000, schema: SORT_SCHEMA,
         system: 'You sort email for ' + (s.business || 'a small business') + '. About it: ' + (s.about || 'not described yet') + '. Fill the JSON exactly.',
         prompt: 'From: ' + m.from + '\nTo: ' + m.to + '\nSubject: ' + m.subject + '\nDate: ' + m.date + '\n\n' + m.text.slice(0, 6000) +
           '\n\nKinds:\n- lead: someone who may become a customer asking about the services, prices or availability, including a website form or marketplace notification about such a person.\n- needs_reply: a real person who expects an answer (not a new customer).\n- fyi: worth knowing, no answer needed.\n- receipt: bills, receipts, orders, shipping.\n- newsletter: newsletters, marketing, automatic notices.\n- spam: scams, cold sales pitches, junk.\nsummary: one short line on what it is.\nlead: for a lead, the customer\'s own name, email, phone and what they want as the email states them; empty strings when not stated or not a lead.' });
       let kind = sort.kind;
-      if (kind === 'lead' && !this.agentOn('leads')) kind = 'needs_reply';
-      if (kind === 'needs_reply' && (ROBOT.test(m.from) || !this.agentOn('mailroom'))) kind = 'fyi';
+      if (kind === 'lead' && !L) kind = 'needs_reply';
+      if (kind === 'needs_reply' && (ROBOT.test(m.from) || !M)) kind = 'fyi';
       await this.google.label(mid, ['City/Seen', LABELS[kind] || LABELS.fyi]);
       sorted++;
-      if (kind === 'lead') { if (await this.leadReply(m, sort)) drafted++; }
-      else if (kind === 'needs_reply') { await this.mailReply(m, sort); drafted++; }
-      else this.update('mailroom', 'Sorted "' + (m.subject || '(no subject)').slice(0, 80) + '" as ' + LABELS[kind].replace('City/', '') + '.');
+      if (kind === 'lead') { if (await this.leadReply(L, m, sort)) drafted++; }
+      else if (kind === 'needs_reply') { await this.mailReply(M, m, sort); drafted++; }
+      else if (M) this.update(M.id, 'Sorted "' + (m.subject || '(no subject)').slice(0, 80) + '" as ' + LABELS[kind].replace('City/', '') + '.');
     }
     return sorted ? 'Looked at ' + sorted + ' new email' + (sorted > 1 ? 's' : '') + (drafted ? ', drafted ' + drafted + ' repl' + (drafted > 1 ? 'ies' : 'y') : '') : 'No new email.';
   }
-  async leadReply(m, sort) {
+  async leadReply(D, m, sort) {
     const s = this.settings(), L = sort.lead || {}, sender = addressOf(m.replyTo || m.from), robotFrom = ROBOT.test(m.from);
     const email = (/^[^@\s]+@[^@\s]+\.[a-z]{2,}$/i.test(L.email || '') ? L.email : robotFrom && !m.replyTo ? '' : sender).toLowerCase();
     const lead = { name: L.name || nameOf(m.from), email, phone: L.phone || '', wants: L.wants || sort.summary, source: m.subject, came: ago(this.now() - (Date.parse(m.date) || this.now())) };
     const gmail = 'https://mail.google.com/mail/u/0/#all/' + m.threadId;
-    if (!email) { this.addCard({ agent: 'leads', kind: 'lead', title: 'New lead, no email address: ' + (lead.name || m.subject), lead, gmail, body: 'The city could not find their email address. Open it in Gmail and reply by hand, or call them.', actions: ['got_it'] }); return false; }
+    if (!email) { this.addCard({ agent: D.id, kind: 'lead', title: 'New lead, no email address: ' + (lead.name || m.subject), lead, gmail, body: 'The city could not find their email address. Open it in Gmail and reply by hand, or call them.', actions: ['got_it'] }); return false; }
     const sent = this.store.get('leadsSent', {}), dup = this.store.get('leadsDrafted', {});
-    if (sent[email] || (dup[email] && this.now() - dup[email] < 30 * 864e5)) { this.update('leads', 'Skipped a repeat from ' + email + ': a reply was already drafted or sent.'); return false; }
-    const body = await this.ai.ask({ model: this.agentConf('leads').model, effort: 'medium', maxTokens: 8000,
+    if (sent[email] || (dup[email] && this.now() - dup[email] < 30 * 864e5)) { this.update(D.id, 'Skipped a repeat from ' + email + ': a reply was already drafted or sent.'); return false; }
+    const first = await this.ai.ask({ model: this.agentConf(D.id).model, effort: 'medium', maxTokens: 8000,
       system: this.voice(s) + ' You write the first reply to a new customer. Follow the owner\'s reply guide exactly.',
-      prompt: 'REPLY GUIDE:\n' + s.leadReply + '\n\nTHE CUSTOMER\nName: ' + (lead.name || '(unknown)') + '\nEmail: ' + email + (lead.phone ? '\nPhone: ' + lead.phone : '') + '\nWhat they want: ' + lead.wants + '\nCame in: ' + lead.came +
+      prompt: 'REPLY GUIDE:\n' + D.does + '\n\nTHE CUSTOMER\nName: ' + (lead.name || '(unknown)') + '\nEmail: ' + email + (lead.phone ? '\nPhone: ' + lead.phone : '') + '\nWhat they want: ' + lead.wants + '\nCame in: ' + lead.came +
         '\n\nTHEIR MESSAGE:\n' + m.text.slice(0, 4000) + '\n\nWrite only the email body, from the greeting to the signature.' });
+    const { text: body, judged } = await this.judged(D, first);
     const direct = email === sender && !robotFrom;   // they wrote to you themselves: reply on their thread; a form notice (even with their Reply-To): a new email to them
     const msg = direct ? { to: email, subject: /^re:/i.test(m.subject) ? m.subject : 'Re: ' + m.subject, body, threadId: m.threadId, inReplyTo: m.messageId, references: m.references }
       : { to: email, subject: s.business || m.subject || 'Thanks for reaching out', body };
     const d = await this.google.createDraft(msg);
     dup[email] = this.now(); this.store.set('leadsDrafted', dup);
-    this.addCard({ agent: 'leads', kind: 'lead', title: 'Reply to ' + (lead.name || email) + ', ready to send', lead, gmail, email: Object.assign({}, msg, d), actions: ['approve', 'decline'] });
+    this.addCard({ agent: D.id, kind: 'lead', title: 'Reply to ' + (lead.name || email) + ', ready to send', lead, gmail, email: Object.assign({}, msg, d), judged, actions: ['approve', 'decline'] });
     return true;
   }
-  async mailReply(m, sort) {
+  async mailReply(D, m, sort) {
     const s = this.settings(), to = addressOf(m.replyTo || m.from);
-    const body = await this.ai.ask({ model: this.agentConf('mailroom').model, effort: 'medium', maxTokens: 8000, system: this.voice(s) + ' You write the owner\'s reply to this email. Answer what they asked, briefly.',
+    const first = await this.ai.ask({ model: this.agentConf(D.id).model, effort: 'medium', maxTokens: 8000, system: this.voice(s) + ' You write the owner\'s reply to this email. Answer what they asked, briefly. The owner\'s note for replies: ' + D.does,
       prompt: 'From: ' + m.from + '\nSubject: ' + m.subject + '\n\n' + m.text.slice(0, 6000) + '\n\nWrite only the reply body, from the greeting to the signature.' });
+    const { text: body, judged } = await this.judged(D, first);
     const msg = { to, subject: /^re:/i.test(m.subject) ? m.subject : 'Re: ' + m.subject, body, threadId: m.threadId, inReplyTo: m.messageId, references: m.references };
     const d = await this.google.createDraft(msg);
-    this.addCard({ agent: 'mailroom', kind: 'email', title: 'Reply to ' + (nameOf(m.from) || to) + ': ' + (m.subject || '(no subject)').slice(0, 80), summary: sort.summary,
-      came: { from: m.from, subject: m.subject, text: m.text.slice(0, 3000) }, gmail: 'https://mail.google.com/mail/u/0/#all/' + m.threadId, email: Object.assign({}, msg, d), actions: ['approve', 'decline'] });
+    this.addCard({ agent: D.id, kind: 'email', title: 'Reply to ' + (nameOf(m.from) || to) + ': ' + (m.subject || '(no subject)').slice(0, 80), summary: sort.summary,
+      came: { from: m.from, subject: m.subject, text: m.text.slice(0, 3000) }, gmail: 'https://mail.google.com/mail/u/0/#all/' + m.threadId, email: Object.assign({}, msg, d), judged, actions: ['approve', 'decline'] });
   }
-  async social() {
+  async social(D) {
     const s = this.settings();
-    const r = await this.ai.ask({ model: this.agentConf('social').model, effort: 'medium', maxTokens: 12000, schema: POSTS_SCHEMA,
+    const r = await this.ai.ask({ model: this.agentConf(D.id).model, effort: 'medium', maxTokens: 12000, schema: POSTS_SCHEMA,
       system: this.voice(Object.assign({}, s, { signature: '' })) + ' You write social media posts.',
-      prompt: 'Write 3 different posts for this week (' + new Date(this.now()).toDateString() + '). Mix Instagram and Facebook. Each: the platform, the post text with a few fitting hashtags, and the kind of real photo the owner should use. Never describe a photo as if it already exists.' });
-    (r.posts || []).slice(0, 5).reverse().forEach(p => this.addCard({ agent: 'social', kind: 'post', title: (p.platform || 'Post') + ': ' + String(p.text).split('\n')[0].slice(0, 70), body: p.text, photo: p.photo, actions: ['approve', 'decline'] }));
-    return 'Wrote ' + (r.posts || []).length + ' posts for you to look over.';
+      prompt: 'Today is ' + new Date(this.now()).toDateString() + '.\n\nWHAT THE OWNER WANTS:\n' + D.does + '\n\nEach post: the platform, the post text with a few fitting hashtags, and the kind of real photo the owner should use. Never describe a photo as if it already exists.' });
+    const posts = (r.posts || []).slice(0, 5);
+    for (const p of posts.slice().reverse()) {   // the first post shows first
+      const { text: body, judged } = await this.judged(D, p.text);
+      this.addCard({ agent: D.id, kind: 'post', title: (p.platform || 'Post') + ': ' + String(body).split('\n')[0].slice(0, 70), body, photo: p.photo, judged, actions: ['approve', 'decline'] });
+    }
+    return 'Wrote ' + posts.length + ' posts for you to look over.';
   }
-  async runCustom(c) {
+  async runOwn(D) {
     const s = this.settings();
-    const text = await this.ai.ask({ model: c.model, effort: 'medium', maxTokens: 12000, system: this.voice(Object.assign({}, s, { signature: '' })) + ' You are the owner\'s agent "' + c.name + '". Be short and useful.',
-      prompt: 'Today is ' + new Date(this.now()).toDateString() + '.\n\nYOUR JOB:\n' + c.instructions });
-    const first = (String(text || '').split('\n').find(l => l.trim()) || 'Nothing to report.').replace(/^[#*\s]+/, '');
-    if (c.review) this.addCard({ agent: c.id, kind: 'note', title: c.name + ': ' + first.slice(0, 90), body: text, actions: ['approve', 'decline'] });
-    else this.update(c.id, first.slice(0, 200), { text2: text });
-    return c.review ? 'Made a card for you.' : 'Done.';
+    const first = await this.ai.ask({ model: this.agentConf(D.id).model, effort: 'medium', maxTokens: 12000, system: this.voice(Object.assign({}, s, { signature: '' })) + ' You are the owner\'s department "' + D.name + '". Be short and useful.',
+      prompt: 'Today is ' + new Date(this.now()).toDateString() + '.\n\nWHAT THIS DEPARTMENT DOES:\n' + D.does + (D.audience ? '\n\nWHO THE WORK IS FOR: ' + D.audience : '') });
+    const { text, judged } = await this.judged(D, first);
+    const top = (String(text || '').split('\n').find(l => l.trim()) || 'Nothing to report.').replace(/^[#*\s]+/, '');
+    if (D.review) this.addCard({ agent: D.id, kind: 'note', title: D.name + ': ' + top.slice(0, 90), body: text, judged, actions: ['approve', 'decline'] });
+    else this.update(D.id, top.slice(0, 200), { text2: text, judged });
+    return D.review ? 'Made a card for you.' : 'Done.';
   }
   // ---- running ----
   jobs() {
-    const out = [];
-    if ((this.agentOn('leads') || this.agentOn('mailroom')) && !this.blockedBy('leads')) out.push({ key: 'inbox', agent: this.agentOn('leads') ? 'leads' : 'mailroom', every: Math.min(this.agentOn('leads') ? this.agentConf('leads').every : 1e9, this.agentOn('mailroom') ? this.agentConf('mailroom').every : 1e9), run: () => this.inbox() });
-    if (this.agentOn('social') && !this.blockedBy('social')) out.push({ key: 'social', agent: 'social', every: this.agentConf('social').every, run: () => this.social() });
-    this.customs().filter(c => c.on && !this.blockedBy(c.id)).forEach(c => out.push({ key: c.id, agent: c.id, every: c.every, run: () => this.runCustom(c) }));
+    const out = [], L = this.byKind('leads'), M = this.byKind('mailroom'), mail = L || M;
+    if (mail && !this.blockedBy(mail.id)) out.push({ key: 'inbox', agent: mail.id, every: Math.min(L ? L.every : 1e9, M ? M.every : 1e9), run: () => this.inbox() });
+    this.departments().filter(d => d.on && (d.kind === 'own' || d.kind === 'social') && !this.blockedBy(d.id))
+      .forEach(d => out.push({ key: d.id, agent: d.id, every: d.every, run: () => d.kind === 'social' ? this.social(this.department(d.id)) : this.runOwn(this.department(d.id)) }));
     return out;
   }
   async runAgent(agent) {
-    const job = agent === 'mailroom' || agent === 'leads' ? this.jobs().find(j => j.key === 'inbox') : this.jobs().find(j => j.key === agent);
+    const d = this.department(agent);
+    if (!d) throw new Error('No such department.');
+    const job = d.kind === 'leads' || d.kind === 'mailroom' ? this.jobs().find(j => j.key === 'inbox') : this.jobs().find(j => j.key === agent);
     const why = this.blockedBy(agent);
     if (!job) throw new CityError(why === 'Gmail' ? (this.google.configured() ? 'google_not_connected' : 'google_no_client') : why === 'your AI key' ? 'no_ai_key' : why === 'your AI model' ? 'no_ai_model' : why === 'your AI service address' ? 'no_ai_address' : why ? 'no_business' : 'agent_off', why ? 'That agent is waiting for ' + why + '.' : 'That agent is turned off.');
     return this.runJob(job);
@@ -238,7 +294,7 @@ class City {
     if (!(e instanceof CityError)) this.log.error('[' + agent + '] ' + (e && e.stack || e));
     if (this.waiting().some(c => c.kind === 'fix' && c.code === code)) return;
     const fix = guide.fixFor(code, { redirect: this.redirect || '(your city address)/connect/google/callback', cap: this.ai.cap(), detail: errs[agent].detail, message: errs[agent].message });
-    this.addCard({ agent: 'guide', kind: 'fix', code, title: fix.title, steps: fix.steps, about: (BUILT_IN[agent] || this.custom(agent) || { name: agent }).name + ': ' + errs[agent].message, actions: ['got_it'] });
+    this.addCard({ agent: 'guide', kind: 'fix', code, title: fix.title, steps: fix.steps, about: (this.department(agent) || (agent === 'guide' ? GUIDE : { name: agent })).name + ': ' + errs[agent].message, actions: ['got_it'] });
   }
   clearProblem(agent) {
     const errs = this.store.get('errors', {}); if (!errs[agent]) return;
@@ -258,4 +314,4 @@ class City {
   start(everyMs = 60e3) { const go = () => this.tick().catch(e => this.log.error('tick: ' + e.message)); setTimeout(go, 5000); this.timer = setInterval(go, everyMs); }
   stop() { clearInterval(this.timer); }
 }
-module.exports = { City, BUILT_IN, EVERY, DEFAULT_SETTINGS, LABELS, SORT_SCHEMA };
+module.exports = { City, KINDS, PICKS, GUIDE, EVERY, DEFAULT_SETTINGS, LABELS, SORT_SCHEMA, LEAD_REPLY };

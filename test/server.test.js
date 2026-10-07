@@ -42,10 +42,13 @@ test('sign-in, the home screen\'s data (never a secret), deciding, settings and 
     assert.strictEqual((await (await post('/api/decide', { id: card.id, decision: 'approve' }, H)).json()).status, 'approved');
     const again = await post('/api/decide', { id: card.id, decision: 'approve' }, H);
     assert.deepStrictEqual([again.status, (await again.json()).error], [400, 'You already decided this one.']);
-    // your own agent over the API
-    const add = await (await post('/api/custom', { name: 'Ideas', instructions: 'Three ideas a week', every: 10080 }, H)).json();
-    assert(add.ok && /^c-/.test(add.agent.id));
-    assert.strictEqual((await post('/api/custom', { name: 'x', instructions: '' }, H)).status, 400);
+    // a department the owner names, over the API: built, changed, removed
+    const add = await (await post('/api/department', { name: 'Ideas', does: 'Three ideas a week', every: 10080, judge: true, audience: 'Me' }, H)).json();
+    assert(add.ok && /^d-/.test(add.department.id) && add.department.kind === 'own' && add.department.judge === true);
+    assert.strictEqual((await post('/api/department', { name: 'x', does: '' }, H)).status, 400);
+    assert.strictEqual((await (await post('/api/department', { id: add.department.id, name: 'Review ideas' }, H)).json()).department.name, 'Review ideas');
+    assert.strictEqual((await fetch(base + '/api/department', { method: 'DELETE', headers: Object.assign({ 'content-type': 'application/json' }, H), body: JSON.stringify({ id: add.department.id }) })).status, 200);
+    assert.strictEqual(city.department(add.department.id), null);
     // Connect Google: off to Google with the client id, the exact redirect and a one-time state; back with a code; connected
     store.del('google');
     const go = await fetch(base + '/connect/google', { headers: H, redirect: 'manual' }), to = new URL(go.headers.get('location'));

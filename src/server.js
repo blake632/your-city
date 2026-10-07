@@ -3,7 +3,7 @@
 // browser a 30-day signed cookie. The password is kept only as a salted scrypt hash.
 const http = require('node:http'), crypto = require('node:crypto'), fs = require('node:fs'), path = require('node:path');
 const { MODELS, PROVIDERS } = require('./ai');
-const { EVERY } = require('./city');
+const { EVERY, PICKS } = require('./city');
 const guide = require('./guide');
 
 const PUBLIC = path.join(__dirname, '..', 'public');
@@ -72,7 +72,7 @@ function createServer({ city, password = () => process.env.CITY_PASSWORD, public
       let msg;
       if (url.searchParams.get('error')) msg = 'Google said: ' + url.searchParams.get('error') + '. Nothing was connected.';
       else if (!until || until < Date.now()) msg = 'That sign-in took too long. Press Connect Google again.';
-      else try { const who = await city.google.exchange(url.searchParams.get('code'), city.redirect); city.clearProblem('leads'); city.clearProblem('mailroom'); msg = 'Gmail is connected' + (who ? ' (' + who + ')' : '') + '. Your agents start within a few minutes.'; }
+      else try { const who = await city.google.exchange(url.searchParams.get('code'), city.redirect); city.departments().forEach(d => city.clearProblem(d.id)); msg = 'Gmail is connected' + (who ? ' (' + who + ')' : '') + '. Your departments start within a few minutes.'; }
       catch (e) { city.problem('guide', e); msg = e.message + ' Open the Guide for the fix.'; }
       res.writeHead(302, { location: '/?said=' + encodeURIComponent(msg) + '#settings' }); return res.end();
     }
@@ -83,8 +83,14 @@ function createServer({ city, password = () => process.env.CITY_PASSWORD, public
       if (p === '/api/feedback' && req.method === 'POST') { const b = await body(req); const c = await city.feedback(String(b.id || ''), b.note); return json(res, 200, { ok: true, card: c }); }
       if (p === '/api/settings' && req.method === 'POST') { city.saveSettings(await body(req)); return json(res, 200, { ok: true }); }
       if (p === '/api/agent' && req.method === 'POST') { const b = await body(req); city.setAgent(String(b.id || ''), b); return json(res, 200, { ok: true }); }
-      if (p === '/api/custom' && req.method === 'POST') { const c = city.saveCustom(await body(req)); city.update(c.id, 'New agent "' + c.name + '" is set up. It runs ' + EVERY[c.every] + '.'); return json(res, 200, { ok: true, agent: c }); }
-      if (p === '/api/custom' && req.method === 'DELETE') { const b = await body(req); city.removeCustom(String(b.id || '')); return json(res, 200, { ok: true }); }
+      // Build a department, or change one (the owner names it and says what it does); remove one.
+      if (p === '/api/department' && req.method === 'POST') {
+        const b = await body(req), fresh = !b.id;
+        const d = city.saveDepartment({ id: b.id || undefined, kind: b.kind, name: b.name, does: b.does, every: b.every, model: b.model, review: b.review, judge: b.judge, audience: b.audience, on: b.on });
+        if (fresh) city.update(d.id, 'The ' + d.name + ' department is open. It works ' + EVERY[d.every] + '.');
+        return json(res, 200, { ok: true, department: d });
+      }
+      if (p === '/api/department' && req.method === 'DELETE') { const b = await body(req); city.removeDepartment(String(b.id || '')); return json(res, 200, { ok: true }); }
       if (p === '/api/run' && req.method === 'POST') { const b = await body(req); return json(res, 200, { ok: true, said: await city.runAgent(String(b.agent || '')) }); }
       if (p === '/api/ask' && req.method === 'POST') { const b = await body(req); return json(res, 200, await guide.ask(city, b.question, { redirect: city.redirect })); }
       if (p === '/api/google/disconnect' && req.method === 'POST') { city.google.disconnect(); return json(res, 200, { ok: true }); }
@@ -132,7 +138,7 @@ function aiState(city) {
 // Everything the home screen shows, in one answer. Never a key, a password or the Google pass.
 function state(city, redirect) {
   const s = city.settings();
-  return { settings: s, firstRun: !s.business, agents: city.agents(), cards: city.waiting(), updates: city.updates().slice(0, 150), checks: guide.checks(city, { redirect }),
+  return { settings: s, firstRun: !s.business || !city.departments().length, agents: city.agents(), picks: PICKS, cards: city.waiting(), updates: city.updates().slice(0, 150), checks: guide.checks(city, { redirect }),
     google: { configured: city.google.configured(), connected: city.google.connected(), email: city.google.email() }, redirect,
     spend: { today: Math.round(city.ai.spentToday() * 100) / 100, cap: city.ai.cap() }, store: city.store.kind(), alerts: s.alerts,
     ai: aiState(city), googleClient: { id: (city.store.get('googleClient') || {}).id || '', secretSet: !!(city.store.get('googleClient') || {}).secret, fromVariable: !!process.env.GOOGLE_CLIENT_ID },

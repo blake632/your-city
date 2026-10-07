@@ -5,19 +5,20 @@ const fs = require('node:fs'), path = require('node:path');
 
 const RAILWAY_VARS = 'In Railway, open your project, click your app (not the database), then the Variables tab.';
 const FIXES = {
-  no_business: { title: 'Tell the city about your business', steps: () => ['Open Settings.', 'Fill in Your business: the name, what you do, your signature and how to answer a new lead.', 'Press Save. Your agents start on their next run.'] },
-  agent_off: { title: 'That agent is turned off', steps: () => ['Open Settings, find the agent under Agents, and press Turn on.'] },
+  no_business: { title: 'Tell the city about your business', steps: () => ['Open Settings.', 'Fill in Your business: the name, what you do, and your signature.', 'Press Save. Your departments start on their next run.'] },
+  no_departments: { title: 'Build your first department', steps: () => ['Open City.', 'Tap + Build a department.', 'Give it a name and say in plain words what it should do. Or tap one of the ready-made ones and change it.', 'Press Build it.'] },
+  agent_off: { title: 'That department is turned off', steps: () => ['Open City and tap the department.', 'Tap Edit, then Turn on.'] },
   no_ai_key: { title: 'Choose your AI and add its key', steps: c => ['Open Settings, then Your AI.', 'Pick the AI service you want to run your city: Claude, ChatGPT, Gemini, OpenRouter (any model), or another.', 'Get a key at ' + c.ai.keyAt + '. Add a little credit at ' + c.ai.billingAt + ' ($5 to $10 is plenty to start).', 'Paste the key and press Save and test.'] },
   no_ai_model: { title: 'Pick the AI model your agents use', steps: () => ['Open Settings, then Your AI.', 'Press Save and test. The city lists the models your key can use.', 'Pick one as your main model and press Save and test again.'] },
   no_ai_address: { title: 'Add your AI service\'s address', steps: () => ['Open Settings, then Your AI.', 'Paste the address of your AI service (its "base URL", for example https://api.groq.com/openai/v1). Your AI service\'s help pages list it.', 'Press Save and test.'] },
   ai_key_wrong: { title: 'Your AI key is not working', steps: c => [c.ai.name + ' did not accept the key. It may be mistyped, have a space in it, or have been deleted.', 'Make a new key at ' + c.ai.keyAt + '.', 'Open Settings, then Your AI. Paste the new key and press Save and test.'] },
   ai_credit: { title: 'Your AI account is out of credit', steps: c => ['Add credit at ' + c.ai.billingAt + '. $5 to $10 is plenty to start.', 'The city tries again on its next run.'] },
-  ai_model: { title: 'That AI model is not available to you', steps: () => ['Open Settings, then Your AI, and press Save and test to see the models your key can use.', 'Pick one of those as your main model, or for this agent under Agents.'] },
-  ai_busy: { title: 'Your AI service asked the city to slow down', steps: () => ['Nothing to do. The city waits and tries again on its next run.', 'If this keeps happening, lower how often agents run in Settings.'] },
+  ai_model: { title: 'That AI model is not available to you', steps: () => ['Open Settings, then Your AI, and press Save and test to see the models your key can use.', 'Pick one of those as your main model, or for one department under its Edit.'] },
+  ai_busy: { title: 'Your AI service asked the city to slow down', steps: () => ['Nothing to do. The city waits and tries again on its next run.', 'If this keeps happening, make your departments run less often (open one, then Edit).'] },
   ai_offline: { title: 'The city could not reach your AI service', steps: c => ['Usually a short internet hiccup. The city tries again on its next run.', 'If you use your own service address, check it in Settings, then Your AI.'] },
   ai_down: { title: 'Your AI service had a problem', steps: c => ['Usually short. The city tries again on its next run.', 'If it lasts more than an hour, check ' + c.ai.name + '\'s status page.'] },
-  ai_request: { title: 'Your AI service could not use one request', steps: () => ['The city skips that item and keeps going.', 'If it keeps happening for one agent, try a different model for it in Settings.'] },
-  refusal: { title: 'The AI declined one request', steps: () => ['The city skipped that item.', 'If it was your own agent, reword its instructions in Settings.'] },
+  ai_request: { title: 'Your AI service could not use one request', steps: () => ['The city skips that item and keeps going.', 'If it keeps happening for one department, open it, tap Edit, and pick a different model.'] },
+  refusal: { title: 'The AI declined one request', steps: () => ['The city skipped that item.', 'Open that department, tap Edit, and reword what it does.'] },
   bad_answer: { title: 'The AI gave a messy answer', steps: () => ['Nothing to do. The city tries again on its next run.'] },
   cut_off: { title: 'An AI answer was cut off', steps: () => ['Nothing to do. The city tries again on its next run.'] },
   budget: { title: 'Today\'s AI budget is used up', steps: c => ['Agents pause until tomorrow so you never spend more than you chose ($' + c.cap.toFixed(2) + ' a day).', 'To keep going today, raise Daily AI budget in Settings.'] },
@@ -64,7 +65,8 @@ function checks(city, { redirect }) {
   add('ai', !need && !aiErr, 'Your AI: ' + ac.name + ', model ' + ac.model, aiErr ? aiErr.code : need === 'your AI model' ? 'no_ai_model' : need === 'your AI service address' ? 'no_ai_address' : 'no_ai_key');
   const onRailway = !!process.env.RAILWAY_ENVIRONMENT || !!process.env.RAILWAY_PROJECT_ID;
   add('db', city.store.kind() === 'postgres' || !onRailway, city.store.kind() === 'postgres' ? 'Database is connected' : 'Saving to data/city.json on this computer', 'no_database');
-  const mail = city.agentOn('mailroom') || city.agentOn('leads');
+  add('departments', city.departments().length > 0, 'Your city has ' + city.departments().length + ' department' + (city.departments().length === 1 ? '' : 's'), 'no_departments');
+  const mail = !!(city.byKind('leads') || city.byKind('mailroom'));
   if (mail) {
     const gErr = Object.values(errs).find(e => /^(google|gmail)_/.test(e.code));
     if (!city.google.configured()) add('google', false, '', 'google_no_client');
@@ -79,13 +81,13 @@ function checks(city, { redirect }) {
 // "Ask the guide": the AI answers from the setup guide, the checklist and the recent errors; without a working AI, the checklist's own steps answer.
 async function ask(city, question, { redirect }) {
   const list = checks(city, { redirect }), bad = list.filter(c => !c.ok);
-  const fallback = () => bad.length ? bad.map(c => c.fix.title + ':\n' + c.fix.steps.map((s, i) => (i + 1) + '. ' + s).join('\n')).join('\n\n') : 'Everything in the checklist looks good. If an agent did something wrong, open it and tap Needs feedback.';
+  const fallback = () => bad.length ? bad.map(c => c.fix.title + ':\n' + c.fix.steps.map((s, i) => (i + 1) + '. ' + s).join('\n')).join('\n\n') : 'Everything in the checklist looks good. If a department did something wrong, open its card and tap Needs feedback.';
   if (!city.ai.ready()) return { answer: fallback(), by: 'checklist' };
   let setup = ''; try { setup = fs.readFileSync(path.join(__dirname, '..', 'SETUP.md'), 'utf8').slice(0, 30000); } catch (e) {}
   const errs = Object.entries(city.store.get('errors', {})).map(([a, e]) => a + ': ' + e.code + ' (' + e.message + (e.detail ? '; ' + String(e.detail).slice(0, 200) : '') + ')').join('\n') || 'none';
   try {
     const answer = await city.ai.ask({ model: city.agentConf('guide').model, effort: 'low', maxTokens: 4000,
-      system: 'You are the Guide inside Your City, a small app the owner runs on their own Railway, where AI agents (driven by the AI service the owner picked: ' + city.ai.conf().name + ') sort email, answer leads and draft posts. Google only gives it permission to read Gmail; nothing runs on Google. The person asking is not technical. Answer with a few short numbered steps in plain words, one action per step, naming the exact button or page. Use only the setup guide, the checklist and the errors below; if they do not cover the question, say what you would check and suggest asking the person who shared the app. Never ask for or repeat a key or password.',
+      system: 'You are the Guide inside Your City, a small app the owner runs on their own Railway, made of departments the owner names and describes (driven by the AI service the owner picked: ' + city.ai.conf().name + '). A panel of 8 simulated people and a crowd of 96 judge each department\'s work before the owner sees it. Some departments can read Gmail (Leads, Mail room). Google only gives it permission to read Gmail; nothing runs on Google. The person asking is not technical. Answer with a few short numbered steps in plain words, one action per step, naming the exact button or page. Use only the setup guide, the checklist and the errors below; if they do not cover the question, say what you would check and suggest asking the person who shared the app. Never ask for or repeat a key or password.',
       prompt: 'SETUP GUIDE:\n' + setup + '\n\nCHECKLIST NOW:\n' + list.map(c => (c.ok ? 'OK: ' : 'PROBLEM: ') + c.text).join('\n') + '\n\nRECENT ERRORS:\n' + errs + '\n\nThe app\'s Google redirect address is: ' + redirect + '\n\nQUESTION: ' + String(question || '').slice(0, 2000) });
     return { answer, by: 'ai' };
   } catch (e) { return { answer: fallback(), by: 'checklist', note: e.message }; }

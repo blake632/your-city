@@ -1,17 +1,17 @@
 # Your City
 
-Your own AI office. Agents that:
+Your own AI office, drawn as a city.
 
-- **Answer new leads fast.** They spot a new customer in your email and write your first reply.
-- **Sort your email.** New email gets labels, and anything that needs you gets a reply drafted.
-- **Draft your social posts.** Three posts a week, written from what you tell it about your business.
-- **Do whatever you tell them.** Add your own agent in plain words, like "Every Monday, give me 3 ideas to get more reviews."
+- **You build the departments.** Name each one and say what it does in plain words: "Leads", "Instagram", "Reviews", "Newsletter", anything. Each one becomes a building in your city.
+- **Their work is judged before you see it.** A panel of 8 people the work is for scores it from 1 to 5. A weak draft is rewritten once. Then a crowd of 96 (the same 8 people in 12 moods) votes yes or no. These people are simulated by your AI, not real people, and the app says so.
+- **Ready-made departments if you want them.** Leads reads your Gmail and drafts a reply to each new customer. Mail room sorts your email and drafts replies. Social media writes your posts. Or start from nothing.
+- **You approve everything.** Approve, Decline, or tell it what to change.
 
-**Nothing is sent, posted or deleted without your click.** Agents write drafts and cards. You press Send.
+**Nothing is sent, posted or deleted without your click.** Departments write drafts and cards. You press Send.
 
 **Use any AI you like:** Claude, ChatGPT, Gemini, any model through OpenRouter, or another service that works like OpenAI (Groq, Together, Mistral, Ollama...). You pick it inside the app and can switch any time.
 
-When something does not work, the **Guide** agent tells you exactly what to do, one step at a time. You can also ask it questions in your own words.
+When something does not work, **City Hall** (the Guide) tells you exactly what to do, one step at a time. You can also ask it questions in your own words.
 
 ## What you need
 
@@ -37,20 +37,22 @@ Everything else happens inside your city:
 
 8. **Settings → Your AI**: pick your AI, paste its key, press **Save and test**, then pick a model.
 9. **Settings → Your business**: tell the city about your business.
-10. **Settings → Gmail**: the Guide walks you through giving your city permission to read your email (about 5 minutes, once).
+10. **City → + Build a department**: name it and say what it does. Build as many as you like (up to 12).
+11. Only if a department reads email (Leads, Mail room): **Settings → Gmail**. The Guide walks you through it (about 5 minutes, once).
 
 Stuck? Open the **Guide** and type your question. More detail is in [SETUP.md](SETUP.md).
 
-## Choose your agents
+## Your departments
 
-In **Settings → Agents** you can, for each agent:
+Tap **+ Build a department** in your city, or a building to change it. For each one you choose:
 
-- Turn it on or off.
-- Pick its AI model, or leave it on your main model.
-- Choose how often it runs.
-- Press **Run now** to try it.
+- Its **name** and **what it does**, in your own words.
+- **How often** it works, and which **AI model** it uses (or your main model).
+- **Who its work is for.** Its panel is made of people like this.
+- **Judge its work before I see it**: the Panel and the Crowd. Each check costs a little AI, so you can turn it off.
+- **Show me what it makes before keeping it**, or let it just report in Updates.
 
-**Add your own agent** lets you write what it should do in plain words, and how often. You can have it show you its work before keeping it.
+Each building grows taller as its department works. A number on it means something needs you. Open a department to see **Needs you**, **Updates**, and its **Panel**: the 8 people who judge its work.
 
 ## On your phone
 
@@ -66,7 +68,8 @@ Plain Node.js 22, two packages (`@anthropic-ai/sdk`, `pg`), no build step.
 
 ```
 src/main.js     start-up
-src/city.js     settings, agents, cards, the clock
+src/city.js     settings, departments, cards, the clock
+src/judge.js    the Panel and the Crowd that judge each department's work
 src/guide.js    the setup checklist and every fix, in plain words
 src/ai.js       any AI: Claude, or any OpenAI-style service; models, daily budget, errors
 src/google.js   Google sign-in and Gmail

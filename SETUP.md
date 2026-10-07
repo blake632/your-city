@@ -14,7 +14,7 @@ This is the full guide. The Guide inside your city shows the same steps, with yo
 
 ## 2. Choose your AI and add its key
 
-Your agents can run on any of these. Pick one in **Settings → Your AI**:
+Your departments can run on any of these. Pick one in **Settings → Your AI**:
 
 | AI | Where to get a key | Where to add credit |
 |---|---|---|
@@ -29,11 +29,11 @@ Your agents can run on any of these. Pick one in **Settings → Your AI**:
 3. In your city, open **Settings → Your AI**. Pick your AI from the list.
 4. For "Another service": paste its address too (its help pages list it, for example `https://api.groq.com/openai/v1`).
 5. Paste the key and press **Save and test**. The city checks the key and lists the models it can use. It costs nothing.
-6. Pick a **Main model** from the list and press **Save and test** again. Your agents use it unless you pick another model for one of them under **Agents**.
+6. Pick a **Main model** from the list and press **Save and test** again. Every department uses it unless you pick another model for it (open the department, then **Edit**).
 
 Your key is kept in your city's database. It never shows on the page again, and a key that does not work never replaces one that does. Each AI keeps its own key, so you can switch back and forth.
 
-Your city never spends more in a day than the **Daily AI budget** in Settings (it starts at $3). When the budget is used up, agents pause until tomorrow. For Claude the city knows the exact prices. For other services it estimates, so check your AI account's usage page now and then.
+Your city never spends more in a day than the **Daily AI budget** in Settings (it starts at $3). When the budget is used up, departments pause until tomorrow. For Claude the city knows the exact prices. For other services it estimates, so check your AI account's usage page now and then.
 
 ## 3. Let your city read Gmail (one time)
 
@@ -61,18 +61,35 @@ The city asks Google for one permission: read, label and draft your email. It se
 In **Settings → Your business**, fill in:
 
 - **Business name** and **your name**.
-- **About your business**: what you sell, where, who you serve, and facts the agents may use. Agents never invent prices, dates or promises. When they don't know something, they ask the customer or say you will confirm.
+- **About your business**: what you sell, where, who you serve, and facts your departments may use. They never invent prices, dates or promises. When they don't know something, they ask the customer or say you will confirm.
 - **How you write**: your voice in a sentence.
 - **Your email signature.**
-- **How to answer a new lead**: the Leads agent follows this for every first reply.
 
-## 5. Your agents
+## 5. Build your departments
 
-- **Leads**: checks your inbox every 10 minutes. A new customer gets a first reply drafted right away, and the card shows who they are, with Call and Text buttons.
-- **Mail room**: sorts new email into labels (City/Lead, City/Needs reply, City/FYI, City/Receipts, City/Newsletters, City/Junk?) and drafts replies for the ones that need you. It never deletes or archives anything.
-- **Social posts**: writes 3 posts a week from your business notes. Approve one to keep it, then copy it from Updates when you post.
-- **Guide**: always on. It checks your setup every minute and explains any problem.
-- **Your own agents**: in Settings, under **Add your own agent**, say what it should do and how often.
+Your city starts empty, with only City Hall (the Guide). You decide what departments it has.
+
+1. Open **City** and tap **+ Build a department** (or the **+ Build** lot in the drawing).
+2. **Name** it, and say **what it does** in plain words, the way you would tell a new hire. Or tap a ready-made one and change it.
+3. Choose **how often** it works and **who its work is for**.
+4. Leave **Judge its work before I see it** on to have the Panel and the Crowd check it.
+5. Press **Build it**, then **Run now** to see it work.
+
+Ready-made departments:
+
+- **Leads**: checks your inbox every 10 minutes. A new customer gets a first reply drafted right away, and the card shows who they are, with Call and Text buttons. What it does is your guide for first replies. Needs Gmail.
+- **Mail room**: sorts new email into labels (City/Lead, City/Needs reply, City/FYI, City/Receipts, City/Newsletters, City/Junk?) and drafts replies for the ones that need you. It never deletes or archives anything. Needs Gmail.
+- **Social media**: writes posts from what you tell it. It never posts anything. Approve one to keep it, then copy it from Updates when you post.
+- **Reviews**, **Newsletter**, **Ads**: examples of departments that do what you write.
+
+### The Panel and the Crowd
+
+When judging is on, each piece of work is checked before it reaches you:
+
+- **The Panel**: 8 people like the ones you said the work is for. Each reacts in a sentence and scores it from 1 to 5. It passes at 3.5 on average with at least half giving 4 or 5. If it does not pass, the department rewrites it once using the harshest reactions, and you see the version that scored higher.
+- **The Crowd**: the same 8 people in 12 moods (rushed, skeptical, ready to buy...), so 96 yes or no votes. It only advises.
+
+These people are simulated: your AI plays them. They are not real people. The card shows the score, every reaction and all 96 votes. Open a department's **Panel** tab to meet its 8 people. To get a new panel, change who its work is for.
 
 On every card you can **Approve**, **Decline**, **Needs feedback** (tell it what to change and it rewrites the draft, in Gmail too), **Open in Gmail**, or **Skip**.
 
@@ -90,7 +107,7 @@ On Android and computers, use Chrome or Edge and tap **Turn on alerts**.
 ## Fixes for common problems
 
 - **The city asks for a password you never chose, or you forgot yours:** in Railway, click your app, then Variables. Add `CITY_PASSWORD` with a new password. It takes over in a minute and signs everyone else out.
-- **Agents say "Waiting for your AI key":** open Settings, then Your AI. Pick your AI, paste its key, press Save and test.
+- **Departments say "Waiting for your AI key":** open Settings, then Your AI. Pick your AI, paste its key, press Save and test.
 - **"Your AI key is not working":** make a new key on your AI's website (the table in step 2) and paste it in Settings, then Your AI.
 - **"Out of credit":** add credit on your AI's website (the table in step 2).
 - **"That AI model is not available to you":** press Save and test in Settings, then Your AI, and pick a model from the list.

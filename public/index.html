@@ -64,6 +64,19 @@ label.f{display:block;margin:14px 0 6px;font-weight:600;font-size:15px}label.f s
 .pill.on{color:var(--good);border-color:currentColor}.pill.off{color:var(--dim)}
 .banner{background:var(--tint);border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:0 14px 14px 0;padding:14px 16px;margin:0 0 16px}
 .allclear{text-align:center;padding:50px 10px}.allclear .ok{font:400 4rem/1 var(--serif);color:var(--accent)}
+.city{display:block;width:100%;height:auto;margin:0 0 6px;touch-action:manipulation}.city .bld{cursor:pointer}.city .bld:focus{outline:none}.city .bld:focus-visible .top{stroke:var(--ink);stroke-width:1.5}
+.city .sign{font:600 8.5px var(--sans);fill:var(--ink);paint-order:stroke;stroke:var(--bg);stroke-width:3px;stroke-linejoin:round}.city .sign.bad{fill:var(--bad)}
+.city .badge{animation:pulse 1.8s ease-in-out infinite;transform-box:fill-box;transform-origin:center}@keyframes pulse{50%{transform:scale(1.18)}}
+@media (prefers-reduced-motion:reduce){.city .badge{animation:none}}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:13px;color:var(--dim);margin:0 0 18px}.legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;vertical-align:-1px}
+.dept.add{justify-content:center;border-style:dashed;box-shadow:none;background:none;font-weight:600;color:var(--accent)}
+label.ck{display:flex;gap:10px;align-items:flex-start;margin:14px 0 6px;font-weight:600;font-size:15px}label.ck input{margin-top:4px;width:18px;height:18px;flex:0 0 18px}label.ck small{display:block;font-weight:400;color:var(--dim)}
+.judge{border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin:0 0 12px;background:var(--bg)}.judge .k{font:600 11px/1.4 var(--sans);letter-spacing:.12em;text-transform:uppercase;color:var(--dim)}
+.judge .score{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin:6px 0 2px}.judge .score b{font:400 1.6rem/1 var(--serif)}.judge .pass{color:var(--good);font-weight:600;font-size:14px}.judge .fail{color:var(--bad);font-weight:600;font-size:14px}
+.judge .bar{height:6px;border-radius:3px;background:var(--lift);overflow:hidden;margin:6px 0 10px}.judge .bar i{display:block;height:100%;background:var(--accent)}
+.dots{display:grid;grid-template-columns:repeat(12,1fr);gap:3px;max-width:260px;margin:8px 0 4px}.dots i{aspect-ratio:1;border-radius:50%;border:1.5px solid var(--accent)}.dots i.y{background:var(--accent)}
+.said{list-style:none;margin:8px 0 0;padding:0;font-size:14px}.said li{padding:6px 0;border-top:1px solid var(--line)}.said b{font-weight:600}
+.people{list-style:none;margin:0;padding:0}.people li{padding:10px 0;border-bottom:1px solid var(--line)}.people li:last-child{border-bottom:0}
 .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(90px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--on-ink);padding:12px 18px;border-radius:12px;z-index:40;max-width:calc(100% - 32px);font-size:15px}
 </style>
 </head>
@@ -73,14 +86,33 @@ label.f{display:block;margin:14px 0 6px;font-weight:600;font-size:15px}label.f s
   <section id="t-depts">
     <div id="home">
       <div class="banner" id="startHere" hidden></div>
-      <h1>Departments</h1><p class="sub">Who needs you, and what each one did. Tap one.</p>
+      <h1>Your city</h1><p class="sub">Each building is a department you named. Tap one.</p>
+      <div id="cityView"></div>
+      <div class="legend"><span><i style="background:#ffd98a;border:1px solid #c9a24a"></i>Lit: working</span><span><i style="background:var(--accent)"></i>A number: needs you</span><span><i style="background:#a9a397"></i>Grey: off</span></div>
       <ul class="list" id="depts"><li class="muted">Loading…</li></ul>
     </div>
     <div id="dept" hidden>
-      <a class="back" href="#" id="back">‹ All departments</a>
-      <h1 id="deptName"></h1><p class="sub" id="deptAbout"></p>
-      <div class="tabs2" role="tablist"><button role="tab" id="tabNeed">Needs you<b id="nNeed">0</b></button><button role="tab" id="tabDone">Updates<b id="nDone">0</b></button></div>
-      <div id="need"></div><div id="done" hidden></div>
+      <a class="back" href="#">‹ Your city</a>
+      <h1 id="deptName"></h1><p class="sub" id="deptAbout" style="margin-bottom:8px"></p>
+      <div class="chips" id="deptTools" style="margin:0 0 6px"></div>
+      <div class="tabs2" role="tablist"><button role="tab" id="tabNeed">Needs you<b id="nNeed">0</b></button><button role="tab" id="tabDone">Updates<b id="nDone">0</b></button><button role="tab" id="tabPanel">Panel</button></div>
+      <div id="need"></div><div id="done" hidden></div><div id="panel" hidden></div>
+    </div>
+    <div id="build" hidden>
+      <a class="back" href="#" id="buildBack">‹ Your city</a>
+      <h1 id="buildTitle">Build a department</h1><p class="sub" id="buildSub">Name it and say what it does, in your own words.</p>
+      <div id="picksBox"><p class="muted" style="margin:0 0 4px">Or start from one of these and change it:</p><div class="chips" id="picks" style="margin:0 0 16px"></div></div>
+      <div class="box" style="padding:4px 16px 16px">
+        <div class="banner" id="b-kindNote" style="margin:14px 0 0" hidden></div>
+        <label class="f">Name<small>What you call it. For example: Leads, Reviews, Instagram, Newsletter.</small><input type="text" id="b-name" maxlength="40"></label>
+        <label class="f">What does it do?<small>Plain words, the way you would tell a new hire.</small><textarea id="b-does" rows="5"></textarea></label>
+        <div class="row"><label class="f">How often<select id="b-every"></select></label><label class="f">AI model<select id="b-model"></select></label></div>
+        <label class="f">Who is its work for?<small>Its panel is made of people like this. For example: homeowners in Austin planning a remodel.</small><input type="text" id="b-audience" maxlength="300"></label>
+        <label class="ck"><input type="checkbox" id="b-judge"><span>Judge its work before I see it<small>A panel of 8 people scores it, and a crowd of 96 votes yes or no. Your AI plays them: they are simulated, not real people. Each check costs a little AI.</small></span></label>
+        <label class="ck" id="b-reviewRow"><input type="checkbox" id="b-review" checked><span>Show me what it makes before keeping it</span></label>
+        <label class="ck" id="b-onRow" hidden><input type="checkbox" id="b-on"><span>On<small>Off: it stops working until you turn it on.</small></span></label>
+        <div class="chips"><button class="btn yes sm" id="b-save">Build it</button><button class="chip" id="b-remove" hidden>Remove this department</button></div>
+      </div>
     </div>
   </section>
   <section id="t-guide" hidden>
@@ -92,14 +124,14 @@ label.f{display:block;margin:14px 0 6px;font-weight:600;font-size:15px}label.f s
     <div id="answer"></div>
   </section>
   <section id="t-settings" hidden>
-    <h1>Settings</h1><p class="sub">Tell the city about your business, choose your agents, and connect Gmail.</p>
+    <h1>Settings</h1><p class="sub">Your AI, your business, and Gmail. Departments are built and changed in Your city.</p>
     <div class="banner" id="said" hidden></div>
     <h2>Your AI</h2>
     <div class="box" style="padding:4px 16px 16px">
       <label class="f">Which AI runs your city?<small>Any of these works. You pay that company for what your agents use.</small><select id="ai-provider"></select></label>
       <label class="f" id="ai-baseRow" hidden>Its address (base URL)<small>For example https://api.groq.com/openai/v1. Your AI service's help pages list it.</small><input type="text" id="ai-baseUrl" placeholder="https://"></label>
       <label class="f">Its API key<small id="ai-keyHelp"></small><input type="password" id="ai-key" autocomplete="off" placeholder="Paste your key"></label>
-      <label class="f">Main model<small>Your agents use this unless you pick another for one of them below.</small><input type="text" id="ai-model" list="ai-models" placeholder="Press Save and test to see your models"><datalist id="ai-models"></datalist></label>
+      <label class="f">Main model<small>Every department uses this unless you pick another one for it.</small><input type="text" id="ai-model" list="ai-models" placeholder="Press Save and test to see your models"><datalist id="ai-models"></datalist></label>
       <div class="chips"><button class="btn yes sm" id="aiSave">Save and test</button><span class="muted" id="aiSaid"></span></div>
       <div id="aiFix"></div>
     </div>
@@ -110,7 +142,6 @@ label.f{display:block;margin:14px 0 6px;font-weight:600;font-size:15px}label.f s
       <label class="f">About your business<small>What you sell, where, who you serve, and facts the agents may say (hours, how you work). They never invent prices or promises.</small><textarea id="s-about" rows="5"></textarea></label>
       <label class="f">How you write<small>Your voice, in a sentence or two.</small><textarea id="s-voice" rows="2"></textarea></label>
       <label class="f">Your email signature<textarea id="s-signature" rows="4" placeholder="Sam Lee&#10;Sam's Kitchens&#10;512 555 0199"></textarea></label>
-      <label class="f">How to answer a new lead<small>The Leads agent follows this for every first reply.</small><textarea id="s-leadReply" rows="4"></textarea></label>
       <div class="chips"><button class="btn yes sm" id="saveBiz">Save</button></div>
     </div>
     <h2>Gmail</h2>
@@ -120,19 +151,9 @@ label.f{display:block;margin:14px 0 6px;font-weight:600;font-size:15px}label.f s
       <label class="f">Google Client secret<input type="password" id="g-secret" autocomplete="off" placeholder="Paste the secret"></label>
       <div class="chips"><button class="btn yes sm" id="gSave">Save</button><a class="chip" href="#guide">Show me the steps</a></div>
     </div>
-    <h2>Agents</h2>
-    <div class="box" id="agents"></div>
-    <h2>Add your own agent</h2>
-    <div class="box" style="padding:4px 16px 16px">
-      <label class="f">Name<input type="text" id="c-name" placeholder="Review booster"></label>
-      <label class="f">What should it do?<small>Plain words. For example: "Every Monday, give me 3 ideas to get more Google reviews this week."</small><textarea id="c-instructions" rows="4"></textarea></label>
-      <div class="row"><label class="f">How often<select id="c-every"></select></label><label class="f">AI model<select id="c-model"></select></label></div>
-      <label class="f" style="font-weight:400"><input type="checkbox" id="c-review" checked> Show me what it makes before keeping it</label>
-      <div class="chips"><button class="btn yes sm" id="addAgent">Add agent</button></div>
-    </div>
     <h2>Daily AI budget</h2>
     <div class="box" style="padding:4px 16px 16px">
-      <label class="f">Most the agents may spend in a day (US dollars)<small id="spent"></small><input type="number" id="s-dailyCap" min="0.5" step="0.5"></label>
+      <label class="f">Most your departments may spend in a day (US dollars)<small id="spent"></small><input type="number" id="s-dailyCap" min="0.5" step="0.5"></label>
       <div class="chips"><button class="btn yes sm" id="saveCap">Save</button></div>
     </div>
     <h2>Phone alerts</h2>
@@ -151,7 +172,7 @@ label.f{display:block;margin:14px 0 6px;font-weight:600;font-size:15px}label.f s
   </section>
 </div>
 <nav class="tabs" aria-label="Sections">
-  <button data-tab="depts"><span class="ic">✓</span>Departments<span class="n" id="nAll" hidden></span></button>
+  <button data-tab="depts"><span class="ic">🏙</span>City<span class="n" id="nAll" hidden></span></button>
   <button data-tab="guide"><span class="ic">🧭</span>Guide<span class="n" id="nGuide" hidden></span></button>
   <button data-tab="settings"><span class="ic">⚙</span>Settings</button>
 </nav>
@@ -171,14 +192,17 @@ label.f{display:block;margin:14px 0 6px;font-weight:600;font-size:15px}label.f s
       .then(function (r) { return r.json().catch(function () { return {}; }).then(function (j) { if (r.status === 401) { location.reload(); } if (!r.ok) throw new Error(j.error || 'That did not work.'); return j; }); });
   }
   function ago(ts) { var m = Math.round((Date.now() - ts) / 6e4); return m < 1 ? 'just now' : m < 60 ? m + ' min ago' : m < 1440 ? Math.round(m / 60) + 'h ago' : Math.round(m / 1440) + 'd ago'; }
-  var S = null, tab = 'depts', dept = '', dtab = 'need', at = {}, want = null;
+  var S = null, tab = 'depts', dept = '', dtab = 'need', at = {}, want = null, view = 'home';
 
-  // ---- loading and routing: #<agent>, #<agent>/updates, #<agent>/card/<id>, #guide, #settings ----
+  // ---- loading and routing: #build, #<dept>, #<dept>/updates, #<dept>/panel, #<dept>/edit, #<dept>/card/<id>, #guide, #settings ----
   function load() { return api('/api/state').then(function (s) { S = s; render(); }).catch(function (e) { $('depts').innerHTML = ''; $('depts').appendChild(el('li', { cls: 'err', text: e.message })); }); }
   function route() {
-    var h = location.hash.slice(1), m = /^([\w-]+)(?:\/(updates|card\/([\w-]+)))?$/.exec(h) || [];
+    var h = location.hash.slice(1), m = /^([\w-]+)(?:\/(updates|panel|edit|card\/([\w-]+)))?$/.exec(h) || [];
     if (h === 'guide' || h === 'settings') { show(h); return; }
-    dept = m[1] || ''; dtab = m[2] === 'updates' ? 'done' : 'need'; if (m[3]) want = m[3];
+    if (h === 'build') { view = 'build'; dept = ''; built = null; show('depts'); return; }
+    dept = m[1] || ''; view = !dept ? 'home' : m[2] === 'edit' ? 'build' : 'dept';
+    dtab = m[2] === 'updates' ? 'done' : m[2] === 'panel' ? 'panel' : 'need'; if (m[3]) want = m[3];
+    if (view === 'build') built = null;
     show('depts');
   }
   function show(t) {
@@ -186,57 +210,185 @@ label.f{display:block;margin:14px 0 6px;font-weight:600;font-size:15px}label.f s
     document.querySelectorAll('nav.tabs button').forEach(function (b) { if (b.dataset.tab === t) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current'); });
     if (S) render(); window.scrollTo(0, 0);
   }
-  document.querySelectorAll('nav.tabs button').forEach(function (b) { b.onclick = function () { location.hash = b.dataset.tab === 'depts' ? '' : b.dataset.tab; if (b.dataset.tab === 'depts') { dept = ''; show('depts'); } }; });
+  document.querySelectorAll('nav.tabs button').forEach(function (b) { b.onclick = function () { location.hash = b.dataset.tab === 'depts' ? '' : b.dataset.tab; if (b.dataset.tab === 'depts') { dept = ''; view = 'home'; show('depts'); } }; });
   window.addEventListener('hashchange', route);
-  $('back').onclick = function (e) { e.preventDefault(); location.hash = ''; };
   $('tabNeed').onclick = function () { location.hash = dept; };
   $('tabDone').onclick = function () { location.hash = dept + '/updates'; };
+  $('tabPanel').onclick = function () { location.hash = dept + '/panel'; };
+  $('buildBack').onclick = function (e) { e.preventDefault(); history.length > 1 ? history.back() : (location.hash = ''); };
 
   function render() {
     $('biz').textContent = S.settings.business || 'Your business';
     var n = S.cards.filter(function (c) { return c.kind !== 'fix'; }).length, bad = S.checks.filter(function (c) { return !c.ok; }).length + S.cards.filter(function (c) { return c.kind === 'fix'; }).length;
     $('nAll').hidden = !n; $('nAll').textContent = n; $('nGuide').hidden = !bad; $('nGuide').textContent = bad;
-    if (tab === 'depts') { if (dept) renderDept(); else renderHome(); }
+    if (tab === 'depts') { $('home').hidden = view !== 'home'; $('dept').hidden = view !== 'dept'; $('build').hidden = view !== 'build'; if (view === 'dept') renderDept(); else if (view === 'build') renderBuild(); else renderHome(); }
     if (tab === 'guide') renderGuide();
     if (tab === 'settings') renderSettings();
   }
-  // ---- Departments ----
+  var DEPTS = function () { return S.agents.filter(function (a) { return a.id !== 'guide'; }); };
+  // ---- Your city: the drawing, then the list ----
   function renderHome() {
-    $('home').hidden = false; $('dept').hidden = true;
     var start = $('startHere'); start.innerHTML = '';
     var bad = S.checks.filter(function (c) { return !c.ok; });
     if (S.firstRun || bad.length) {
       start.hidden = false;
       start.appendChild(el('b', { text: S.firstRun ? 'Welcome. Start here.' : 'Your setup needs ' + bad.length + ' thing' + (bad.length > 1 ? 's' : '') + '.' }));
-      start.appendChild(el('p', { cls: 'muted', style: 'margin:4px 0 8px', text: S.firstRun ? 'Pick your AI and tell the city about your business in Settings. Then follow the Guide. It shows each step.' : bad[0].text }));
+      start.appendChild(S.firstRun ? el('ol', { cls: 'steps', style: 'margin:6px 0 8px' }, [el('li', { text: 'Settings, then Your AI: pick your AI and paste its key.' }), el('li', { text: 'Settings, then Your business: tell the city about it.' }), el('li', { text: 'Here: tap + Build a department, name it and say what it does.' })])
+        : el('p', { cls: 'muted', style: 'margin:4px 0 8px', text: bad[0].text }));
       start.appendChild(el('div', { cls: 'chips' }, [el('a', { cls: 'chip strong', href: '#settings', text: 'Open Settings' }), el('a', { cls: 'chip strong', href: '#guide', text: 'Open the Guide' })]));
     } else start.hidden = true;
+    var cv = $('cityView'); cv.innerHTML = ''; cv.appendChild(cityView());
     var ul = $('depts'); ul.innerHTML = '';
-    var list = S.agents.slice().sort(function (a, b) { return (b.need ? 1 : 0) - (a.need ? 1 : 0) || (a.id === 'leads' ? -1 : b.id === 'leads' ? 1 : 0) || b.need - a.need; });
+    var list = DEPTS().sort(function (a, b) { return (b.need ? 1 : 0) - (a.need ? 1 : 0) || b.need - a.need || a.at - b.at; });
     list.forEach(function (a) {
-      var done = S.updates.filter(function (u) { return u.agent === a.id; }).length;
-      var state = a.need ? el('b', { text: a.need + ' need' + (a.need > 1 ? '' : 's') + ' you' }) : !a.on ? el('span', { text: 'Off' }) : a.blockedBy ? el('span', { cls: 'bad', text: 'Waiting for ' + a.blockedBy }) : el('span', { text: a.last ? 'Ran ' + ago(a.last.at) : 'Nothing waiting' });
-      ul.appendChild(el('li', {}, [el('button', { cls: 'dept' + (a.need ? '' : ' quiet') + (a.id === 'leads' && a.need ? ' first' : ''), onclick: function () { location.hash = a.id + (a.need ? '' : '/updates'); } }, [
+      var state = a.need ? el('b', { text: a.need + ' need' + (a.need > 1 ? '' : 's') + ' you' }) : !a.on ? el('span', { text: 'Off' }) : a.blockedBy ? el('span', { cls: 'bad', text: 'Waiting for ' + a.blockedBy }) : el('span', { text: a.last ? 'Worked ' + ago(a.last.at) : 'Nothing waiting' });
+      ul.appendChild(el('li', {}, [el('button', { cls: 'dept' + (a.need ? '' : ' quiet'), onclick: function () { location.hash = a.id + (a.need ? '' : '/updates'); } }, [
         el('span', { cls: 'nm' }, [el('b', { text: a.name }), el('span', { text: a.about })]),
-        el('span', { cls: 'cnt' }, [state, done ? el('span', { text: done + ' update' + (done > 1 ? 's' : '') }) : null]), el('span', { text: '›', cls: 'muted' })])]));
+        el('span', { cls: 'cnt' }, [state, a.done ? el('span', { text: a.done + ' update' + (a.done > 1 ? 's' : '') }) : null, a.judge ? el('span', { text: '⚖ judged' }) : null]), el('span', { text: '›', cls: 'muted' })])]));
     });
+    if (list.length < 12) ul.appendChild(el('li', {}, [el('button', { cls: 'dept add', onclick: function () { location.hash = 'build'; } }, ['+ Build a department'])]));
+    var hall = S.agents.filter(function (a) { return a.id === 'guide'; })[0];
+    ul.appendChild(el('li', {}, [el('button', { cls: 'dept quiet', onclick: function () { location.hash = 'guide'; } }, [el('span', { cls: 'nm' }, [el('b', { text: hall.name }), el('span', { text: hall.about })]),
+      el('span', { cls: 'cnt' }, [bad.length || hall.need ? el('span', { cls: 'bad', text: (bad.length + hall.need) + ' to fix' }) : el('span', { text: 'All good' })]), el('span', { text: '›', cls: 'muted' })])]));
   }
+  // The city: an isometric block. City Hall (the Guide) at the back; each department a building on its own lot, taller as it works.
+  var NS = 'http://www.w3.org/2000/svg';
+  function sv(tag, a, kids) { var e = document.createElementNS(NS, tag); Object.keys(a || {}).forEach(function (k) { if (k === 'text') e.textContent = a[k]; else if (k.slice(0, 2) === 'on') e.addEventListener(k.slice(2), a[k]); else e.setAttribute(k, a[k]); }); (kids || []).forEach(function (c) { if (c) e.appendChild(c); }); return e; }
+  var HUES = [['#e3c193', '#b0844e', '#8f6534'], ['#bfd2b5', '#7f9e74', '#62825b'], ['#bcc8da', '#7a8ca7', '#5e708c'], ['#e6b39b', '#bb7a60', '#9a5e47'], ['#d4bad3', '#9a789a', '#7c5c7c'], ['#b2d8d2', '#61a097', '#4a827a']];
+  var OFF = ['#d8d3c9', '#aaa498', '#8f8a7f'], HALL = ['#f4eee2', '#d9cfbb', '#c2b69f'];
+  // Lots spaced like city blocks, so no building stands right in front of another: City Hall at the back, then outward.
+  // Up to 6 departments fit the small map; more open the big one (12 at most).
+  var SLOTS = [[2, 0], [0, 2], [2, 2], [4, 0], [0, 4], [4, 2], [2, 4], [4, 4], [6, 0], [0, 6], [6, 2], [2, 6], [6, 4], [4, 6], [6, 6]];
+  function cityView() {
+    var depts = DEPTS(), lotsNeeded = Math.min(12, depts.length) + (depts.length < 12 ? 1 : 0), N = lotsNeeded <= 7 ? 5 : 7;
+    var TW = 300 / N, TH = TW / 2, ox = 160, oy = TW * 1.7, top = [], H = Math.round(oy + N * TH + 18);
+    var P = function (i, j, h) { return [ox + (i - j) * TW / 2, oy + (i + j) * TH / 2 - (h || 0)]; };
+    var pts = function (a) { return a.map(function (p) { return p[0].toFixed(1) + ',' + p[1].toFixed(1); }).join(' '); };
+    var svg = sv('svg', { viewBox: '0 0 320 ' + H, class: 'city', role: 'group', 'aria-label': 'Your city: ' + depts.length + ' departments' });
+    svg.appendChild(sv('polygon', { points: pts([P(0, 0), P(N, 0), P(N, N), P(0, N)]), fill: 'var(--lift)', stroke: 'var(--line2)' }));
+    var roads = sv('g');
+    for (var k = 1; k < N; k++) [[P(k, 0), P(k, N)], [P(0, k), P(N, k)]].forEach(function (r) { roads.appendChild(sv('line', { x1: r[0][0], y1: r[0][1], x2: r[1][0], y2: r[1][1], stroke: 'var(--line2)', 'stroke-width': 1, 'stroke-dasharray': '3 4' })); });
+    svg.appendChild(roads);
+    var lots = [], used = { '0,0': 1 }, hall = S.agents.filter(function (a) { return a.id === 'guide'; })[0], problems = S.checks.filter(function (c) { return !c.ok; }).length + (hall ? hall.need : 0);
+    lots.push({ i: 0, j: 0, hall: true });
+    depts.slice(0, 12).forEach(function (d, n) { lots.push({ i: SLOTS[n][0], j: SLOTS[n][1], d: d, hue: HUES[n % HUES.length] }); used[SLOTS[n]] = 1; });
+    if (depts.length < 12) { lots.push({ i: SLOTS[depts.length][0], j: SLOTS[depts.length][1], add: true }); used[SLOTS[depts.length]] = 1; }
+    for (var ti = 0; ti < N; ti++) for (var tj = 0; tj < N; tj++) if (!used[ti + ',' + tj] && (ti * 7 + tj * 3) % 4 === 1) lots.push({ i: ti, j: tj, tree: true });
+    lots.sort(function (a, b) { return (a.i + a.j) - (b.i + b.j) || a.i - b.i; });
+    var hOf = function (d) { return TW * (0.42 + 0.14 * Math.min(6, Math.floor(Math.log2(1 + (d.done || 0))))); };
+    lots.forEach(function (L) { svg.appendChild(L.hall ? building(L, P, pts, top, { hue: HALL, h: TW * 0.62, m: 0.06, name: 'City Hall', hall: true, bad: problems, go: 'guide' }) : L.d ? building(L, P, pts, top, { d: L.d, hue: L.d.on ? L.hue : OFF, h: hOf(L.d), m: 0.08, name: L.d.name, go: L.d.id + (L.d.need ? '' : '/updates') }) : L.add ? addLot(L, P, pts, top) : trees(L, P, TW / 66)); });
+    top.forEach(function (x) { svg.appendChild(x); });   // names and badges above every building, so none hides behind another
+    if (!window.matchMedia || !matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      var loop = 'M' + pts([P(0, 0), P(N, 0), P(N, N), P(0, N)]).split(' ').join(' L') + ' Z', mid = 'M' + pts([P(0, 1), P(N, 1)]).split(' ').join(' L');
+      [[loop, 26, 0, '#bb7a60'], [loop, 26, -13, '#5e708c'], [mid, 11, -3, '#8f6534']].forEach(function (c) { roads.appendChild(sv('circle', { r: 2.4, fill: c[3] }, [sv('animateMotion', { path: c[0], dur: c[1] + 's', begin: c[2] + 's', repeatCount: 'indefinite' })])); });
+    }
+    return svg;
+  }
+  function tappable(g, label, go) {
+    g.setAttribute('class', 'bld'); g.setAttribute('tabindex', 0); g.setAttribute('role', 'button'); g.setAttribute('aria-label', label);
+    g.addEventListener('click', go); g.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); } });
+    return g;
+  }
+  function building(L, P, pts, top, o) {
+    var m = o.m, h = o.h, i = L.i, j = L.j, d = o.d;
+    var T = P(i + m, j + m), R = P(i + 1 - m, j + m), B = P(i + 1 - m, j + 1 - m), Lf = P(i + m, j + 1 - m), up = function (p) { return [p[0], p[1] - h]; };
+    var lit = o.hall || (d.on && !d.blockedBy), win = lit ? '#ffd98a' : '#6f6a60', go = function () { location.hash = o.go; };
+    var label = o.name + (d && d.need ? ', ' + d.need + ' need you' : '');
+    var g = tappable(sv('g'), label, go);
+    g.appendChild(sv('polygon', { points: pts([Lf, B, up(B), up(Lf)]), fill: o.hue[1] }));
+    g.appendChild(sv('polygon', { points: pts([B, R, up(R), up(B)]), fill: o.hue[2] }));
+    g.appendChild(sv('polygon', { class: 'top', points: pts([up(T), up(R), up(B), up(Lf)]), fill: o.hue[0] }));
+    for (var y = 8; y < h - 4; y += 7.5) [[Lf, B], [B, R]].forEach(function (f) { var a = f[0], b = f[1]; g.appendChild(sv('line', { x1: a[0] + (b[0] - a[0]) * 0.18, y1: a[1] + (b[1] - a[1]) * 0.18 - y, x2: a[0] + (b[0] - a[0]) * 0.82, y2: a[1] + (b[1] - a[1]) * 0.82 - y, stroke: win, 'stroke-width': 2.8, 'stroke-dasharray': '3.2 2.8', opacity: o.hall ? 0.7 : 1 })); });
+    var c = [(T[0] + B[0]) / 2, (T[1] + B[1]) / 2 - h];
+    if (o.hall) {
+      g.appendChild(sv('ellipse', { cx: c[0], cy: c[1] - 2, rx: 11, ry: 6, fill: '#d2a36c' })); g.appendChild(sv('path', { d: 'M' + (c[0] - 11) + ' ' + (c[1] - 2) + ' a11 11 0 0 1 22 0', fill: '#c99a62' }));
+      g.appendChild(sv('line', { x1: c[0], y1: c[1] - 13, x2: c[0], y2: c[1] - 30, stroke: '#5b544a', 'stroke-width': 1.2 }));
+      g.appendChild(sv('path', { d: 'M' + c[0] + ' ' + (c[1] - 30) + ' l12 4 l-12 4 z', fill: o.bad ? 'var(--bad)' : 'var(--accent)' }));
+    }
+    g.appendChild(sv('title', { text: o.name + (d ? (d.need ? ': ' + d.need + ' need you' : !d.on ? ': off' : d.blockedBy ? ': waiting for ' + d.blockedBy : ': working') : ': the Guide') }));
+    var over = tappable(sv('g'), label, go); over.setAttribute('aria-hidden', 'true'); ['tabindex', 'role', 'aria-label'].forEach(function (k) { over.removeAttribute(k); });
+    var need = o.hall ? o.bad : d.need, by = c[1] - (o.hall ? 20 : 11), bx = c[0] - (o.hall ? 16 : 0);
+    if (need) over.appendChild(sv('g', { class: 'badge' }, [sv('circle', { cx: bx, cy: by, r: 9, fill: o.hall ? 'var(--bad)' : 'var(--accent)', stroke: 'var(--bg)', 'stroke-width': 2 }), sv('text', { x: bx, y: by + 3.5, 'text-anchor': 'middle', fill: '#fff', 'font-size': 10, 'font-weight': 700, 'font-family': 'system-ui,sans-serif', text: need > 9 ? '9+' : String(need) })]));
+    over.appendChild(o.hall ? sv('text', { class: 'sign', x: c[0] + 15, y: c[1] - 22, 'text-anchor': 'start', text: 'City Hall' })   // its front is behind the first lot: the name goes by the flag
+      : sv('text', { class: 'sign' + (d.blockedBy && d.on ? ' bad' : ''), x: B[0], y: B[1] + 11, 'text-anchor': 'middle', text: o.name.length > 12 ? o.name.slice(0, 11) + '…' : o.name }));
+    top.push(over);
+    return g;
+  }
+  function addLot(L, P, pts, top) {
+    var m = 0.12, T = P(L.i + m, L.j + m), R = P(L.i + 1 - m, L.j + m), B = P(L.i + 1 - m, L.j + 1 - m), Lf = P(L.i + m, L.j + 1 - m), c = [(T[0] + B[0]) / 2, (T[1] + B[1]) / 2];
+    var go = function () { location.hash = 'build'; }, g = tappable(sv('g'), 'Build a department', go);
+    g.appendChild(sv('polygon', { class: 'top', points: pts([T, R, B, Lf]), fill: 'var(--tint)', stroke: 'var(--accent)', 'stroke-dasharray': '3 3' }));
+    g.appendChild(sv('text', { x: c[0], y: c[1] + 5, 'text-anchor': 'middle', fill: 'var(--accent)', 'font-size': 16, 'font-weight': 700, text: '+' }));
+    var over = tappable(sv('g'), 'Build a department', go); over.setAttribute('aria-hidden', 'true'); ['tabindex', 'role', 'aria-label'].forEach(function (k) { over.removeAttribute(k); });
+    over.appendChild(sv('text', { class: 'sign', x: B[0], y: B[1] + 11, 'text-anchor': 'middle', style: 'fill:var(--accent)', text: '+ Build' })); top.push(over);
+    return g;
+  }
+  function trees(L, P, z) {
+    var g = sv('g', { 'aria-hidden': 'true' });
+    [[0.35, 0.4], [0.62, 0.62], [0.4, 0.7]].forEach(function (t, k) { var p = P(L.i + t[0], L.j + t[1]); g.appendChild(sv('ellipse', { cx: p[0], cy: p[1] + 1, rx: 4 * z, ry: 2 * z, fill: 'rgba(0,0,0,.08)' })); g.appendChild(sv('circle', { cx: p[0], cy: p[1] - 5 * z, r: (4.5 + (k % 2)) * z, fill: k % 2 ? '#7f9e74' : '#94b088' })); });
+    return g;
+  }
+  // ---- one department ----
   function renderDept() {
-    $('home').hidden = true; $('dept').hidden = false;
     var a = S.agents.filter(function (x) { return x.id === dept; })[0];
-    if (!a) { location.hash = ''; return; }
+    if (!a || a.id === 'guide') { location.hash = a ? 'guide' : ''; return; }
     var cards = S.cards.filter(function (c) { return c.agent === dept; }), ups = S.updates.filter(function (u) { return u.agent === dept; });
-    $('deptName').textContent = a.name; $('deptAbout').textContent = a.about;
+    $('deptName').textContent = a.name; $('deptAbout').textContent = a.does || a.about;
+    var tools = $('deptTools'); tools.innerHTML = '';
+    tools.appendChild(el('span', { cls: 'pill ' + (a.on ? 'on' : 'off'), style: 'align-self:center', text: a.on ? 'On' : 'Off' }));
+    tools.appendChild(el('a', { cls: 'chip', href: '#' + a.id + '/edit', text: '✎ Edit' }));
+    tools.appendChild(el('button', { cls: 'chip', text: '▶ Run now', onclick: function (e) { var b = e.target; b.disabled = true; b.textContent = a.judge ? 'Working, then the panel judges…' : 'Working…';
+      api('/api/run', { agent: a.id }).then(function (r) { toast(r.said || 'Done.'); return load(); }).catch(function (err) { toast(err.message + ' The Guide has the fix.'); load(); }).then(function () { b.disabled = false; b.textContent = '▶ Run now'; }); } }));
+    if (a.blockedBy && a.on) tools.appendChild(el('a', { cls: 'chip', href: '#guide', style: 'color:var(--bad)', text: 'Waiting for ' + a.blockedBy }));
     $('nNeed').textContent = cards.length; $('nNeed').className = cards.length ? '' : 'zero'; $('nDone').textContent = ups.length; $('nDone').className = ups.length ? '' : 'zero';
-    $('tabNeed').setAttribute('aria-selected', String(dtab === 'need')); $('tabDone').setAttribute('aria-selected', String(dtab === 'done'));
-    $('need').hidden = dtab !== 'need'; $('done').hidden = dtab !== 'done';
+    $('tabPanel').hidden = !a.judge; if (!a.judge && dtab === 'panel') dtab = 'need';
+    $('tabNeed').setAttribute('aria-selected', String(dtab === 'need')); $('tabDone').setAttribute('aria-selected', String(dtab === 'done')); $('tabPanel').setAttribute('aria-selected', String(dtab === 'panel'));
+    $('need').hidden = dtab !== 'need'; $('done').hidden = dtab !== 'done'; $('panel').hidden = dtab !== 'panel';
     if (dtab === 'done') return renderUpdates(ups);
+    if (dtab === 'panel') return renderPanel(a);
     var box = $('need'); box.innerHTML = '';
-    if (!cards.length) { box.appendChild(el('div', { cls: 'allclear' }, [el('div', { cls: 'ok', text: '✓' }), el('h1', { text: 'All caught up' }), el('p', { cls: 'muted', text: a.blockedBy ? 'This agent is waiting for ' + a.blockedBy + '. The Guide shows how.' : 'Nothing here needs you.' })])); return; }
+    if (!cards.length) { box.appendChild(el('div', { cls: 'allclear' }, [el('div', { cls: 'ok', text: '✓' }), el('h1', { text: 'All caught up' }), el('p', { cls: 'muted', text: a.blockedBy ? 'This department is waiting for ' + a.blockedBy + '. The Guide shows how.' : 'Nothing here needs you. Press Run now to see it work.' })])); return; }
     if (want) { var wi = cards.map(function (c) { return c.id; }).indexOf(want); if (wi > -1) at[dept] = wi; want = null; }
     var i = Math.min(at[dept] || 0, cards.length - 1);
     box.appendChild(el('p', { cls: 'muted', style: 'margin:0 0 8px;font-size:13px;letter-spacing:.1em', text: (i + 1) + ' OF ' + cards.length }));
     box.appendChild(card(cards[i], function () { at[dept] = (i + 1) % cards.length; renderDept(); }));
+  }
+  function renderPanel(a) {
+    var box = $('panel'); box.innerHTML = '';
+    if (!a.panel) { box.appendChild(el('p', { cls: 'muted', text: 'The panel is made the first time this department works: 8 people like "' + (a.audience || 'your customers') + '". Press Run now.' })); return; }
+    box.appendChild(el('p', { style: 'margin:0 0 4px', text: 'Each piece of work is shown to these 8 people. They answer: "' + a.panel.question + '"' }));
+    box.appendChild(el('p', { cls: 'muted', style: 'margin:0 0 12px;font-size:14px', text: 'They are simulated: your AI plays each one. The crowd is the same 8 people in 12 moods, so 96 votes. To get a new panel, change who its work is for under Edit.' }));
+    box.appendChild(el('div', { cls: 'box' }, [el('ul', { cls: 'people' }, a.panel.people.map(function (p) { return el('li', {}, [el('b', { text: p.name }), el('div', { cls: 'muted', style: 'font-size:14px', text: p.who })]); }))]));
+  }
+  // ---- build or change a department ----
+  var built = null;
+  function renderBuild() {
+    var d = dept ? S.agents.filter(function (x) { return x.id === dept; })[0] : null;
+    if (dept && !d) { location.hash = ''; return; }
+    var fill = function (x) {
+      $('b-name').value = x.name || ''; $('b-does').value = x.does || ''; $('b-audience').value = x.audience || ''; $('b-judge').checked = !!x.judge; $('b-review').checked = x.review !== false; $('b-on').checked = x.on !== false;
+      $('b-every').innerHTML = ''; Object.keys(S.every).forEach(function (k) { $('b-every').appendChild(el('option', { value: k, text: S.every[k], selected: Number(k) === (x.every || 1440) })); });
+      $('b-model').innerHTML = ''; $('b-model').appendChild(el('option', { value: 'main', text: 'Main model (' + (S.ai.model || 'not picked yet') + ')' }));
+      Object.keys(S.models).forEach(function (k) { $('b-model').appendChild(el('option', { value: k, text: S.models[k], selected: k === x.ownModel })); });
+      var kind = x.kind || 'own', mail = kind === 'leads' || kind === 'mailroom';
+      $('b-kindNote').hidden = kind === 'own'; $('b-kindNote').textContent = mail ? 'This one reads your Gmail. Connect it in Settings, then Gmail. It only drafts: nothing is sent until you press Send.' : kind === 'social' ? 'This one writes posts and never posts them. You approve each one.' : '';
+      $('b-reviewRow').hidden = kind !== 'own';
+      built = { kind: kind };
+    };
+    if (!built) fill(d || { kind: 'own', judge: true, every: 1440 });
+    $('buildTitle').textContent = d ? 'Change ' + d.name : 'Build a department'; $('buildSub').textContent = d ? 'Rename it, change what it does, or turn it off.' : 'Name it and say what it does, in your own words.';
+    $('picksBox').hidden = !!d; $('b-onRow').hidden = !d; $('b-remove').hidden = !d; $('b-save').textContent = d ? 'Save' : 'Build it';
+    var have = DEPTS().map(function (x) { return x.kind; }), pk = $('picks'); pk.innerHTML = '';
+    S.picks.forEach(function (p) { var taken = (p.kind === 'leads' || p.kind === 'mailroom') && have.indexOf(p.kind) > -1;
+      pk.appendChild(el('button', { cls: 'chip', disabled: taken, title: p.what, text: p.name, onclick: function () { fill(Object.assign({}, p)); toast(p.what); $('b-name').focus(); } })); });
+    $('b-save').onclick = function (e) {
+      var b = e.target; b.disabled = true;
+      var body = { name: $('b-name').value, does: $('b-does').value, every: $('b-every').value, model: $('b-model').value, audience: $('b-audience').value, judge: $('b-judge').checked, review: $('b-review').checked };
+      if (d) { body.id = d.id; body.on = $('b-on').checked; } else body.kind = built.kind;
+      api('/api/department', body).then(function (r) { toast(d ? 'Saved.' : 'The ' + r.department.name + ' department is built. Press Run now to see it work.'); built = null; location.hash = r.department.id; return load(); })
+        .catch(function (err) { toast(err.message); }).then(function () { b.disabled = false; });
+    };
+    $('b-remove').onclick = function () { if (!confirm('Remove the ' + d.name + ' department? Its waiting cards close.')) return; api('/api/department', { id: d.id }, 'DELETE').then(function () { toast('Removed.'); location.hash = ''; return load(); }).catch(function (err) { toast(err.message); }); };
   }
   function renderUpdates(ups) {
     var box = $('done'); box.innerHTML = '';
@@ -268,6 +420,7 @@ label.f{display:block;margin:14px 0 6px;font-weight:600;font-size:15px}label.f s
     if (c.email) { bodyEl = el('div', { cls: 'body', text: c.email.body }); kids.push(el('div', { cls: 'mail' }, [el('div', { cls: 'h', text: 'To: ' + c.email.to }), el('div', { cls: 'h', text: 'Subject: ' + c.email.subject }), bodyEl])); }
     else if (c.body) { bodyEl = el('div', { cls: 'body', text: c.body }); kids.push(el('div', { cls: 'mail' }, [bodyEl])); }
     if (c.photo) kids.push(el('p', { cls: 'muted', text: 'Photo to use: ' + c.photo }));
+    if (c.judged) kids.push(judgedBox(c.judged));
     if (c.steps) { if (c.about) kids.push(el('p', { cls: 'muted', text: c.about })); kids.push(stepList(c.steps)); }
     var buttons = el('div', { cls: 'big' });
     var go = function (decision, b) { b.disabled = true; api('/api/decide', { id: c.id, decision: decision }).then(function (r) { toast(r.said || (decision === 'decline' ? 'Declined.' : 'Done.')); return load(); }).catch(function (e) { b.disabled = false; toast(e.message); load(); }); };
@@ -289,6 +442,24 @@ label.f{display:block;margin:14px 0 6px;font-weight:600;font-size:15px}label.f s
     kids.push(fb);
     return el('div', { cls: 'card' }, kids);
   }
+  // What the Panel and the Crowd said, before the owner saw it. Always labeled simulated.
+  function judgedBox(J) {
+    if (J.error) return el('p', { cls: 'muted', style: 'font-size:14px', text: '⚖ ' + J.error });
+    var p = J.panel, kids = [el('div', { cls: 'k', text: '⚖ Judged before you saw it · simulated people' }), el('div', { style: 'font-size:14px;margin-top:4px', text: '"' + J.question + '"' })];
+    kids.push(el('div', { cls: 'score' }, [el('b', { text: p.avg + ' / 5' }), el('span', { text: 'The Panel: ' + p.top + ' of ' + p.n + ' said yes (4 or 5)' }), el('span', { cls: p.pass ? 'pass' : 'fail', text: p.pass ? '✓ Passed' : 'Not convinced' })]));
+    kids.push(el('div', { cls: 'bar' }, [el('i', { style: 'width:' + Math.round(p.avg / 5 * 100) + '%' })]));
+    var said = el('ul', { cls: 'said', hidden: true }, p.reactions.map(function (r) { return el('li', {}, [el('b', { text: r.name + ' (' + r.score + '/5): ' }), r.said]); }));
+    if (J.crowd) {
+      var C = J.crowd, dots = el('div', { cls: 'dots', 'aria-label': C.yes + ' of ' + C.n + ' said yes' });
+      C.rows.forEach(function (row) { row.yes.forEach(function (y) { dots.appendChild(el('i', { cls: y ? 'y' : '' })); }); });
+      kids.push(el('div', { cls: 'score' }, [el('b', { text: C.yes + ' of ' + C.n }), el('span', { text: 'The Crowd said yes (8 people in ' + J.moods + ' moods)' })]));
+      kids.push(dots);
+    }
+    (J.trail || []).forEach(function (t) { kids.push(el('div', { cls: 'muted', style: 'font-size:14px;margin-top:6px', text: t })); });
+    kids.push(el('div', { cls: 'chips', style: 'margin-top:8px' }, [el('button', { cls: 'chip', text: 'What the panel said', onclick: function (e) { said.hidden = !said.hidden; e.target.textContent = said.hidden ? 'What the panel said' : 'Hide'; } })]));
+    kids.push(said);
+    return el('div', { cls: 'judge' }, kids);
+  }
   // ---- Guide ----
   function renderGuide() {
     var box = $('checks'); box.innerHTML = '';
@@ -308,9 +479,9 @@ label.f{display:block;margin:14px 0 6px;font-weight:600;font-size:15px}label.f s
       .then(function () { $('askGo').disabled = false; $('thinking').textContent = ''; });
   };
   // ---- Settings ----
-  var FIELDS = ['business', 'owner', 'about', 'voice', 'signature', 'leadReply', 'dailyCap'], filled = false;
+  var FIELDS = ['business', 'owner', 'about', 'voice', 'signature', 'dailyCap'], filled = false;
   function renderSettings() {
-    if (!filled) { FIELDS.forEach(function (k) { if ($('s-' + k)) $('s-' + k).value = S.settings[k] == null ? '' : S.settings[k]; }); $('s-alerts').value = S.settings.alerts || 'leads'; filled = true; }
+    if (!filled) { FIELDS.forEach(function (k) { if ($('s-' + k)) $('s-' + k).value = S.settings[k] == null ? '' : S.settings[k]; }); $('s-alerts').value = S.settings.alerts || 'all'; filled = true; }
     $('spent').textContent = 'Spent today: $' + S.spend.today.toFixed(2) + ' of $' + S.spend.cap.toFixed(2) + '. Agents pause at the limit until tomorrow.';
     var said = new URLSearchParams(location.search).get('said'); $('said').hidden = !said; $('said').textContent = said || '';
     renderAI();
@@ -318,23 +489,9 @@ label.f{display:block;margin:14px 0 6px;font-weight:600;font-size:15px}label.f s
     $('pwBox').hidden = S.passwordFrom === 'variable';
     var g = $('gmail'); g.innerHTML = '';
     if (S.google.connected) g.appendChild(el('div', {}, [el('p', { style: 'margin:0 0 8px', text: '✓ Connected to ' + (S.google.email || 'your Gmail') + '. The city reads, labels and drafts. It sends only when you press Send.' }),
-      el('div', { cls: 'chips' }, [el('a', { cls: 'chip', href: '/connect/google', text: 'Connect again' }), el('button', { cls: 'chip', text: 'Disconnect', onclick: function () { if (confirm('Disconnect Gmail? The Leads and Mail room agents stop until you connect again.')) api('/api/google/disconnect', {}).then(load); } })])]));
+      el('div', { cls: 'chips' }, [el('a', { cls: 'chip', href: '/connect/google', text: 'Connect again' }), el('button', { cls: 'chip', text: 'Disconnect', onclick: function () { if (confirm('Disconnect Gmail? Departments that read Gmail stop until you connect again.')) api('/api/google/disconnect', {}).then(load); } })])]));
     else if (S.google.configured) g.appendChild(el('div', {}, [el('p', { style: 'margin:0 0 8px', text: 'Ready to connect. Google will ask you to allow Gmail access.' }), el('a', { cls: 'btn yes sm', href: '/connect/google', style: 'display:inline-block;text-decoration:none', text: 'Connect Google' })]));
-    else g.appendChild(el('div', {}, [el('p', { style: 'margin:0', text: 'Your city runs on Railway. Google only gives it permission to read and draft your email. First, a one-time step in Google: the Guide has every click. Then paste the two values below.' })]));
-    var box = $('agents'); box.innerHTML = '';
-    S.agents.forEach(function (a) {
-      var ev = el('select', {}, Object.keys(S.every).map(function (k) { return el('option', { value: k, text: S.every[k], selected: Number(k) === a.every }); }));
-      var md = el('select', {}, [el('option', { value: 'main', text: 'Main model (' + (S.ai.model || 'not picked yet') + ')', selected: !a.ownModel })].concat(Object.keys(S.models).map(function (k) { return el('option', { value: k, text: S.models[k], selected: k === a.ownModel }); })));
-      var save = function (patch) { api('/api/agent', Object.assign({ id: a.id }, patch)).then(function () { toast('Saved.'); return load(); }).catch(function (e) { toast(e.message); }); };
-      ev.onchange = function () { save({ every: ev.value }); }; md.onchange = function () { save({ model: md.value }); };
-      box.appendChild(el('div', { cls: 'agent' }, [el('div', { cls: 'row' }, [el('div', {}, [el('b', { text: a.name }), ' ', el('span', { cls: 'pill ' + (a.on ? 'on' : 'off'), text: a.on ? 'On' : 'Off' })]),
-        a.always ? null : el('div', { style: 'flex:0 0 auto' }, [el('button', { cls: 'chip', text: a.on ? 'Turn off' : 'Turn on', onclick: function () { save({ on: !a.on }); } })])]),
-        el('p', { cls: 'muted', style: 'margin:4px 0', text: a.about }),
-        a.id === 'guide' ? null : el('div', { cls: 'row' }, [el('label', { cls: 'f', style: 'margin:6px 0' }, ['Model', md]), a.id === 'mailroom' || a.id === 'leads' || a.id === 'social' || !a.builtIn ? el('label', { cls: 'f', style: 'margin:6px 0' }, ['How often', ev]) : null]),
-        a.id === 'guide' ? null : el('div', { cls: 'chips' }, [el('button', { cls: 'chip', text: '▶ Run now', onclick: function (e) { var b = e.target; b.disabled = true; b.textContent = 'Working…'; api('/api/run', { agent: a.id }).then(function (r) { toast(r.said || 'Done.'); return load(); }).catch(function (err) { toast(err.message + ' The Guide has the fix.'); load(); }).then(function () { b.disabled = false; b.textContent = '▶ Run now'; }); } }),
-          a.builtIn ? null : el('button', { cls: 'chip', text: 'Remove', onclick: function () { if (confirm('Remove "' + a.name + '"?')) api('/api/custom', { id: a.id }, 'DELETE').then(load); } })])]));
-    });
-    if (!$('c-every').options.length) { Object.keys(S.every).forEach(function (k) { $('c-every').appendChild(el('option', { value: k, text: S.every[k], selected: k === '1440' })); }); $('c-model').appendChild(el('option', { value: 'main', text: 'Main model' })); Object.keys(S.models).forEach(function (k) { $('c-model').appendChild(el('option', { value: k, text: S.models[k] })); }); }
+    else g.appendChild(el('div', {}, [el('p', { style: 'margin:0', text: 'Only needed for departments that read your email (Leads, Mail room). Your city runs on Railway: Google only gives it permission to read and draft your email. First, a one-time step in Google: the Guide has every click. Then paste the two values below.' })]));
     renderAlerts();
   }
   // ---- Your AI: the service, its key, its address and the main model ----
@@ -366,10 +523,6 @@ label.f{display:block;margin:14px 0 6px;font-weight:600;font-size:15px}label.f s
   $('saveBiz').onclick = function () { var b = {}; FIELDS.forEach(function (k) { if (k !== 'dailyCap') b[k] = $('s-' + k).value; }); api('/api/settings', b).then(function () { toast('Saved.'); return load(); }).catch(function (e) { toast(e.message); }); };
   $('saveCap').onclick = function () { api('/api/settings', { dailyCap: $('s-dailyCap').value }).then(function () { toast('Saved.'); return load(); }).catch(function (e) { toast(e.message); }); };
   $('s-alerts').onchange = function () { api('/api/settings', { alerts: $('s-alerts').value }).then(function () { toast('Saved.'); }); };
-  $('addAgent').onclick = function () {
-    api('/api/custom', { name: $('c-name').value, instructions: $('c-instructions').value, every: $('c-every').value, model: $('c-model').value, review: $('c-review').checked })
-      .then(function (r) { toast('Added "' + r.agent.name + '". Press Run now to try it.'); $('c-name').value = ''; $('c-instructions').value = ''; return load(); }).catch(function (e) { toast(e.message); });
-  };
   // ---- phone alerts (web push; on iPhone, add the city to the Home Screen first) ----
   var IOS = /iPhone|iPad|iPod/.test(navigator.userAgent), STANDALONE = (window.matchMedia && matchMedia('(display-mode: standalone)').matches) || navigator.standalone === true;
   var canPush = 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window, swReg = null;

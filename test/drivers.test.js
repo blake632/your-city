@@ -4,7 +4,7 @@ const test = require('node:test'), assert = require('node:assert');
 const { Store } = require('../src/store');
 const { AI } = require('../src/ai');
 const { Google } = require('../src/google');
-const { City } = require('../src/city');
+const { City, PICKS } = require('../src/city');
 const { createServer } = require('../src/server');
 const { fakeOpenAI, fakeGoogle, listen } = require('./fakes');
 
@@ -77,13 +77,15 @@ test('the whole inbox runs on a ChatGPT-style service just the same', async () =
   ai.save({ provider: 'openai', key: 'sk', model: 'gpt-test' });
   const city = new City({ store, ai, log: { error() {} }, google: new Google({ store, clientId: () => 'cid.apps.googleusercontent.com', clientSecret: () => 's', api: G.url, tokenUrl: G.url + '/token', userinfoUrl: G.url + '/userinfo' }) });
   city.saveSettings({ business: 'Sam\'s Kitchens' }); store.set('google', { refresh: 'rt', email: 'owner@example.com' });
-  city.setAgent('leads', { model: 'gpt-mini' });
-  assert.strictEqual(await city.runAgent('leads'), 'Looked at 1 new email, drafted 1 reply');
+  store.set('departments', []);
+  const L = city.saveDepartment(Object.assign({}, PICKS.find(p => p.kind === 'leads'), { judge: false }));
+  city.setAgent(L.id, { model: 'gpt-mini' });
+  assert.strictEqual(await city.runAgent(L.id), 'Looked at 1 new email, drafted 1 reply');
   const lead = city.waiting()[0];
   assert.deepStrictEqual([lead.kind, lead.email.to, lead.email.body], ['lead', 'dana@example.com', 'Hi Dana,\n\nThanks for reaching out.\n\nSam']);
-  assert.deepStrictEqual(O.calls.filter(c => c.url.endsWith('/chat/completions')).map(c => c.body.model), ['gpt-test', 'gpt-mini'], 'sorting on the main model, the lead reply on the Leads agent\'s own model');
-  assert.strictEqual(city.agents().find(a => a.id === 'leads').ownModel, 'gpt-mini');
-  city.setAgent('leads', { model: 'main' }); assert.strictEqual(city.agents().find(a => a.id === 'leads').ownModel, '');
+  assert.deepStrictEqual(O.calls.filter(c => c.url.endsWith('/chat/completions')).map(c => c.body.model), ['gpt-test', 'gpt-mini'], 'sorting on the main model, the lead reply on the Leads department\'s own model');
+  assert.strictEqual(city.agents().find(a => a.id === L.id).ownModel, 'gpt-mini');
+  city.setAgent(L.id, { model: 'main' }); assert.strictEqual(city.agents().find(a => a.id === L.id).ownModel, '');
 });
 
 test('no Railway variables: the first visit chooses the password; the AI key and the Google client go in through Settings and never come back out', async () => {
