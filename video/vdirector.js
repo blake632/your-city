@@ -32,7 +32,15 @@
   const QUOTES = [{ yes: false, text: 'I hate this. It says nothing.' }, { yes: false, text: 'Generic. Feels automated.' }, { yes: true, text: 'I\'d reply to this email.' }, { yes: true, text: 'Warm, and it asks one clear question.' }];
   const BOOK = { name: 'Bookkeeping', does: 'File every invoice and receipt each week, and tell me what is due.' }, CRYPTO = { name: 'Crypto Desk', does: 'Paper-trade a small test portfolio and report weekly. Paper only.' }, STORE = { name: 'Store Desk', does: 'Find products worth testing, write the listings, and walk me through setting up Shopify step by step.' };
   let ROWS = [];
-  if (!SHORT) {
+  if (window.__vcut === 'endcard') {
+    // The ad's last 4.5 seconds: the lit city pulling back, light trails between the departments, and the offer.
+    window.__vdur = 4.5;
+    MOVES.push([0, 4.5, Object.assign({}, S.A1, { az: .3 }), FIN]);
+    W.end = 0; W.lit = {};
+    W.endHtml = '<h1>Your <em>City</em></h1><h2>First 5 businesses<br>get set up free.</h2><p style="margin:16px 0 0;font:600 14px Inter,sans-serif;color:rgba(240,236,228,.85)">We set it up with you on a call.</p><div class="pill">Tap Sign Up below</div><small>Then $500 per setup. Sample business shown. AI judges are simulated.</small>';
+    let seed = 3; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647, KS = C.DEPTS.map(d => d.k);
+    W.arcs = []; for (let t = -1.5; t < 4.5; t += .1) { const a = KS[Math.floor(rnd() * KS.length)], b = KS[Math.floor(rnd() * KS.length)]; if (a !== b) W.arcs.push({ t, a, b, dur: 1.5 + rnd() * .6 }); }
+  } else if (!SHORT) {
     // The story: a new email comes in, the Mail Room sorts it, Leads writes the reply, the judges score it; then a tour of the other departments,
     // a new department you tap to build, one you ask for in words (via the Research desk and the School), the prizes, and the end card.
     let t = visit(K.M, 4.4, 4.4, 'Reads your Gmail and sorts every email.', ['A new email: “We want a kitchen remodel this spring.”', 'The Mail Room reads it: a new customer.', 'So it goes to Leads. Spam never gets a reply.']);
@@ -233,7 +241,7 @@
   if (auto) TAPS.push([W.auto.tap, center('.auto .go')]);
   const taps = TAPS.map(([a, at]) => ({ a, at, e: el('tap', '') }));
   const chips = el('vchips', '<b>Your AI, your pick</b>' + ['Claude', 'ChatGPT', 'Gemini', 'OpenRouter', 'Groq', 'Mistral', 'Ollama'].map(x => '<span>' + x + '</span>').join(''));
-  const end = el('vend', '<h1>Your <em>City</em></h1><h2>All you\'ll ever need.</h2><p style="margin:16px 0 0;font:600 14px Inter,sans-serif;color:rgba(240,236,228,.85)">Over 1,000 agents. One goal: make your life easier.</p><div class="pill">Message me to get started</div><small>Sample business shown. 1,000+ agents: 10 departments, each judged by 104 simulated AI judges.</small>');
+  const end = el('vend', W.endHtml || '<h1>Your <em>City</em></h1><h2>All you\'ll ever need.</h2><p style="margin:16px 0 0;font:600 14px Inter,sans-serif;color:rgba(240,236,228,.85)">Over 1,000 agents. One goal: make your life easier.</p><div class="pill">Message me to get started</div><small>Sample business shown. 1,000+ agents: 10 departments, each judged by 104 simulated AI judges.</small>');
   const dip = el('dip', '');
   const fade = (t, a, b, i, o) => Math.min(cl((t - a) / (i || .45)), cl((b - t) / (o || .4)));
   const rise = (e, t, a, px) => { e.style.transform = 'translateY(' + ((1 - ease(cl((t - a) / .5))) * px) + 'px)'; };
@@ -241,7 +249,7 @@
   function overlay(t) {
     caps.forEach(c => { c.e.style.opacity = fade(t, c.a, c.b); rise(c.e, t, c.a, 12); const n = c.e.querySelector('.n'); if (n && W.count) n.textContent = Math.round(1000 * ease(cl((t - W.count[0]) / (W.count[1] - W.count[0])))).toLocaleString('en-US'); });
     VISITS.forEach(v => { v.e.style.opacity = fade(t, v.a, v.b - .1, .4, .3); rise(v.e, t, v.a, 24); v.rows.forEach((r, i) => { const a = v.a + .3 + i * v.gap; r.style.opacity = cl((t - a) / .4); r.style.transform = 'translateX(' + ((1 - ease(cl((t - a) / .45))) * 14) + 'px)'; }); });
-    C.crowdQuotes(W.quotes(t));
+    C.crowdQuotes(W.quotes ? W.quotes(t) : 0);
     if (show(grade, W.grade, t, 0)) grade.style.transform = 'scale(' + (0.8 + 0.2 * ease(cl((t - W.grade[0]) / .45))) + ')';
     if (show(prop, W.prop, t, 30)) { const bu = (t - W.prop[2]) / .7; prop.querySelector('.vbtn i').style.transform = bu > 0 && bu < .35 ? 'scale(.94)' : 'none'; }
     if (show(ask, W.ask, t, 30)) {
