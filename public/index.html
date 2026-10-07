@@ -81,6 +81,8 @@ label.ck{display:flex;gap:10px;align-items:flex-start;margin:14px 0 6px;font-wei
 .jevline{display:flex;flex-wrap:wrap;gap:6px;margin:-4px 0 12px}.jevline span{font-size:13px;font-weight:600;border-radius:999px;padding:3px 10px;background:var(--lift);color:var(--ink)}.jevline .ship{color:var(--good)}.jevline .kill{color:var(--bad)}
 .people{list-style:none;margin:0;padding:0}.people li{padding:10px 0;border-bottom:1px solid var(--line)}.people li:last-child{border-bottom:0}
 .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(90px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--on-ink);padding:12px 18px;border-radius:12px;z-index:40;max-width:calc(100% - 32px);font-size:15px}
+.auto{margin:4px 0 12px;padding:12px 16px}.auto b{display:block;margin-bottom:6px}.auto p{margin:6px 0 10px;font-size:14px}.auto.on{border-color:var(--good,#2e7d4f)}
+.bar{height:8px;border-radius:4px;background:var(--line);overflow:hidden}.bar i{display:block;height:100%;background:var(--accent)}
 </style>
 </head>
 <body>
@@ -106,6 +108,7 @@ label.ck{display:flex;gap:10px;align-items:flex-start;margin:14px 0 6px;font-wei
       <a class="back" href="#">‹ Your city</a>
       <h1 id="deptName"></h1><p class="sub" id="deptAbout" style="margin-bottom:8px"></p>
       <div class="chips" id="deptTools" style="margin:0 0 6px"></div>
+      <div id="deptAuto"></div>
       <div class="tabs2" role="tablist"><button role="tab" id="tabNeed">Needs you<b id="nNeed">0</b></button><button role="tab" id="tabDone">Updates<b id="nDone">0</b></button><button role="tab" id="tabPanel">Panel</button></div>
       <div id="need"></div><div id="done" hidden></div><div id="panel" hidden></div>
     </div>
@@ -140,6 +143,8 @@ label.ck{display:flex;gap:10px;align-items:flex-start;margin:14px 0 6px;font-wei
   <section id="t-guide" hidden>
     <h1>Guide</h1><p class="sub">Your setup, step by step. Anything not working shows here with exactly what to do.</p>
     <div class="box" id="checks"></div>
+    <h2>Train your city</h2>
+    <div class="box" id="train"></div>
     <h2>Ask the guide</h2>
     <textarea id="q" rows="3" placeholder="Something not working? Ask in your own words."></textarea>
     <div class="chips"><button class="btn yes sm" id="askGo">Ask</button><span class="muted" id="thinking"></span></div>
@@ -382,6 +387,17 @@ label.ck{display:flex;gap:10px;align-items:flex-start;margin:14px 0 6px;font-wei
     tools.appendChild(el('button', { cls: 'chip', text: '▶ Run now', onclick: function (e) { var b = e.target; b.disabled = true; b.textContent = a.judge ? 'Working, then the panel judges…' : 'Working…';
       api('/api/run', { agent: a.id }).then(function (r) { toast(r.said || 'Done.'); return load(); }).catch(function (err) { toast(err.message + ' The Guide has the fix.'); load(); }).then(function () { b.disabled = false; b.textContent = '▶ Run now'; }); } }));
     if (a.blockedBy && a.on) tools.appendChild(el('a', { cls: 'chip', href: '#guide', style: 'color:var(--bad)', text: 'Waiting for ' + a.blockedBy }));
+    // Autopilot: learning how you work, then one tap lets it approve its own work. Off any time.
+    var ab = $('deptAuto'); ab.innerHTML = '';
+    var pilot = function (on) { if (on && !confirm('Turn on autopilot for ' + a.name + '?\n\nIt will approve its own work, and send its emails, without asking you. Up to 20 a day. Questions still come to you. You can turn it off any time.')) return;
+      api('/api/autopilot', { id: a.id, on: on }).then(function () { toast(on ? 'Autopilot is on.' : 'Autopilot is off.'); return load(); }).catch(function (e) { toast(e.message); }); };
+    if (a.review !== false && a.readiness) {
+      var r = a.readiness;
+      if (a.auto) ab.appendChild(el('div', { cls: 'box auto on' }, [el('b', { text: '🤖 Autopilot is on' }), el('p', { cls: 'muted', text: 'It approves its own work now, up to 20 a day. Questions, and anything the panel marks weak, still come to you.' }), el('button', { cls: 'chip', text: 'Turn off autopilot', onclick: function () { pilot(false); } })]));
+      else ab.appendChild(el('div', { cls: 'box auto' }, [el('b', { text: r.ready ? 'Autopilot: ready when you are' : 'Autopilot: learning how you work' }), el('div', { cls: 'bar' }, [el('i', { style: 'width:' + Math.min(100, Math.round(r.asIs / r.need * 100)) + '%' })]),
+        el('p', { cls: 'muted', text: r.ready ? r.asIs + ' of its last ' + r.decided + ' were approved as written.' : r.asIs + ' of its last ' + r.decided + ' approved as written. It unlocks at ' + r.need + ' of ' + r.of + '. Approve, decline or give feedback on its cards to teach it.' }),
+        el('button', { cls: 'btn yes sm', text: 'Turn on autopilot', disabled: !r.ready, onclick: function () { pilot(true); } })]));
+    }
     $('nNeed').textContent = cards.length; $('nNeed').className = cards.length ? '' : 'zero'; $('nDone').textContent = ups.length; $('nDone').className = ups.length ? '' : 'zero';
     $('tabPanel').hidden = !a.judge; if (!a.judge && dtab === 'panel') dtab = 'need';
     $('tabNeed').setAttribute('aria-selected', String(dtab === 'need')); $('tabDone').setAttribute('aria-selected', String(dtab === 'done')); $('tabPanel').setAttribute('aria-selected', String(dtab === 'panel'));
@@ -548,6 +564,13 @@ label.ck{display:flex;gap:10px;align-items:flex-start;margin:14px 0 6px;font-wei
       var steps = c.fix ? stepList(c.fix.steps, 'margin-top:8px') : null;
       box.appendChild(el('div', { cls: 'check ' + (c.ok ? 'good' : 'bad') }, [el('span', { cls: 'ok', text: c.ok ? '✓' : '!' }), el('div', { cls: 't' }, [el('b', { text: c.text }), steps])]));
     });
+    // Train your city: how to teach it your way, and how close each department is to autopilot
+    var tr = $('train'); tr.innerHTML = '';
+    tr.appendChild(stepList(['Open a department and look at its cards. Approve what is right. Decline what is wrong.', 'Not quite right? Tap Needs feedback and say what to change. It rewrites it your way.', 'When a department asks you a question, answer it. It remembers your answer.',
+      'When 8 of its last 10 are approved as written, it is ready: open it and tap Turn on autopilot.', 'Turn autopilot off any time. Changing what a department does turns it off too, so it learns the new job first.'], 'margin:12px 0'));
+    DEPTS().filter(function (a) { return a.review !== false && a.readiness; }).forEach(function (a) { var r = a.readiness;
+      tr.appendChild(el('div', { cls: 'check ' + (a.auto || r.ready ? 'good' : '') }, [el('span', { cls: 'ok', text: a.auto ? '🤖' : r.ready ? '✓' : String(r.asIs) }), el('div', { cls: 't' }, [el('a', { href: '#' + a.id, text: a.name }),
+        el('div', { cls: 'muted', style: 'font-size:14px', text: a.auto ? 'On autopilot.' : r.ready ? 'Ready for autopilot.' : r.asIs + ' of its last ' + r.decided + ' approved as written. Needs ' + r.need + ' of ' + r.of + '.' })])])); });
     var fixes = S.cards.filter(function (c) { return c.kind === 'fix'; });
     fixes.forEach(function (c) { box.appendChild(el('div', { cls: 'check bad' }, [el('span', { cls: 'ok', text: '!' }), el('div', { cls: 't' }, [el('b', { text: c.title }), el('span', { cls: 'muted', text: c.about || '' }), stepList(c.steps, 'margin-top:8px'),
       el('button', { cls: 'chip', text: 'Got it', onclick: function () { api('/api/decide', { id: c.id, decision: 'got_it' }).then(load).catch(function (e) { toast(e.message); }); } })])])); });

@@ -5,6 +5,7 @@ A small Node.js app, drawn as a city: departments the owner names and describes 
 ## Rules that never bend
 - It runs on Railway. Google is only the Gmail permission (an OAuth client the owner makes once), never hosting: no Apps Script, no Google Cloud servers.
 - Nothing is sent, posted or deleted without the owner's click. Departments make Gmail drafts and cards; only `City.decide` with `approve` sends.
+- The one exception is autopilot, which the owner turns on per department (`City.setAutopilot`) after it earns it (8 of its last 10 approved as written). It approves through the same `City.decide`; questions, fixes, new buildings and work the panel marked weak always wait; at most 20 a day; a new job turns it off. Never turn it on for the owner.
 - Departments never invent prices, dates or promises. Facts come from the owner's Settings or the message itself.
 - Never log, print, store in the page state, or commit a key, a password or the Google refresh token.
 - Every failure the owner can fix gets a plain-English fix in `src/guide.js` (`FIXES`): one action per step, naming the exact button. Throw a `CityError` with that code.

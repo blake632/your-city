@@ -1,5 +1,6 @@
 // The city: your settings, your agents, the cards waiting for you, what each agent did, and the clock that runs them.
 // Rules that never bend: nothing is sent, posted or deleted without your click. Agents write drafts and cards; you approve.
+// The one exception is yours to give: a department you put on autopilot approves its own work (see pilotFor).
 const crypto = require('node:crypto');
 const { CityError, MODELS } = require('./ai');
 const guide = require('./guide');
@@ -21,6 +22,9 @@ const PICKS = [
   { kind: 'own', name: 'Newsletter', what: 'A short email to your customers.', does: 'Write a short email to my past customers: one useful tip, one thing that is new, and a friendly sign-off.', every: 10080, audience: 'Past customers', judge: true },
   { kind: 'own', name: 'Ads', what: 'Short ads for the week.', does: 'Write 3 short ads for this week, each a headline and two lines, for Facebook and Google.', every: 10080, audience: 'People nearby who might need what I sell', judge: true },
 ];
+// Autopilot: a department earns it when 8 of its last 10 pieces of work got your OK as written (no feedback, no decline). Then one tap lets it
+// approve its own work. Questions, fixes and new buildings still wait for you, and so does work the panel marked weak. At most 20 a day.
+const AUTO_KINDS = ['lead', 'email', 'post', 'note'], AUTO = { of: 10, need: 8, perDay: 20 };
 const MAX_DEPTS = 10;   // the 3D city has 10 lots around City Hall, the Research desk and the School
 // The Guide is not a department: it is City Hall, always on.
 const GUIDE = { id: 'guide', name: 'City Hall', about: 'The Guide. Checks your setup and tells you exactly how to fix anything that is not working.' };
@@ -74,7 +78,7 @@ class City {
     return { id: d.id && /^[\w-]{1,40}$/.test(d.id) ? d.id : 'd-' + id(), kind, name: String(d.name || '').trim().slice(0, 40) || 'New department', does: String(d.does || '').trim().slice(0, 4000),
       every: EVERY[d.every] ? Number(d.every) : (PICKS.find(p => p.kind === kind) || { every: 1440 }).every, model: !d.model || d.model === 'main' ? '' : String(d.model).trim().slice(0, 120),
       review: d.review !== false, judge: !!d.judge, audience: String(d.audience || '').trim().slice(0, 300), on: d.on !== false, panel: d.panel || null, at: d.at || this.now(),
-      facts: Array.isArray(d.facts) ? d.facts.slice(-20) : [], built: d.built || 0 };
+      facts: Array.isArray(d.facts) ? d.facts.slice(-20) : [], built: d.built || 0, auto: !!d.auto };
   }
   // Build a department, or change one. Changing what it does or who it is for makes a fresh panel next time it is judged.
   saveDepartment(input) {
@@ -86,6 +90,7 @@ class City {
     const d = this.clean(next);
     if (!d.does) throw new Error('Say what it should do, in plain words.');
     if (cur && (patch.does !== undefined && patch.does !== cur.does || patch.audience !== undefined && patch.audience !== cur.audience) && !patch.panel) d.panel = null;
+    if (cur && cur.auto && patch.does !== undefined && patch.does !== cur.does) d.auto = false;   // a new job has to earn autopilot again
     if (!cur) {
       if (list.length >= MAX_DEPTS) throw new Error('A city has room for ' + MAX_DEPTS + ' departments. Remove one first.');
       if (KINDS[d.kind].one && list.some(x => x.kind === d.kind)) throw new Error('You already have a ' + PICKS.find(p => p.kind === d.kind).name + ' department. Open it to change it.');
@@ -104,13 +109,37 @@ class City {
     return { on: a === 'guide' ? true : !!(d && d.on), model: this.ai.modelFor(own), ownModel: own && this.ai.modelFor(own) === own ? own : '', every: a === 'guide' ? 1 : (d && d.every) || 1440 };
   }
   agentOn(a) { return this.agentConf(a).on; }
+  // How well a department knows your way: of its last 10 pieces of work you decided, how many you approved as written.
+  readiness(a) {
+    const done = this.store.list('cards').filter(c => c.agent === a && !c.auto && AUTO_KINDS.includes(c.kind) && (c.actions || []).includes('approve') && ['sent', 'approved', 'done', 'declined'].includes(c.status))
+      .sort((x, y) => (y.decidedAt || 0) - (x.decidedAt || 0)).slice(0, AUTO.of);
+    const asIs = done.filter(c => c.status !== 'declined' && !(c.notes || []).length).length;
+    return { decided: done.length, asIs, of: AUTO.of, need: AUTO.need, ready: done.length >= AUTO.of && asIs >= AUTO.need };
+  }
+  setAutopilot(a, on) {
+    const D = this.department(a); if (!D) throw new Error('No such department.');
+    const r = this.readiness(a);
+    if (on && !r.ready) throw new Error('Not yet. It needs ' + AUTO.need + ' of its last ' + AUTO.of + ' approved as written. Now: ' + r.asIs + ' of ' + r.decided + '.');
+    const d = this.saveDepartment({ id: a, auto: !!on });
+    this.update(a, on ? 'Autopilot is on. It approves its own work now. Questions still come to you.' : 'Autopilot is off. Everything waits for your OK again.');
+    return d;
+  }
+  // Autopilot takes a card only when: its department has it on, it is work you would approve (not a question, a fix or a new building),
+  // the panel did not mark it weak, and today's 20 are not used up. Anything else waits for you as usual.
+  pilotFor(c) {
+    const D = this.department(c.agent);
+    if (!D || !D.auto || !D.on || !AUTO_KINDS.includes(c.kind) || !(c.actions || []).includes('approve')) return false;
+    if (c.judged && c.judged.panel && c.judged.panel.pass === false) return false;
+    const today = new Date(this.now()).toDateString();
+    return this.store.list('cards').filter(x => x.agent === c.agent && x.auto && new Date(x.ts).toDateString() === today).length < AUTO.perDay;
+  }
   setAgent(a, { on, model, every }) {
     if (a === 'guide') return null;
     return this.saveDepartment(Object.assign({ id: a }, on !== undefined ? { on: !!on } : {}, model !== undefined ? { model } : {}, every && EVERY[every] ? { every: Number(every) } : {}));
   }
   agents() {
     const cards = this.waiting(), runs = this.store.get('runs', {}), ups = this.store.list('updates');
-    const list = this.departments().map(d => ({ id: d.id, kind: d.kind, name: d.name, about: d.does.slice(0, 160), does: d.does, audience: d.audience, judge: d.judge, review: d.review, panel: d.panel, needs: KINDS[d.kind].needs, at: d.at }))
+    const list = this.departments().map(d => ({ id: d.id, kind: d.kind, name: d.name, about: d.does.slice(0, 160), does: d.does, audience: d.audience, judge: d.judge, review: d.review, panel: d.panel, needs: KINDS[d.kind].needs, at: d.at, auto: d.auto, readiness: this.readiness(d.id) }))
       .concat([{ id: 'guide', kind: 'guide', name: GUIDE.name, about: GUIDE.about, needs: [], always: true }]);
     return list.map(a => Object.assign(a, this.agentConf(a.id), { need: cards.filter(c => c.agent === a.id).length, done: ups.filter(u => u.agent === a.id).length, last: runs[a.id] || null, blockedBy: this.blockedBy(a.id) }));
   }
@@ -123,7 +152,14 @@ class City {
     return '';
   }
   // ---- cards: things that need you ----
-  addCard(c) { const card = Object.assign({ id: id(), ts: this.now(), status: 'waiting' }, c); this.store.put('cards', card.id, card); this.alert(card); return card; }
+  addCard(c) {
+    const card = Object.assign({ id: id(), ts: this.now(), status: 'waiting' }, c), pilot = this.pilotFor(card);
+    if (pilot) card.auto = true;
+    this.store.put('cards', card.id, card);
+    if (pilot) this.piloting = Promise.resolve(this.piloting).then(() => this.decide(card.id, 'approve')).catch(() => {});   // the same Approve you would press; if it fails, the card waits for you with the Guide's fix
+    else this.alert(card);
+    return card;
+  }
   waiting() { return this.store.list('cards').filter(c => c.status === 'waiting').reverse().sort((a, b) => b.ts - a.ts); }   // newest first, ties by when they were made
   update(agent, text, extra) { const u = Object.assign({ id: id(), agent, ts: this.now(), text: String(text).slice(0, 400) }, extra || {}); this.store.put('updates', u.id, u); this.store.trim('updates', 400); return u; }
   updates() { return this.store.list('updates').reverse().sort((a, b) => b.ts - a.ts); }
@@ -157,6 +193,7 @@ class City {
       } else if (decision === 'approve' && c.kind === 'post') { status = 'approved'; said = 'Saved: ' + c.title + '. Copy it from Updates whenever you post.'; }
       else if (decision === 'decline' && c.email) said = 'Not sent. The draft stays in your Gmail drafts if you want it later.';
       Object.assign(c, { status, decidedAt: this.now() }); this.store.put('cards', c.id, c);
+      if (c.auto && decision === 'approve') said = 'On autopilot: ' + (said || c.title);
       if (said || decision !== 'got_it') this.update(c.agent, said || ((decision === 'decline' ? 'You declined: ' : 'You approved: ') + c.title), c.kind === 'post' && status === 'approved' ? { text2: c.body } : {});
       return { ok: true, status, said };
     } catch (e) { this.problem(c.agent, e); throw e; }
@@ -454,4 +491,4 @@ class City {
   start(everyMs = 60e3) { const go = () => this.tick().catch(e => this.log.error('tick: ' + e.message)); setTimeout(go, 5000); this.timer = setInterval(go, everyMs); }
   stop() { clearInterval(this.timer); }
 }
-module.exports = { City, KINDS, PICKS, GUIDE, EVERY, DEFAULT_SETTINGS, LABELS, SORT_SCHEMA, LEAD_REPLY };
+module.exports = { City, KINDS, PICKS, GUIDE, EVERY, DEFAULT_SETTINGS, LABELS, SORT_SCHEMA, LEAD_REPLY, AUTO };
