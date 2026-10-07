@@ -14,7 +14,7 @@
 :root[data-theme="dark"]{color-scheme:dark;--bg:#14120f;--card:#1c1915;--lift:#25211b;--ink:#efe9dd;--dim:rgba(239,233,221,.66);--line:rgba(239,233,221,.12);--line2:rgba(239,233,221,.24);
   --accent:#d2a36c;--good:#8fc79a;--bad:#e49a88;--tint:rgba(210,163,108,.12);--on-ink:#14120f}
 *{box-sizing:border-box}[hidden]{display:none!important}
-html,body{margin:0;background:var(--bg);color:var(--ink);font:17px/1.5 var(--sans);-webkit-font-smoothing:antialiased}
+html,body{margin:0;background:var(--bg);color:var(--ink);font:17px/1.5 var(--sans);-webkit-font-smoothing:antialiased}body{overflow-x:clip}
 a{color:var(--accent)}button,input,select,textarea{font:inherit;color:inherit}
 .wrap{max-width:760px;margin:0 auto;padding:16px 16px calc(96px + env(safe-area-inset-bottom,0px))}
 header{display:flex;align-items:center;gap:12px;padding:6px 0 14px}
@@ -68,6 +68,8 @@ label.f{display:block;margin:14px 0 6px;font-weight:600;font-size:15px}label.f s
 .city .sign{font:600 8.5px var(--sans);fill:var(--ink);paint-order:stroke;stroke:var(--bg);stroke-width:3px;stroke-linejoin:round}.city .sign.bad{fill:var(--bad)}
 .city .badge{animation:pulse 1.8s ease-in-out infinite;transform-box:fill-box;transform-origin:center}@keyframes pulse{50%{transform:scale(1.18)}}
 @media (prefers-reduced-motion:reduce){.city .badge{animation:none}}
+.c3box{width:100vw;margin:0 0 6px calc(50% - 50vw);height:calc(100dvh - 190px);min-height:440px;max-height:900px;background:#05070d;position:relative}
+.c3box iframe{display:block;width:100%;height:100%;border:0}
 .legend{display:flex;gap:14px;flex-wrap:wrap;font-size:13px;color:var(--dim);margin:0 0 18px}.legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;vertical-align:-1px}
 .dept.add{justify-content:center;border-style:dashed;box-shadow:none;background:none;font-weight:600;color:var(--accent)}
 label.ck{display:flex;gap:10px;align-items:flex-start;margin:14px 0 6px;font-weight:600;font-size:15px}label.ck input{margin-top:4px;width:18px;height:18px;flex:0 0 18px}label.ck small{display:block;font-weight:400;color:var(--dim)}
@@ -87,9 +89,13 @@ label.ck{display:flex;gap:10px;align-items:flex-start;margin:14px 0 6px;font-wei
   <section id="t-depts">
     <div id="home">
       <div class="banner" id="startHere" hidden></div>
-      <h1>Your city</h1><p class="sub">Each building is a department you named. Tap one.</p>
-      <div id="cityView"></div>
-      <div class="legend"><span><i style="background:#ffd98a;border:1px solid #c9a24a"></i>Lit: working</span><span><i style="background:var(--accent)"></i>A number: needs you</span><span><i style="background:#a9a397"></i>Grey: off</span></div>
+      <div class="c3box" id="c3box"><iframe id="city3d" title="Your city in 3D. Tap a building to go inside." src="/city3d"></iframe></div>
+      <div id="city2d" hidden>
+        <h1>Your city</h1><p class="sub">Each building is a department you named. Tap one.</p>
+        <div id="cityView"></div>
+        <div class="legend"><span><i style="background:#ffd98a;border:1px solid #c9a24a"></i>Lit: working</span><span><i style="background:var(--accent)"></i>A number: needs you</span><span><i style="background:#a9a397"></i>Grey: off</span></div>
+      </div>
+      <h2 style="margin-top:6px">Departments</h2>
       <ul class="list" id="depts"><li class="muted">Loading…</li></ul>
     </div>
     <div id="dept" hidden>
@@ -98,6 +104,17 @@ label.ck{display:flex;gap:10px;align-items:flex-start;margin:14px 0 6px;font-wei
       <div class="chips" id="deptTools" style="margin:0 0 6px"></div>
       <div class="tabs2" role="tablist"><button role="tab" id="tabNeed">Needs you<b id="nNeed">0</b></button><button role="tab" id="tabDone">Updates<b id="nDone">0</b></button><button role="tab" id="tabPanel">Panel</button></div>
       <div id="need"></div><div id="done" hidden></div><div id="panel" hidden></div>
+    </div>
+    <div id="school" hidden>
+      <a class="back" href="#">‹ Your city</a>
+      <h1>The School</h1><p class="sub">New tools try out here before they join a department. The Research desk looks for them on GitHub every week. Nothing installs itself.</p>
+      <div class="chips" style="margin:0 0 16px"><button class="btn yes sm" id="researchGo">Look for new tools now</button><span class="muted" id="researchSaid"></span></div>
+      <div id="schoolCards"></div>
+      <h2>Students</h2><div class="box"><ul class="upd" id="students"></ul></div>
+      <h2>Enroll a tool yourself</h2>
+      <div class="box" style="padding:4px 16px 16px"><label class="f">Its GitHub link<small>A repo (github.com/owner/name) or an agent playbook (a .md file on GitHub). It tries out first: orientation, 3 practice jobs, then a grade.</small><input type="text" id="enrollRef" placeholder="https://github.com/..."></label>
+        <div class="chips"><button class="btn yes sm" id="enrollGo">Enroll it</button></div></div>
+      <h2>What the Research desk found</h2><div class="box"><ul class="upd" id="researchUps"></ul></div>
     </div>
     <div id="build" hidden>
       <a class="back" href="#" id="buildBack">‹ Your city</a>
@@ -209,6 +226,7 @@ label.ck{display:flex;gap:10px;align-items:flex-start;margin:14px 0 6px;font-wei
     var h = location.hash.slice(1), m = /^([\w-]+)(?:\/(updates|panel|edit|card\/([\w-]+)))?$/.exec(h) || [];
     if (h === 'guide' || h === 'settings') { show(h); return; }
     if (h === 'build') { view = 'build'; dept = ''; built = null; show('depts'); return; }
+    if (h === 'school') { view = 'school'; dept = ''; show('depts'); return; }
     dept = m[1] || ''; view = !dept ? 'home' : m[2] === 'edit' ? 'build' : 'dept';
     dtab = m[2] === 'updates' ? 'done' : m[2] === 'panel' ? 'panel' : 'need'; if (m[3]) want = m[3];
     if (view === 'build') built = null;
@@ -230,7 +248,9 @@ label.ck{display:flex;gap:10px;align-items:flex-start;margin:14px 0 6px;font-wei
     $('biz').textContent = S.settings.business || 'Your business';
     var n = S.cards.filter(function (c) { return c.kind !== 'fix'; }).length, bad = S.checks.filter(function (c) { return !c.ok; }).length + S.cards.filter(function (c) { return c.kind === 'fix'; }).length;
     $('nAll').hidden = !n; $('nAll').textContent = n; $('nGuide').hidden = !bad; $('nGuide').textContent = bad;
-    if (tab === 'depts') { $('home').hidden = view !== 'home'; $('dept').hidden = view !== 'dept'; $('build').hidden = view !== 'build'; if (view === 'dept') renderDept(); else if (view === 'build') renderBuild(); else renderHome(); }
+    if (tab === 'depts') { $('home').hidden = view !== 'home'; $('dept').hidden = view !== 'dept'; $('build').hidden = view !== 'build'; $('school').hidden = view !== 'school';
+      if (view === 'dept') renderDept(); else if (view === 'build') renderBuild(); else if (view === 'school') renderSchool(); else renderHome(); }
+    var f = $('city3d'); if (f && f.contentWindow) try { f.contentWindow.postMessage({ type: 'refresh' }, location.origin); } catch (e) {}
     if (tab === 'guide') renderGuide();
     if (tab === 'settings') renderSettings();
   }
@@ -246,7 +266,8 @@ label.ck{display:flex;gap:10px;align-items:flex-start;margin:14px 0 6px;font-wei
         : el('p', { cls: 'muted', style: 'margin:4px 0 8px', text: bad[0].text }));
       start.appendChild(el('div', { cls: 'chips' }, [el('a', { cls: 'chip strong', href: '#settings', text: 'Open Settings' }), el('a', { cls: 'chip strong', href: '#guide', text: 'Open the Guide' })]));
     } else start.hidden = true;
-    var cv = $('cityView'); cv.innerHTML = ''; cv.appendChild(cityView());
+    $('c3box').hidden = use2d; $('city2d').hidden = !use2d;
+    if (use2d) { var cv = $('cityView'); cv.innerHTML = ''; cv.appendChild(cityView()); }
     var ul = $('depts'); ul.innerHTML = '';
     var list = DEPTS().sort(function (a, b) { return (b.need ? 1 : 0) - (a.need ? 1 : 0) || b.need - a.need || a.at - b.at; });
     list.forEach(function (a) {
@@ -256,6 +277,9 @@ label.ck{display:flex;gap:10px;align-items:flex-start;margin:14px 0 6px;font-wei
         el('span', { cls: 'cnt' }, [state, a.done ? el('span', { text: a.done + ' update' + (a.done > 1 ? 's' : '') }) : null, a.judge ? el('span', { text: '⚖ judged' }) : null]), el('span', { text: '›', cls: 'muted' })])]));
     });
     if (list.length < 12) ul.appendChild(el('li', {}, [el('button', { cls: 'dept add', onclick: function () { location.hash = 'build'; } }, ['+ Build a department'])]));
+    var sc = S.cards.filter(function (c) { return c.agent === 'school'; }).length, inClass = (S.school || []).filter(function (x) { return x.step !== 'done'; }).length;
+    ul.appendChild(el('li', {}, [el('button', { cls: 'dept' + (sc ? '' : ' quiet'), onclick: function () { location.hash = 'school'; } }, [el('span', { cls: 'nm' }, [el('b', { text: 'The School' }), el('span', { text: 'New tools try out here. The Research desk finds them every week.' })]),
+      el('span', { cls: 'cnt' }, [sc ? el('b', { text: sc + ' need' + (sc > 1 ? '' : 's') + ' you' }) : el('span', { text: inClass ? inClass + ' in class' : 'Open' })]), el('span', { text: '›', cls: 'muted' })])]));
     var hall = S.agents.filter(function (a) { return a.id === 'guide'; })[0];
     ul.appendChild(el('li', {}, [el('button', { cls: 'dept quiet', onclick: function () { location.hash = 'guide'; } }, [el('span', { cls: 'nm' }, [el('b', { text: hall.name }), el('span', { text: hall.about })]),
       el('span', { cls: 'cnt' }, [bad.length || hall.need ? el('span', { cls: 'bad', text: (bad.length + hall.need) + ' to fix' }) : el('span', { text: 'All good' })]), el('span', { text: '›', cls: 'muted' })])]));
@@ -369,6 +393,26 @@ label.ck{display:flex;gap:10px;align-items:flex-start;margin:14px 0 6px;font-wei
     box.appendChild(el('p', { cls: 'muted', style: 'margin:0 0 12px;font-size:14px', text: 'They are simulated: your AI plays each one. The crowd is the same 8 people in 12 moods, so 96 votes. To get a new panel, change who its work is for under Edit.' }));
     box.appendChild(el('div', { cls: 'box' }, [el('ul', { cls: 'people' }, a.panel.people.map(function (p) { return el('li', {}, [el('b', { text: p.name }), el('div', { cls: 'muted', style: 'font-size:14px', text: p.who })]); }))]));
   }
+  // ---- the School and the Research desk ----
+  function renderSchool() {
+    var box = $('schoolCards'); box.innerHTML = '';
+    S.cards.filter(function (c) { return c.agent === 'school'; }).forEach(function (c) { box.appendChild(card(c, function () {})); box.appendChild(el('div', { style: 'height:12px' })); });
+    var nameOf = function (id) { return (S.agents.filter(function (a) { return a.id === id; })[0] || {}).name || ''; };
+    var ul = $('students'); ul.innerHTML = '';
+    if (!(S.school || []).length) ul.appendChild(el('li', { cls: 'muted', text: 'No students yet. The Research desk sends the best tools it finds, or enroll one yourself below.' }));
+    (S.school || []).forEach(function (st) {
+      var name = String(st.ref).replace(/^https?:\/\/(www\.)?github\.com\//, '').replace(/^https?:\/\/raw\.githubusercontent\.com\//, '');
+      var where = st.step === 'orient' ? 'At orientation: checking it is real, kept up and safe' : st.step === 'class' ? 'In class at ' + (nameOf(st.dept) || 'its department') + ': ' + st.scores.length + ' of ' + (st.type === 'repo' ? 1 : 3) + ' practice jobs' + (st.scores.length ? ' (' + st.scores.join(', ') + ')' : '')
+        : (st.passed ? '✓ ' : '✗ ') + (st.why || (st.passed ? 'Graduated' : 'Failed'));
+      ul.appendChild(el('li', {}, [el('div', { style: 'font-weight:600;overflow-wrap:anywhere', text: name }), el('div', { text: where }), el('small', { text: (st.by === 'research' ? 'Found by the Research desk' + (st.note ? ', ' + st.note : '') : 'Enrolled by you') + ' · ' + ago(st.at) })]));
+    });
+    var ru = $('researchUps'); ru.innerHTML = ''; var ups = S.updates.filter(function (u) { return u.agent === 'research'; });
+    if (!ups.length) ru.appendChild(el('li', { cls: 'muted', text: 'Nothing yet. It looks once a week, or press Look for new tools now.' }));
+    ups.slice(0, 20).forEach(function (u) { ru.appendChild(el('li', {}, [el('div', { text: u.text }), el('small', { text: ago(u.ts) })])); });
+  }
+  $('researchGo').onclick = function (e) { var b = e.target; b.disabled = true; $('researchSaid').textContent = 'Looking on GitHub…';
+    api('/api/research', {}).then(function (r) { $('researchSaid').textContent = r.said; return load(); }).catch(function (err) { $('researchSaid').textContent = ''; toast(err.message); }).then(function () { b.disabled = false; }); };
+  $('enrollGo').onclick = function () { api('/api/school', { ref: $('enrollRef').value }).then(function () { $('enrollRef').value = ''; toast('Enrolled. Orientation starts within 10 minutes.'); return load(); }).catch(function (e) { toast(e.message); }); };
   // ---- build or change a department ----
   var built = null;
   function renderBuild() {
@@ -417,7 +461,7 @@ label.ck{display:flex;gap:10px;align-items:flex-start;margin:14px 0 6px;font-wei
   function copy(t) { (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).then(function () { toast('Copied.'); }).catch(function () { toast('Select the text and copy it.'); }); }
   // One card: what it is, what goes out exactly, and the buttons.
   function card(c, skip) {
-    var kids = [el('div', { cls: 'place', text: (S.agents.filter(function (a) { return a.id === c.agent; })[0] || { name: c.agent }).name + ' · ' + ago(c.ts) }), el('div', { cls: 'head', text: c.title })];
+    var kids = [el('div', { cls: 'place', text: (c.agent === 'school' ? 'The School' : (S.agents.filter(function (a) { return a.id === c.agent; })[0] || { name: c.agent }).name) + ' · ' + ago(c.ts) }), el('div', { cls: 'head', text: c.title })];
     if (c.lead) {
       var L = c.lead, tel = String(L.phone || '').replace(/[^\d+]/g, '');
       kids.push(el('div', { cls: 'lead' }, [el('div', {}, [el('b', { text: L.name || L.email || 'A new lead' }), L.came ? ' · came in ' + L.came : '']),
@@ -581,6 +625,12 @@ label.ck{display:flex;gap:10px;align-items:flex-start;margin:14px 0 6px;font-wei
       if (sub) box.appendChild(el('button', { cls: 'chip', text: 'Turn off', onclick: function () { api('/api/push', { endpoint: sub.endpoint }, 'DELETE').then(function () { return sub.unsubscribe(); }).then(renderAlerts); } }));
     });
   }
+  var use2d = false;
+  window.addEventListener('message', function (e) {
+    if (e.origin !== location.origin || !e.data) return;
+    if (e.data.type === 'go' && typeof e.data.to === 'string' && /^[\w-]+$/.test(e.data.to)) location.hash = e.data.to;
+    if (e.data.type === 'no3d') { use2d = true; if (S) render(); }
+  });
   route(); load(); setInterval(function () { if (!document.hidden) load(); }, 60000);
 })();
 </script>

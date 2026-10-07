@@ -69,7 +69,7 @@ In **Settings → Your business**, fill in:
 
 Your city starts empty, with only City Hall (the Guide). You decide what departments it has.
 
-1. Open **City** and tap **+ Build a department** (or the **+ Build** lot in the drawing).
+1. Open **City** and tap **+ Build a department** (or the **+ Build** lot in the 3D city). A city has room for 10.
 2. **Name** it, and say **what it does** in plain words, the way you would tell a new hire. Or tap a ready-made one and change it.
 3. Choose **how often** it works and **who its work is for**.
 4. Leave **Judge its work before I see it** on to have the Panel and the Crowd check it.
@@ -102,6 +102,16 @@ Jev answers your city's quick questions, the same ones the original city asks:
 - **The Crowd**: the 96 votes.
 
 Without a key, your own AI answers Jev's questions. For the real Jev (faster and cheaper): go to vercel.com, open **AI Gateway**, then **API Keys**, make a key, and paste it in **Settings → Jev**. Press **Save and test**. If Jev ever has a problem, your AI answers until it is fixed, and the Guide shows the fix.
+
+### Questions
+
+When a department cannot do its job well without a fact only you know (an address, a date, a price), it asks one short question instead of guessing. A pink "?" floats over its building and a card asks you. Type the answer and press **Send answer**. It is kept for every later job, and the department works again right away.
+
+### The School and the Research desk
+
+- **The Research desk** looks on GitHub once a week for open-source agent playbooks and tools that could help your departments. Jev scores what it finds; the best (at most 4 a day) go to the School. Press **Look for new tools now** on the School page to run it.
+- **The School** tests each one before it may touch real work: orientation (is it real, kept up and safe?), then practice jobs graded from 0 to 100 by the department's head. A playbook that passes joins its department: its guidance goes into every job there. A bigger tool (a whole repo) only writes a plan, and the plan comes to you to approve. Nothing installs by itself.
+- To try a tool yourself: open **The School** and paste its GitHub link under **Enroll a tool yourself**.
 
 On every card you can **Approve**, **Decline**, **Needs feedback** (tell it what to change and it rewrites the draft, in Gmail too), **Open in Gmail**, or **Skip**.
 

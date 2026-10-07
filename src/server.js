@@ -7,7 +7,7 @@ const { EVERY, PICKS } = require('./city');
 const guide = require('./guide');
 
 const PUBLIC = path.join(__dirname, '..', 'public');
-const OPEN = { '/sw.js': ['sw.js', 'text/javascript'], '/manifest.webmanifest': ['manifest.webmanifest', 'application/manifest+json'], '/icon.svg': ['icon.svg', 'image/svg+xml'], '/icon-512.png': ['icon-512.png', 'image/png'], '/apple-touch-icon.png': ['apple-touch-icon.png', 'image/png'] };
+const OPEN = { '/vendor/three.min.js': ['vendor/three.min.js', 'text/javascript'], '/sw.js': ['sw.js', 'text/javascript'], '/manifest.webmanifest': ['manifest.webmanifest', 'application/manifest+json'], '/icon.svg': ['icon.svg', 'image/svg+xml'], '/icon-512.png': ['icon-512.png', 'image/png'], '/apple-touch-icon.png': ['apple-touch-icon.png', 'image/png'] };
 const json = (res, code, obj, h) => { res.writeHead(code, Object.assign({ 'content-type': 'application/json', 'cache-control': 'no-store' }, h || {})); res.end(JSON.stringify(obj)); };
 const body = req => new Promise((ok, bad) => { const ch = []; let n = 0; req.on('data', c => { n += c.length; if (n > 2e6) { bad(new Error('too large')); req.destroy(); } else ch.push(c); }); req.on('end', () => { try { ok(JSON.parse(Buffer.concat(ch).toString() || '{}') || {}); } catch (e) { ok({}); } }); req.on('error', bad); });
 const hash = s => crypto.createHash('sha256').update(String(s)).digest();
@@ -34,7 +34,7 @@ function createServer({ city, password = () => process.env.CITY_PASSWORD, public
     const url = new URL(req.url, 'http://x'), p = url.pathname;
     city.redirect = origin(req) + '/connect/google/callback';
     if (p === '/healthz') return json(res, 200, { ok: true });
-    if (OPEN[p]) { const [f, type] = OPEN[p]; res.writeHead(200, { 'content-type': type, 'cache-control': p === '/sw.js' ? 'no-cache' : 'public, max-age=86400' }); return res.end(fs.readFileSync(path.join(PUBLIC, f))); }
+    if (OPEN[p]) { const [f, type] = OPEN[p]; res.writeHead(200, { 'content-type': type, 'cache-control': p === '/sw.js' ? 'no-cache' : p.startsWith('/vendor/') ? 'public, max-age=31536000, immutable' : 'public, max-age=86400' }); return res.end(fs.readFileSync(path.join(PUBLIC, f))); }
     // ---- sign-in ----
     // First visit: nothing opens until the owner chooses a password. Only the first person to do it becomes the owner.
     if (!hasPassword()) {
@@ -60,6 +60,9 @@ function createServer({ city, password = () => process.env.CITY_PASSWORD, public
       res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' }); return res.end(loginPage());
     }
     if (p === '/logout') { res.writeHead(302, { location: '/', 'set-cookie': 'sid=; Path=/; Max-Age=0' }); return res.end(); }
+    // The 3D city: the page with the owner's departments in it (the home screen shows it in a frame; it also opens on its own).
+    if (p === '/city3d') { res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' });
+      return res.end(fs.readFileSync(path.join(PUBLIC, 'city3d.html'), 'utf8').replace('<!--CITY_DATA-->', () => '<script>window.CITY_DATA=' + JSON.stringify(cityData(city)).replace(/</g, '\\u003c') + '</script>')); }
     if (p === '/' || p === '/index.html') { res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' }); return res.end(fs.readFileSync(path.join(PUBLIC, 'index.html'))); }
     // ---- Google: press Connect, Google asks you, Google sends you back here ----
     if (p === '/connect/google') {
@@ -78,6 +81,7 @@ function createServer({ city, password = () => process.env.CITY_PASSWORD, public
     }
     // ---- the home screen's API ----
     try {
+      if (p === '/api/city3d') return json(res, 200, cityData(city));
       if (p === '/api/state') return json(res, 200, Object.assign(state(city, city.redirect), { passwordFrom: envPw() ? 'variable' : 'app' }));
       if (p === '/api/decide' && req.method === 'POST') { const b = await body(req); return json(res, 200, await city.decide(String(b.id || ''), String(b.decision || ''))); }
       if (p === '/api/answer' && req.method === 'POST') { const b = await body(req); return json(res, 200, await city.answer(String(b.id || ''), b.answer)); }
@@ -92,6 +96,9 @@ function createServer({ city, password = () => process.env.CITY_PASSWORD, public
         return json(res, 200, { ok: true, department: d });
       }
       if (p === '/api/department' && req.method === 'DELETE') { const b = await body(req); city.removeDepartment(String(b.id || '')); return json(res, 200, { ok: true }); }
+      // The School: enroll a tool by its GitHub link; the Research desk: look for new tools now.
+      if (p === '/api/school' && req.method === 'POST') { if (!city.school) throw new Error('The School is not open in this city.'); const b = await body(req); return json(res, 200, { ok: true, student: city.school.enroll(b.ref, { note: b.note }) }); }
+      if (p === '/api/research' && req.method === 'POST') { if (!city.research) throw new Error('The Research desk is not open in this city.'); return json(res, 200, { ok: true, said: await city.research.run() }); }
       if (p === '/api/run' && req.method === 'POST') { const b = await body(req); return json(res, 200, { ok: true, said: await city.runAgent(String(b.agent || '')) }); }
       if (p === '/api/ask' && req.method === 'POST') { const b = await body(req); return json(res, 200, await guide.ask(city, b.question, { redirect: city.redirect })); }
       if (p === '/api/google/disconnect' && req.method === 'POST') { city.google.disconnect(); return json(res, 200, { ok: true }); }
@@ -143,6 +150,25 @@ function aiState(city) {
   return { provider: c.provider, name: c.name, services: city.ai.services(), keySet: !!c.key, keyFrom: c.keyFrom, baseUrl: c.provider === 'custom' ? c.base : '',
     model: c.model, needs: city.ai.needs(), keyAt: c.keyAt, models: Object.fromEntries(list.map(id => [id, MODELS[id] ? MODELS[id].label : id])) };
 }
+// What the 3D city draws: each department (name, kind, what waits on you, whether it is working now, its open question, its latest lines),
+// City Hall's problems, the School and the Research desk, and the latest Panel result. No keys, no email text.
+function cityData(city) {
+  const now = Date.now(), ups = city.updates(), cards = city.waiting(), agents = city.agents(), live = a => !!(a && a.last && now - a.last.at < 15 * 60e3);
+  const lines = id => ups.filter(u => u.agent === id).slice(0, 3).map(u => String(u.text).slice(0, 90));
+  const last = id => (ups.find(u => u.agent === id) || {}).ts || 0;
+  const problems = guide.checks(city, { redirect: city.redirect || '' }).filter(c => !c.ok).length + cards.filter(c => c.kind === 'fix').length;
+  const judged = cards.concat(ups).filter(c => c.judged && c.judged.panel).sort((a, b) => b.ts - a.ts)[0], P = judged && judged.judged;
+  const dist = P ? [1, 2, 3, 4, 5].map(n => P.panel.reactions.filter(r => r.score === n).length) : null;
+  const post = cards.find(c => c.kind === 'post');
+  return { business: city.settings().business || '',
+    hall: { need: problems, lines: lines('guide') },
+    research: { need: 0, live: now - last('research') < 15 * 60e3, lines: lines('research') },
+    school: { need: cards.filter(c => c.agent === 'school').length, live: now - last('school') < 15 * 60e3, lines: lines('school') },
+    departments: agents.filter(a => a.id !== 'guide').map(a => ({ id: a.id, name: a.name, kind: a.kind, does: String(a.does || '').slice(0, 160), need: a.need, live: live(a), on: a.on, judge: !!a.judge,
+      ask: (cards.find(c => c.agent === a.id && c.kind === 'ask') || {}).question || '', lines: lines(a.id) })),
+    panel: P ? { title: String(judged.title || '').replace(/^[^:]{0,40}:\s*/, '').slice(0, 40), question: P.question, avg: P.panel.avg, pct: Math.round(P.panel.top / P.panel.n * 100), dist } : null,
+    led: post ? String(post.title).replace(/^[^:]{0,20}:\s*/, '').slice(0, 40) : '' };
+}
 // Everything the home screen shows, in one answer. Never a key, a password or the Google pass.
 function state(city, redirect) {
   const s = city.settings();
@@ -150,7 +176,7 @@ function state(city, redirect) {
     google: { configured: city.google.configured(), connected: city.google.connected(), email: city.google.email() }, redirect,
     spend: { today: Math.round(city.ai.spentToday() * 100) / 100, cap: city.ai.cap() }, store: city.store.kind(), alerts: s.alerts,
     ai: aiState(city), googleClient: { id: (city.store.get('googleClient') || {}).id || '', secretSet: !!(city.store.get('googleClient') || {}).secret, fromVariable: !!process.env.GOOGLE_CLIENT_ID },
-    models: aiState(city).models, every: EVERY, jev: { mode: city.jev.mode(), keySet: !!city.jev.key(), keyFrom: city.jev.keyFrom(), problem: city.jev.problem() } };
+    models: aiState(city).models, every: EVERY, school: city.school ? city.school.state().students.slice().reverse().map(st => ({ id: st.id, ref: st.ref, type: st.type, by: st.by, note: st.note, step: st.step, dept: st.dept, scores: st.scores, passed: st.passed, why: st.why, at: st.at })) : [], jev: { mode: city.jev.mode(), keySet: !!city.jev.key(), keyFrom: city.jev.keyFrom(), problem: city.jev.problem() } };
 }
 const shell = (title, inner, script) => '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>' + esc(title) + '</title>' +
   '<link rel="manifest" href="/manifest.webmanifest"><link rel="icon" href="/icon.svg"><style>:root{--bg:#f6f3ec;--ink:#1a1813;--dim:rgba(26,24,19,.66);--accent:#8a5a2b;--card:#fffdf8;--line:rgba(26,24,19,.14)}' +

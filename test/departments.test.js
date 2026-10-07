@@ -65,8 +65,8 @@ test('a judging problem never holds the work back; a department can be removed a
   c.removeDepartment(d.id);
   assert.deepStrictEqual([c.department(d.id), c.waiting().length], [null, 0]);
   assert.throws(() => c.saveDepartment({ id: 'nope', name: 'x', does: 'y' }), /No such department/);
-  for (let i = 0; i < 12; i++) c.saveDepartment({ name: 'D' + i, does: 'Something.' });
-  assert.throws(() => c.saveDepartment({ name: 'One more', does: 'Something.' }), /room for 12 departments/);
+  for (let i = 0; i < 10; i++) c.saveDepartment({ name: 'D' + i, does: 'Something.' });
+  assert.throws(() => c.saveDepartment({ name: 'One more', does: 'Something.' }), /room for 10 departments/);
 });
 
 test('a city from before departments keeps what it was really using, with the same ids; a new one starts empty', async () => {

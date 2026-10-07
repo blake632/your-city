@@ -5,6 +5,7 @@ const { CityError, MODELS } = require('./ai');
 const guide = require('./guide');
 const { judge } = require('./judge');
 const { Jev } = require('./jev');
+const { playbooksFor } = require('./school');
 const { addressOf, nameOf } = require('./google');
 
 const EVERY = { 10: 'every 10 minutes', 60: 'every hour', 1440: 'every day', 10080: 'every week' };
@@ -20,7 +21,7 @@ const PICKS = [
   { kind: 'own', name: 'Newsletter', what: 'A short email to your customers.', does: 'Write a short email to my past customers: one useful tip, one thing that is new, and a friendly sign-off.', every: 10080, audience: 'Past customers', judge: true },
   { kind: 'own', name: 'Ads', what: 'Short ads for the week.', does: 'Write 3 short ads for this week, each a headline and two lines, for Facebook and Google.', every: 10080, audience: 'People nearby who might need what I sell', judge: true },
 ];
-const MAX_DEPTS = 12;
+const MAX_DEPTS = 10;   // the 3D city has 10 lots around City Hall, the Research desk and the School
 // The Guide is not a department: it is City Hall, always on.
 const GUIDE = { id: 'guide', name: 'City Hall', about: 'The Guide. Checks your setup and tells you exactly how to fix anything that is not working.' };
 const DEFAULT_SETTINGS = {
@@ -274,7 +275,7 @@ class City {
       this.addCard({ agent: D.id, kind: 'lead', title: 'Not a customer: ' + (lead.name || email) + ', ' + what, lead, gmail, body: 'Jev read it as ' + what + ' (' + Math.round(not.confidence * 100) + '% sure), so no reply was written. If Jev is wrong, open it in Gmail and reply by hand.', jev: { mode: this.jev.mode(), kind: not.choice, sure: not.confidence }, actions: ['got_it'] });
       return false; }
     const first = await this.ai.ask({ model: this.agentConf(D.id).model, effort: 'medium', maxTokens: 8000,
-      system: this.voice(s) + ' You write the first reply to a new customer. Follow the owner\'s reply guide exactly.',
+      system: this.voice(s) + ' You write the first reply to a new customer. Follow the owner\'s reply guide exactly.' + playbooksFor(this.store, D.id),
       prompt: 'REPLY GUIDE:\n' + D.does + this.factsOf(D) + '\n\nTHE CUSTOMER\nName: ' + (lead.name || '(unknown)') + '\nEmail: ' + email + (lead.phone ? '\nPhone: ' + lead.phone : '') + '\nWhat they want: ' + lead.wants + '\nCame in: ' + lead.came +
         '\n\nTHEIR MESSAGE:\n' + m.text.slice(0, 4000) + '\n\nWrite only the email body, from the greeting to the signature.' });
     const { text: body, judged } = await this.judged(D, first);
@@ -288,7 +289,7 @@ class City {
   }
   async mailReply(D, m, sort, pulled) {
     const s = this.settings(), to = addressOf(m.replyTo || m.from);
-    const first = await this.ai.ask({ model: this.agentConf(D.id).model, effort: 'medium', maxTokens: 8000, system: this.voice(s) + ' You write the owner\'s reply to this email. Answer what they asked, briefly. The owner\'s note for replies: ' + D.does,
+    const first = await this.ai.ask({ model: this.agentConf(D.id).model, effort: 'medium', maxTokens: 8000, system: this.voice(s) + ' You write the owner\'s reply to this email. Answer what they asked, briefly. The owner\'s note for replies: ' + D.does + playbooksFor(this.store, D.id),
       prompt: 'From: ' + m.from + '\nSubject: ' + m.subject + '\n\n' + m.text.slice(0, 6000) + '\n\nWrite only the reply body, from the greeting to the signature.' });
     const { text: body, judged } = await this.judged(D, first);
     const msg = { to, subject: /^re:/i.test(m.subject) ? m.subject : 'Re: ' + m.subject, body, threadId: m.threadId, inReplyTo: m.messageId, references: m.references };
@@ -301,7 +302,7 @@ class City {
     const s = this.settings();
     const effort = await this.jevEffort(D.does);
     const r = await this.ai.ask({ model: this.agentConf(D.id).model, effort, maxTokens: 12000, schema: POSTS_SCHEMA,
-      system: this.voice(Object.assign({}, s, { signature: '' })) + ' You write social media posts.',
+      system: this.voice(Object.assign({}, s, { signature: '' })) + ' You write social media posts.' + playbooksFor(this.store, D.id),
       prompt: 'Today is ' + new Date(this.now()).toDateString() + '.\n\nWHAT THE OWNER WANTS:\n' + D.does + this.factsOf(D) + '\n\nEach post: the platform, the post text with a few fitting hashtags, and the kind of real photo the owner should use. Never describe a photo as if it already exists.' });
     const posts = (r.posts || []).slice(0, 5);
     for (const p of posts.slice().reverse()) {   // the first post shows first
@@ -312,7 +313,7 @@ class City {
   }
   async runOwn(D) {
     const s = this.settings(), effort = await this.jevEffort(D.does);
-    const write = extra => this.ai.ask({ model: this.agentConf(D.id).model, effort, maxTokens: 12000, system: this.voice(Object.assign({}, s, { signature: '' })) + ' You are the owner\'s department "' + D.name + '". Be short and useful.',
+    const write = extra => this.ai.ask({ model: this.agentConf(D.id).model, effort, maxTokens: 12000, system: this.voice(Object.assign({}, s, { signature: '' })) + ' You are the owner\'s department "' + D.name + '". Be short and useful.' + playbooksFor(this.store, D.id),
       prompt: 'Today is ' + new Date(this.now()).toDateString() + '.\n\nWHAT THIS DEPARTMENT DOES:\n' + D.does + (D.audience ? '\n\nWHO THE WORK IS FOR: ' + D.audience : '') + this.factsOf(D) + City.ASK + (extra || '') });
     let first = await write();
     const q = this.askedIn(first);
@@ -336,6 +337,9 @@ class City {
     if (mail && !this.blockedBy(mail.id)) out.push({ key: 'inbox', agent: mail.id, every: Math.min(L ? L.every : 1e9, M ? M.every : 1e9), run: () => this.inbox() });
     this.departments().filter(d => d.on && (d.kind === 'own' || d.kind === 'social') && !this.blockedBy(d.id))
       .forEach(d => out.push({ key: d.id, agent: d.id, every: d.every, run: () => d.kind === 'social' ? this.social(this.department(d.id)) : this.runOwn(this.department(d.id)) }));
+    // the School takes one step every 10 minutes; the Research desk looks for new tools once a week
+    if (this.school) out.push({ key: 'school', agent: 'school', every: 10, run: () => this.school.step() });
+    if (this.research && this.departments().some(d => d.on)) out.push({ key: 'research', agent: 'research', every: 10080, run: () => this.research.run() });
     return out;
   }
   async runAgent(agent) {

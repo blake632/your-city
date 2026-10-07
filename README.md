@@ -1,10 +1,12 @@
 # Your City
 
-Your own AI office, drawn as a city.
+Your own AI office, as a 3D city at night: each department a lit building, its people at work, walking finished work over to you.
 
-- **You build the departments.** Name each one and say what it does in plain words: "Leads", "Instagram", "Reviews", "Newsletter", anything. Each one becomes a building in your city.
+- **You build the departments.** Name each one and say what it does in plain words: "Leads", "Instagram", "Reviews", "Newsletter", anything. Each one becomes a building in your city. Tap it to go inside.
+- **They ask you instead of guessing.** Missing a fact (an address, a date, a price)? A department asks you one short question. A pink "?" floats over its building. Your answer is kept for next time.
 - **Their work is judged before you see it.** A panel of 8 people the work is for scores it from 1 to 5. A weak draft is rewritten once. Then a crowd of 96 (the same 8 people in 12 moods) votes yes or no. These people are simulated by your AI, not real people, and the app says so.
 - **Jev, the fast judge, checks everything.** Is this email from a real person? Is this lead a customer or a vendor? How hard should the AI think? Is the work finished? Should this idea ship? Jev answers each one, and runs the Crowd's 96 votes. Add a Vercel AI Gateway key for the real Jev, or your own AI plays Jev.
+- **A Research desk and a School.** Every week the Research desk looks on GitHub for open-source playbooks and tools that could help your departments. Each one goes to the School first: orientation (is it real, kept up and safe?), three practice jobs graded by the department's head, then a grade. Only a playbook that passes joins a department. Nothing installs itself.
 - **Ready-made departments if you want them.** Leads reads your Gmail and drafts a reply to each new customer. Mail room sorts your email and drafts replies. Social media writes your posts. Or start from nothing.
 - **You approve everything.** Approve, Decline, or tell it what to change.
 
@@ -45,15 +47,15 @@ Stuck? Open the **Guide** and type your question. More detail is in [SETUP.md](S
 
 ## Your departments
 
-Tap **+ Build a department** in your city, or a building to change it. For each one you choose:
+Tap **+ Build a department** in your city (up to 10), or open one to change it. For each one you choose:
 
-- Its **name** and **what it does**, in your own words.
+- Its **name** and **what it does**, in your own words. Its building's look comes from its name.
 - **How often** it works, and which **AI model** it uses (or your main model).
 - **Who its work is for.** Its panel is made of people like this.
 - **Judge its work before I see it**: the Panel and the Crowd. Each check costs a little AI, so you can turn it off.
 - **Show me what it makes before keeping it**, or let it just report in Updates.
 
-Each building grows taller as its department works. A number on it means something needs you. Open a department to see **Needs you**, **Updates**, and its **Panel**: the 8 people who judge its work.
+In the 3D city, a number on a building's sign means something needs you, a gold "!" floats over it, and a light rises from a department that worked in the last 15 minutes. Drag to look around, pinch to zoom, and tap a building to go inside: you see its people at their desks. Press **Open** to see its **Needs you**, **Updates**, and its **Panel**: the 8 people who judge its work.
 
 ## On your phone
 
@@ -72,13 +74,15 @@ src/main.js     start-up
 src/city.js     settings, departments, cards, the clock
 src/judge.js    the Panel and the Crowd that judge each department's work
 src/jev.js      Jev, the fast judge (the real Jev with a key, or your AI)
+src/school.js   the School: new tools try out before they join a department
+src/research.js the Research desk: finds new tools on GitHub every week
 src/guide.js    the setup checklist and every fix, in plain words
 src/ai.js       any AI: Claude, or any OpenAI-style service; models, daily budget, errors
 src/google.js   Google sign-in and Gmail
 src/server.js   sign-in, the API, the Connect Google flow
 src/push.js     phone alerts (web push, no package)
 src/store.js    Postgres, or data/city.json without a database
-public/         the home screen
+public/         the home screen; city3d.html is the 3D city (three.js r134, in public/vendor)
 ```
 
 Run it on your own computer:
