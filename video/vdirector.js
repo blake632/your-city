@@ -67,47 +67,61 @@
     cap(tE + .2, tE + 3, 'Runs on <em>Claude, ChatGPT, Gemini</em> or any model.', '');
     cap(tE + 3.2, tE + 6, 'Every department.<br><em>One city.</em>', 'You approve everything.');
   } else {
-    // The 1-minute teaser, for someone who has never used AI: your day piles up -> 1,000 helpers light up the city -> a customer emails at 9 pm,
-    // Leads writes the reply, the judges check it -> agents make small talk -> the day's work flows in -> it builds a department it needs ->
-    // Research searches the internet, the School tests what it finds -> switch the AI brain -> the end card. Light trails = agents passing work.
-    window.__vdur = 62.5;
+    // The teaser, for someone who has never used AI. Hook: "I just connected my Gmail" -> a scan sweeps the city, the lights come on, the inbox
+    // sorts itself -> Leads writes the reply -> a post is tested on a live (simulated) audience -> small talk -> the day's work flows in ->
+    // it builds a department it needs -> you ask for a crypto desk: Research searches GitHub, the School tests on paper, it goes up ->
+    // switch the AI brain -> the end card. Light trails = agents passing work.
+    window.__vdur = 80.5;
     const RISE = Object.assign({}, CITY, { az: CITY.az - 1.1, el: 1.3, dist: CITY.dist * 2.1, pitch: 1.08 });
     const A2 = Object.assign({}, S.A1, { az: .1 }), A3 = Object.assign({}, S.A1, { az: .58 });
     const TK1 = spot(2.5, 8.3, 2.2, .04, .52, 50, .1), TK2 = spot(2.5, 8.3, 2.2, .14, .48, 44, .1);   // the small talk outside City Hall, from high enough that nothing blocks it
     const R1 = spot(36, -37.5, 9, -.25, .42, 72), R2 = spot(36, -37.5, 9, -.05, .38, 62), SC1 = spot(72, -37.5, 8, -.3, .42, 72), SC2 = spot(72, -37.5, 8, -.5, .38, 64);
-    MOVES.push([0, 8.4, RISE, CITY], [20.05, 21.5, CITY, S.J1], [21.5, 26, S.J1, S.J2], [26, 27.4, S.J2, TK1], [27.4, 30.5, TK1, TK2], [30.5, 32, TK2, S.A1], [32, 37.8, S.A1, A2],
-      [37.8, 39.2, A2, S.B1], [39.2, 41.6, S.B1, S.B2], [41.6, 43, S.B2, R1], [43, 47.6, R1, R2], [47.6, 48.8, R2, SC1], [48.8, 52, SC1, SC2], [52, 53.6, SC2, S.A1], [53.6, 56.2, S.A1, A3], [56.2, 62.5, A3, FIN]);
-    visit(K.L, 12, 4, 'Answers every new customer, in your voice.', ['Dana wants a new kitchen this spring.', 'Leads writes her a warm reply.', 'You wake up. You tap Send.'], { lead: .6 });
-    EVENTS.push([20.2, () => C.judgeCrowd(ROWS, QUOTES, [0, 0])], [26.6, () => C.clearCrowd()], [38.6, () => C.addDept(BOOK)]);
-    W.quotes = t => t < 21.6 ? 0 : t < 22.2 ? 1 : t < 23.4 ? 2 : t < 24 ? 3 : 4;
-    W.grade = [23.6, 26]; W.prop = [35.2, 38.2, 37.5]; W.end = 59.4; W.count = [.3, 2];
-    // the lights come on one building at a time, from the middle out
-    W.lit = {}; C.DEPTS.slice().sort((a, b) => Math.hypot(a.bx, a.bz) - Math.hypot(b.bx, b.bz)).forEach((d, i) => { W.lit[d.k] = .4 + i * .22; });
+    MOVES.push([0, 7, RISE, CITY], [17.55, 19, CITY, S.J1], [19, 27.6, S.J1, S.J2], [27.6, 29, S.J2, TK1], [29, 32, TK1, TK2], [32, 33.5, TK2, S.A1], [33.5, 39, S.A1, A2],
+      [39, 40.4, A2, S.B1], [40.4, 42.8, S.B1, S.B2], [42.8, 44.2, S.B2, CITY], [49, 50.4, CITY, R1], [50.4, 55, R1, R2], [55, 56.2, R2, SC1], [56.2, 59.2, SC1, SC2],
+      [59.2, 60.6, SC2, S.X1], [60.6, 64, S.X1, S.X2], [64, 65.4, S.X2, S.P1], [65.4, 70, S.P1, S.P2], [70, 71.6, S.P2, S.A1], [71.6, 74.2, S.A1, A3], [74.2, 80.5, A3, FIN]);
+    visit(K.L, 9.7, 3.8, 'Answers every new customer, in your voice.', ['Dana wants a new kitchen this spring.', 'Leads writes her a warm reply.', 'You wake up. You tap Send.'], { lead: .6 });
+    const POSTQ = [{ yes: false, text: 'Every remodeler posts this.' }, { yes: false, text: 'Too vague. Where is it?' }, { yes: true, text: 'Same walls, new kitchen? I’d stop.' }, { yes: true, text: 'Love a before and after. Saving it.' }];
+    EVENTS.push([17.7, () => C.judgeCrowd(ROWS, POSTQ, [0, 0])], [28.2, () => C.clearCrowd()], [39.8, () => C.addDept(BOOK)], [59.6, () => C.addDept(CRYPTO)]);
+    W.quotes = t => t < 19.4 ? 0 : t < 20 ? 1 : t < 22.8 ? 2 : t < 23.4 ? 3 : 4;
+    W.connect = { win: [-1, 3], tap: 1.1, on: 1.3 }; W.scan = [2.8, 4.6, K.M]; W.count = [3.1, 4.9];
+    W.post = { win: [18.4, 27.4], flip: 22, done: 25.2, one: 'Come see a kitchen we just finished.', two: 'Same walls. Whole new kitchen. This 1970s galley in Crestview now opens to the dining room. ✨', yes1: 31, yes2: 74 };
+    W.prop = [36.4, 39.4, 38.7]; W.end = 77.4;
+    W.ask = [43.4, 49]; W.type = [43.9, 1.6]; W.send = 45.7; W.reply = 46; W.askText = 'Build me a crypto trading firm';
+    W.replyHtml = '<b>Your city</b>On it! Here’s the plan:<br>1. Research scans GitHub for the best tools.<br>2. The School tests them on paper.<br>3. Your Crypto Desk goes up. Paper trading only.';
+    // the scan lights the city from the Mail Room outward
+    const MR = C.DK[K.M]; W.lit = {}; C.DEPTS.forEach(d => { W.lit[d.k] = 3 + Math.hypot(d.bx - MR.bx, d.bz - MR.bz) / 150 * 1.5; });
     // agents passing work: ambient light trails all the time, plus the ones that carry a message
     let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647, KS = C.DEPTS.map(d => d.k);
     W.arcs = []; W.msgs = [];
-    for (let t = 2.2; t < 58; t += .26) { const a = KS[Math.floor(rnd() * KS.length)], b = KS[Math.floor(rnd() * KS.length)]; if (a !== b) W.arcs.push({ t, a, b, dur: 1.5 + rnd() * .6 }); }
-    for (let t = 42.4, i = 0; t < 47.4; t += .14, i++) W.arcs.push(i % 2 ? { t, a: 'web' + (i % 5), b: 'research', dur: 1.4 } : { t, a: 'research', b: 'web' + (i % 5), dur: 1.4 });   // Research <-> the internet
-    for (let t = 48.4; t < 51.6; t += .18) W.arcs.push({ t, a: 'school', b: KS[Math.floor(rnd() * KS.length)], dur: 1.5 });
-    const msg = (t, a, b, text, head) => { W.arcs.push({ t, a, b, dur: 1.6, big: true }); W.msgs.push({ t, a, b, text, head }); };
-    msg(8.7, 'web2', K.M, 'Dana Ruiz: “We want a kitchen remodel this spring.”', 'New email');
-    msg(10.1, K.M, K.L, 'New customer! Sending her to you.');
-    msg(31, K.I, 'hall', '3 posts ready for your OK.'); msg(33.2, 'd3', 'hall', 'A review request for the Hendersons is ready.'); msg(35.4, K.O, 'hall', 'Quick question: should the invite mention parking?');
-    msg(43, 'research', 'web1', 'Searching GitHub for better review tools…', 'Research desk'); msg(44.6, 'web3', 'research', 'Found one. 1,840 stars. Checking it’s safe…', 'Research desk');
-    msg(46.2, 'research', 'school', 'It’s safe. Sending it to class.'); msg(48.9, 'school', 'd3', 'New skill passed! Joining you.');
-    W.talk = [[27.6, 30.4, 'hall_0', 'Hey, how are the kids?'], [28.9, 30.4, 'hall_2', 'What kids? I’m a robot.']];
-    W.model = { win: [52.6, 56.4], seq: [[0, 'Claude', '#e07a4f'], [53.4, 'ChatGPT', '#10a37f'], [54.2, 'Gemini', '#4f8df5'], [55, 'Kimi', '#8b6cff'], [55.8, 'Claude', '#e07a4f']] };
-    cap(.15, 3.8, '<span class="n">1,000</span> AI helpers <em>live in this city.</em>', 'And every one of them works for you.');   // the hook: a big number and the lights coming on
-    cap(4, 8.4, 'Your emails. Your customers. <em>Your posts. Your bills.</em>', 'They handle the busywork, day and night.');
-    cap(8.6, 11.9, 'A customer emails you <em>at 9 pm.</em>', 'Your Mail Room reads it within minutes.');
-    cap(20.4, 23.2, 'But first, <em>104 AI judges</em> check it.', 'Weak drafts get rewritten.');
-    cap(23.4, 26, 'Only the best <em>reaches you.</em>', '', 'Judges are simulated by AI, not real people.');
-    cap(30.8, 35, 'All day, every day. <em>While you live your life.</em>', 'Posts, reviews, invites. All waiting for your OK.');
-    cap(38.6, 41.5, 'It sees what’s missing. <em>Then builds it.</em>', 'A new department, working by tonight.');
-    cap(42, 47.4, 'Every week, it searches the internet <em>for better ways to work.</em>', '');
-    cap(47.8, 51.9, 'New skills get tested. <em>Only the best graduate.</em>', 'Every week, your whole city gets smarter.');
-    cap(52.4, 56.3, 'Runs on <em>any AI</em> you choose.', 'Switch the brain anytime. The city keeps working.');
-    cap(56.6, 59.2, 'Your city <em>never sleeps.</em>', '1,000 helpers. One goal: your life, easier.');
+    for (let t = 1.6, i = 0; t < 3.2; t += .12, i++) W.arcs.push({ t, a: 'web' + (i % 5), b: K.M, dur: 1.3 });   // the inbox pours in
+    for (let t = 4, i = 0; t < 8; t += .16, i++) W.arcs.push({ t, a: K.M, b: KS[Math.floor(rnd() * KS.length)], dur: 1.4 });   // and gets sorted out
+    for (let t = 7; t < 76; t += .26) { const a = KS[Math.floor(rnd() * KS.length)], b = KS[Math.floor(rnd() * KS.length)]; if (a !== b) W.arcs.push({ t, a, b, dur: 1.5 + rnd() * .6 }); }
+    for (let t = 49.8, i = 0; t < 54.8; t += .14, i++) W.arcs.push(i % 2 ? { t, a: 'web' + (i % 5), b: 'research', dur: 1.4 } : { t, a: 'research', b: 'web' + (i % 5), dur: 1.4 });   // Research <-> the internet
+    for (let t = 55.8; t < 58.8; t += .18) W.arcs.push({ t, a: 'school', b: KS[Math.floor(rnd() * KS.length)], dur: 1.5 });
+    const msg = (t, a, b, text, head, life) => { W.arcs.push({ t, a, b, dur: 1.6, big: true }); W.msgs.push({ t, a, b, text, head, life }); };
+    msg(4.2, K.M, K.L, 'New customer: Dana wants a new kitchen.', 0, 2); msg(4.75, K.M, 'hall', 'A customer asked about parking. Reply drafted.', 'Mail Room', 2);
+    msg(5.3, K.M, 'hall', 'Receipt from the tile supplier. Filed.', 'Mail Room', 2); msg(5.85, K.M, 'hall', 'Newsletter. Skipped.', 'Mail Room', 2); msg(6.4, K.M, 'hall', 'Spam. It never gets a reply.', 'Mail Room', 2);
+    msg(32.6, K.I, 'hall', '3 posts ready for your OK.'); msg(34.4, 'd3', 'hall', 'A review request for the Hendersons is ready.');
+    msg(50.4, 'research', 'web1', 'Searching GitHub for the best paper-trading tools…', 'Research desk'); msg(51.9, 'web3', 'research', 'Found one: 1,840 stars. Checking it’s safe…', 'Research desk');
+    msg(53.4, 'research', 'school', 'It’s safe. Sending it to class.'); msg(56.4, 'school', 'hall', 'Passed its practice trades on paper. Ready to work.', 'The School');
+    W.talk = [[29.2, 31.9, 'hall_0', 'Hey, how are the kids?'], [30.4, 31.9, 'hall_2', 'What kids? I’m a robot.']];
+    W.model = { win: [70.6, 74.4], seq: [[0, 'Claude', '#e07a4f'], [71.4, 'ChatGPT', '#10a37f'], [72.2, 'Gemini', '#4f8df5'], [73, 'Kimi', '#8b6cff'], [73.8, 'Claude', '#e07a4f']] };
+    cap(-1, 2.8, 'I just connected <em>my Gmail.</em>', 'Watch what happens.');   // the hook: on screen from the first frame
+    cap(3, 6.3, '<span class="n">1,000</span> AI helpers <em>get to work.</em>', 'It reads your inbox and sorts every email.');
+    cap(6.5, 9.5, 'Your day, <em>already sorted.</em>', 'Replies drafted. Receipts filed. Junk gone.');
+    cap(17.8, 21.8, 'Every post is tested <em>on a live audience.</em>', '96 AI people react before you ever see it.', 'Simulated by AI, not real people.');
+    cap(22, 24.9, 'Weak draft? <em>Rewritten.</em>', 'Until the audience loves it.');
+    cap(25.1, 27.5, 'Only the best <em>reaches you.</em>', '');
+    cap(32.3, 36.2, 'All day, every day. <em>While you live your life.</em>', 'Posts, reviews, invites. All waiting for your OK.');
+    cap(39.8, 42.7, 'It sees what’s missing. <em>Then builds it.</em>', 'A new department, working by tonight.');
+    cap(43, 48.8, 'Want something new? <em>Just ask.</em>', '');
+    cap(49.2, 54.8, 'It searches the internet <em>for the best way to do it.</em>', 'Then checks every tool is real and safe.');
+    cap(55.2, 59.1, 'New skills get tested. <em>Only the best graduate.</em>', 'Every week, your whole city gets smarter.');
+    cap(59.6, 63.9, 'Your <em>Crypto Desk</em> is going up.', 'Paper trading only. It never trades real money.');
+    cap(64.4, 67.2, 'It’s a real economy. <em>Agents compete.</em>', 'The best grades win sports cars and yachts.');
+    cap(67.4, 70, 'Bad grades? <em>They lose the house.</em>', '', 'Kidding. They’re robots.');
+    cap(70.4, 74.3, 'Runs on <em>any AI</em> you choose.', 'Switch the brain anytime. The city keeps working.');
+    cap(74.6, 77.2, 'Your city <em>never sleeps.</em>', '1,000 helpers. One goal: your life, easier.');
   }
   if (W.send) TAPS.push([W.send, center('.ask .field i')]);
   if (W.prop) TAPS.push([W.prop[2], center('.prop .vbtn i')]);
@@ -145,6 +159,13 @@
   .vend .pill{margin-top:30px;padding:13px 22px;border-radius:999px;background:#f0cf86;color:#0b0d14;font:700 14px Inter,sans-serif;white-space:nowrap}
   .vend small{position:absolute;bottom:168px;left:24px;right:64px;font:500 10.5px Inter,sans-serif;color:rgba(240,236,228,.6)}
   .dip{position:absolute;inset:0;background:#05070d;opacity:0}
+  .gm .row{display:flex;align-items:center;gap:10px;margin-bottom:8px}.gm .addr{flex:1;font:500 13.5px Inter,sans-serif;color:rgba(240,236,228,.8)}
+  .gm .go{padding:11px 14px;border-radius:12px;background:#fbf7ef;color:#1a1813;font:700 14px Inter,sans-serif;font-style:normal;white-space:nowrap}.gm .go.on{background:#3ed69b;color:#06210f}
+  .scan{position:absolute;left:0;top:0;border-radius:50%;border:2px solid rgba(191,227,255,.95);box-shadow:0 0 34px rgba(191,227,255,.85),inset 0 0 34px rgba(191,227,255,.5);z-index:-1;opacity:0}
+  .post .ph{height:52px;border-radius:12px;background:linear-gradient(135deg,#3a3326,#1d2230);display:flex;align-items:center;justify-content:center;font:600 12.5px Inter,sans-serif;color:rgba(240,236,228,.7);margin-bottom:10px}
+  .post .tx{font:500 14px/1.4 Inter,sans-serif;color:#fbf7ef;margin-bottom:10px;min-height:39px}
+  .post .tally{display:flex;justify-content:space-between;align-items:center;font:600 12.5px Inter,sans-serif;color:rgba(240,236,228,.75);margin-bottom:10px}.post .ct{font:800 14px Inter,sans-serif}
+  .post .ok{position:absolute;right:12px;top:11px;padding:5px 10px;border-radius:999px;background:#f0cf86;color:#0b0d14;font:800 10.5px Inter,sans-serif;font-style:normal;opacity:0}
   .arcs{position:absolute;inset:0;width:100%;height:100%;z-index:-1;overflow:visible;filter:drop-shadow(0 0 4px rgba(255,255,255,.6))}.arcs path{fill:none;stroke-linecap:round}
   .wash{position:absolute;inset:0;z-index:-1;mix-blend-mode:screen;opacity:0}
   .msg{position:absolute;left:0;top:0;max-width:220px;padding:9px 12px 10px;border-radius:14px;background:rgba(9,12,21,.92);border:1px solid rgba(255,255,255,.1);border-top:2px solid var(--c);color:#f6f3ec;font:500 13px/1.35 Inter,sans-serif;box-shadow:0 10px 26px rgba(0,0,0,.5),0 0 18px -6px var(--c);opacity:0}
@@ -159,8 +180,8 @@
   VISITS.forEach(v => { v.e = el('card', '<b>' + v.kicker + '</b>' + v.steps.map((s, i) => '<div class="step"><i>' + (i + 1) + '</i><span>' + s + '</span></div>').join('')); v.rows = v.e.querySelectorAll('.step'); });
   const grade = el('grade', '<small>The grade</small><b>4.4 / 5</b><span>74 of 96 said yes</span>');
   const prop = el('card prop', '<b>Mail Room</b><div class="txt">14 invoices came in this month and nobody files them. Build a Bookkeeping desk?</div><div class="vbtn"><i>Build it</i><i>Not now</i></div>');
-  const ASK = 'Build me a crypto trading desk';
-  const ask = el('ask', '<div class="reply"><b>Your city</b>Hold tight! The Research desk is scanning GitHub for the best builds.</div><div class="field"><span></span><i>↑</i></div>'), askTxt = ask.querySelector('.field span');
+  const ASK = W.askText || 'Build me a crypto trading desk';
+  const ask = el('ask', '<div class="reply">' + (W.replyHtml || '<b>Your city</b>Hold tight! The Research desk is scanning GitHub for the best builds.') + '</div><div class="field"><span></span><i>↑</i></div>'), askTxt = ask.querySelector('.field span');
   // light trails between buildings (agents passing work), the messages some of them carry, the small talk, the AI brain switcher
   const NS = 'http://www.w3.org/2000/svg', svg = document.createElementNS(NS, 'svg'); svg.setAttribute('class', 'arcs'); svg.setAttribute('viewBox', '0 0 405 720'); vo.appendChild(svg);
   const WEB = [-160, -80, 0, 80, 160].map(x => new V3(36 + x, 70, -240));   // "the internet": points in the sky beyond the water
@@ -173,6 +194,10 @@
   const talk = (W.talk || []).map(([a, b, who, text]) => ({ a, b, who, e: el('say', text) }));
   const model = W.model && el('card model', '<b>The main brain</b><div class="chips">' + [...new Set(W.model.seq.map(x => x[1]))].map(n => '<i>' + n + '</i>').join('') + '</div>'), wash = W.model && el('wash', '');
   if (W.model) W.model.seq.forEach(([t0, n]) => { if (t0) TAPS.push([t0 - .15, () => { const r = [...model.querySelectorAll('.chips i')].find(x => x.textContent === n).getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; }]); });
+  const gm = W.connect && el('card gm', '<b>Gmail</b><div class="row"><span class="addr">sam@samskitchens.com</span><i class="go">Connect Google</i></div>');
+  if (gm) TAPS.push([W.connect.tap, center('.gm .go')]);
+  const rings = W.scan ? [0, .35].map(d => ({ d, e: el('scan', '') })) : [];
+  const post = W.post && el('card post', '<b>Instagram · <span class="dn"></span></b><div class="ph">📷 The finished kitchen, morning light</div><div class="tx"></div><div class="tally"><span>Would you stop scrolling?</span><span class="ct"></span></div><i class="ok">4.4 / 5 · Ready for your OK</i>');
   const taps = TAPS.map(([a, at]) => ({ a, at, e: el('tap', '') }));
   const chips = el('vchips', '<b>Your AI, your pick</b>' + ['Claude', 'ChatGPT', 'Gemini', 'OpenRouter', 'Groq', 'Mistral', 'Ollama'].map(x => '<span>' + x + '</span>').join(''));
   const end = el('vend', '<h1>Your <em>City</em></h1><h2>All you\'ll ever need.</h2><p style="margin:16px 0 0;font:600 14px Inter,sans-serif;color:rgba(240,236,228,.85)">Over 1,000 agents. One goal: make your life easier.</p><div class="pill">Message me to get started</div><small>Sample business shown. 1,000+ agents: 10 departments, each judged by 104 simulated AI judges.</small>');
@@ -200,7 +225,7 @@
       s.c.setAttribute('cx', hq.x.toFixed(1)); s.c.setAttribute('cy', hq.y.toFixed(1)); s.c.setAttribute('fill', a.big ? '#fff' : a.col); s.c.style.display = u < 1 ? '' : 'none'; });
     pool.forEach((s, i) => { if (i >= n) s.g.style.display = 'none'; });
     const placed = [];
-    msgs.forEach(m => { const f = city ? fade(t, m.t, m.t + 2.3, .3, .3) : 0; m.e.style.opacity = f; if (f <= 0) return; const q = C.projectXY(end3(m.at)), w = m.e.offsetWidth, h = m.e.offsetHeight;
+    msgs.forEach(m => { const f = city ? fade(t, m.t, m.t + (m.life || 2.3), .3, .3) : 0; m.e.style.opacity = f; if (f <= 0) return; const q = C.projectXY(end3(m.at)), w = m.e.offsetWidth, h = m.e.offsetHeight;
       const x = Math.max(10, Math.min(345 - w, q.x - w / 2)); let y = Math.max(250, Math.min(540 - h, q.y - h - 14)); for (const r of placed) if (x < r.x + r.w && r.x < x + w && y < r.y + r.h && r.y < y + h) y = r.y + r.h + 8; placed.push({ x, y, w, h });
       m.e.style.transform = 'translate3d(' + x.toFixed(1) + 'px,' + (y + (1 - ease(cl((t - m.t) / .4))) * 8).toFixed(1) + 'px,0)'; });
     talk.forEach((s, i) => { const f = fade(t, s.a, s.b, .3, .3); s.e.style.opacity = f; if (f <= 0) return; const q = C.projectXY(C.headPos(C.cityChars[s.who], new V3())), w = s.e.offsetWidth, h = s.e.offsetHeight;
@@ -210,6 +235,13 @@
     if (model) { const mf = fade(t, W.model.win[0], W.model.win[1]), cur = W.model.seq.filter(x => t >= x[0]).pop(); model.style.opacity = mf; rise(model, t, W.model.win[0], 30);
       model.querySelectorAll('.chips i').forEach(i => { const on = i.textContent === cur[1]; i.style.background = on ? cur[2] : 'transparent'; i.style.borderColor = on ? cur[2] : 'rgba(255,255,255,.22)'; i.style.transform = on ? 'scale(1.06)' : 'none'; });
       wash.style.opacity = mf * .45; wash.style.background = 'radial-gradient(120% 90% at 50% 45%,' + cur[2] + ',transparent 70%)'; }
+    if (gm) { show(gm, W.connect.win, t, 0); const on = t >= W.connect.on, go = gm.querySelector('.go'); go.textContent = on ? '✓ Connected' : 'Connect Google'; go.className = 'go' + (on ? ' on' : ''); }
+    rings.forEach(r => { const u = (t - W.scan[0] - r.d) / (W.scan[1] - W.scan[0]); if (u <= 0 || u >= 1) { r.e.style.opacity = 0; return; } const q = C.projectXY(end3(W.scan[2])), R = 20 + 680 * ease(u);
+      r.e.style.opacity = (1 - u) * .9; r.e.style.width = r.e.style.height = (2 * R).toFixed(0) + 'px'; r.e.style.transform = 'translate3d(' + (q.x - R).toFixed(1) + 'px,' + (q.y - R).toFixed(1) + 'px,0)'; });
+    if (post && show(post, W.post.win, t, 30)) { const P = W.post, two = t >= P.flip, n = two ? Math.round(lin(P.yes1, P.yes2, ease(cl((t - P.flip - .4) / 2.6)))) : Math.round(P.yes1 * ease(cl((t - P.win[0] - .4) / 2.8)));
+      post.querySelector('.dn').textContent = two ? 'Draft 2' : 'Draft 1'; post.querySelector('.tx').textContent = two ? P.two : P.one;
+      const ct = post.querySelector('.ct'); ct.textContent = n + ' of 96 said yes'; ct.style.color = two && n > 60 ? '#3ed69b' : '#ff7a85';
+      post.querySelector('.ok').style.opacity = cl((t - P.done) / .4); post.style.boxShadow = '0 16px 40px rgba(0,0,0,.6),0 0 ' + (40 * cl(1 - Math.abs(t - P.flip) / .5)).toFixed(0) + 'px #f0cf86'; }
     dip.style.opacity = DIPS.reduce((m, c) => Math.max(m, t <= c ? cl(1 - (c - t) / .22) : cl(1 - (t - c) / .3)), 0);   // a quick dip to dark around each cut
   }
   // The page's CSS fades and pulses run on the wall clock, but a frame takes far longer to draw than 1/30 s, so they jumped from frame to frame.
