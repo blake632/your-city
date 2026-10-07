@@ -74,7 +74,7 @@ class City {
     return { id: d.id && /^[\w-]{1,40}$/.test(d.id) ? d.id : 'd-' + id(), kind, name: String(d.name || '').trim().slice(0, 40) || 'New department', does: String(d.does || '').trim().slice(0, 4000),
       every: EVERY[d.every] ? Number(d.every) : (PICKS.find(p => p.kind === kind) || { every: 1440 }).every, model: !d.model || d.model === 'main' ? '' : String(d.model).trim().slice(0, 120),
       review: d.review !== false, judge: !!d.judge, audience: String(d.audience || '').trim().slice(0, 300), on: d.on !== false, panel: d.panel || null, at: d.at || this.now(),
-      facts: Array.isArray(d.facts) ? d.facts.slice(-20) : [] };
+      facts: Array.isArray(d.facts) ? d.facts.slice(-20) : [], built: d.built || 0 };
   }
   // Build a department, or change one. Changing what it does or who it is for makes a fresh panel next time it is judged.
   saveDepartment(input) {
@@ -143,6 +143,13 @@ class City {
     this.deciding.add(cardId);
     try {
       let status = decision === 'decline' ? 'declined' : 'done', said = '';
+      if (decision === 'approve' && c.kind === 'propose' && c.proposal) {   // a new building, approved: it is built now
+        const d = this.saveDepartment(Object.assign({}, c.proposal, { judge: c.proposal.judge !== false, built: this.now() }));
+        if (c.tool && this.school) try { this.school.enroll(c.tool, { by: 'research', note: 'found for ' + d.name }); } catch (e) {}
+        Object.assign(c, { status: 'done', decidedAt: this.now(), built: d.id }); this.store.put('cards', c.id, c);
+        this.update(d.id, 'The ' + d.name + ' department is built. It works ' + EVERY[d.every] + '.');
+        return { ok: true, status: 'done', said: 'Building ' + d.name + ' now.', department: d.id };
+      }
       if (decision === 'approve' && c.email && c.email.draftId) {
         await this.google.sendDraft(c.email.draftId);
         status = 'sent'; said = 'Sent your reply to ' + (c.email.to || 'them') + '.';
@@ -178,7 +185,63 @@ class City {
   }
   // ---- departments ask you questions ----
   // What the owner told a department, for its prompts.
-  factsOf(D) { return (D.facts || []).length ? '\n\nWHAT THE OWNER TOLD YOU (use these facts):\n' + D.facts.map(f => '- ' + f.q + ' ' + f.a).join('\n') : ''; }
+  // ---- the city improves itself ----
+  // A department (or the Research desk) asks for a new building. You approve it, and it is built.
+  propose(by, p, why, extra) {
+    if (this.departments().length >= MAX_DEPTS) return null;
+    if (this.waiting().some(c => c.kind === 'propose' && c.proposal && c.proposal.name.toLowerCase() === String(p.name).toLowerCase())) return null;
+    const who = (this.department(by) || { name: by === 'research' ? 'The Research desk' : 'City Hall' }).name;
+    const proposal = { name: String(p.name).slice(0, 40), does: String(p.does).slice(0, 1200), audience: String(p.audience || '').slice(0, 200), every: EVERY[p.every] ? Number(p.every) : 10080, judge: true };
+    this.update(by, 'Asked you for a new building: ' + proposal.name + '.');
+    return this.addCard(Object.assign({ agent: by, kind: 'propose', title: who + ': we need a new building, ' + proposal.name, body: String(why || '').slice(0, 600) + '\n\nWHAT IT WOULD DO\n' + proposal.does, proposal, actions: ['approve', 'decline'] }, extra || {}));
+  }
+  // The city planner: once a week it reads what the mail room sorted and what each department did, and may ask for one new building.
+  async plan() {
+    const log = this.store.get('mailLog', []), D = this.departments(), M = this.byKind('mailroom') || this.byKind('leads');
+    if (!log.length && D.length < 2) return 'Nothing to plan yet.';
+    const r = await this.ai.ask({ model: this.ai.modelFor(''), effort: 'low', maxTokens: 3000, schema: { type: 'object', additionalProperties: false, required: ['build', 'name', 'does', 'why'], properties: { build: { type: 'boolean' }, name: { type: 'string' }, does: { type: 'string' }, why: { type: 'string' } } },
+      system: 'You plan a small business\'s AI team. Suggest a new department only when the work clearly calls for one that no department covers. Plain words.',
+      prompt: 'THE BUSINESS: ' + (this.settings().business || '') + '. ' + (this.settings().about || '') + '\nDEPARTMENTS NOW:\n' + D.map(d => '- ' + d.name + ': ' + d.does.slice(0, 120)).join('\n') +
+        '\n\nRECENT EMAIL THE MAIL ROOM SORTED (kind: summary):\n' + log.slice(-80).map(x => x.kind + ': ' + x.summary).join('\n') + '\n\nShould the city build one new department? If yes: its short name, what it does (plain words, like telling a new hire), and why (one or two sentences with what you saw).' });
+    if (!r.build || !r.name) return 'No new building needed this week.';
+    const a = await this.jev.ask('DEPARTMENTS: ' + D.map(d => d.name).join(', ') + '\nPROPOSED: ' + r.name + ': ' + r.does + '\nWHY: ' + r.why, { useful: { type: 'noul', instructions: 'Would this new department clearly help the business, without repeating one it already has?' } }).catch(() => ({}));
+    if (a.useful && a.useful.noul < 0.6) return 'Thought about ' + r.name + '; not needed.';
+    return this.propose(M ? M.id : 'guide', r, r.why) ? 'Asked for a new building: ' + r.name + '.' : 'No new building needed.';
+  }
+  // "Build me a ...": the Research desk looks for the best build and comes back with a proposal.
+  async askCity(text) {
+    text = String(text || '').trim().slice(0, 500); if (!text) throw new Error('Say what you want built.');
+    this.update('research', 'Hold tight: scanning GitHub for the best builds for "' + text.slice(0, 80) + '".');
+    const r = await this.ai.ask({ model: this.ai.modelFor(''), effort: 'medium', maxTokens: 3000, schema: { type: 'object', additionalProperties: false, required: ['name', 'does', 'audience', 'query'], properties: { name: { type: 'string' }, does: { type: 'string' }, audience: { type: 'string' }, query: { type: 'string' } } },
+      system: 'You design a new department for a small business\'s AI team, from what the owner asked for. It can only write, plan, research and draft: it never sends, posts, buys, trades or spends. Anything about money or trading is paper only, never advice. Plain words.',
+      prompt: 'THE BUSINESS: ' + (this.settings().business || '') + '\nTHE OWNER ASKED FOR: ' + text + '\n\nGive: a short name, what it does (like telling a new hire), who its work is for, and a 2 to 4 word GitHub search to find open-source tools for it.' });
+    let tool = '', found = '';
+    if (this.research) try { const items = await this.research.search(r.query); const best = items.find(x => !x.archived); if (best) { tool = best.html_url; found = '\n\nBEST BUILD FOUND ON GITHUB\n' + best.full_name + ' (' + (best.stargazers_count || 0) + ' stars): ' + (best.description || '') + '\nIt goes to the School first if you build this.'; } } catch (e) {}
+    const c = this.propose('research', r, 'You asked: "' + text + '". Here is the best build the Research desk found.' + found, tool ? { tool } : {});
+    if (!c) throw new Error('The city has no free lot. Remove a department first.');
+    return { ok: true, said: 'The Research desk has a plan for ' + r.name + '. Open it to build.', card: c.id };
+  }
+  // Grades: each department's score from its Panel results (70%) and how often you approved its work (30%). The best win prizes.
+  ranks() {
+    const all = this.store.list('cards'), ups = this.store.list('updates');
+    return this.departments().map(d => {
+      const j = all.concat(ups).filter(c => c.agent === d.id && c.judged && c.judged.panel).map(c => c.judged.panel.avg), dec = all.filter(c => c.agent === d.id && ['sent', 'approved', 'done', 'declined'].includes(c.status) && c.kind !== 'ask');
+      const ok = dec.filter(c => c.status !== 'declined').length, panel = j.length ? j.reduce((a, b) => a + b, 0) / j.length : null;
+      const score = panel == null && !dec.length ? null : Math.round((panel == null ? 0.75 : panel / 5) * 70 + (dec.length ? ok / dec.length : 0.75) * 30);
+      return { id: d.id, name: d.name, score, graded: j.length + dec.length };
+    }).filter(x => x.score != null).sort((a, b) => b.score - a.score).map((x, i) => Object.assign(x, { rank: i + 1, prize: ['Yacht', 'Speedboat', 'Sailboat'][i] || '' }));
+  }
+  // The week's star: the top department shares one tip, and every other department learns it.
+  async starTip() {
+    const top = this.ranks()[0], D = top && this.department(top.id); if (!D) return 'No grades yet.';
+    const tip = await this.ai.ask({ model: this.agentConf(D.id).model, effort: 'low', maxTokens: 1000, system: this.voice(Object.assign({}, this.settings(), { signature: '' })) + ' You are the ' + D.name + ' department, ranked number 1 this week.',
+      prompt: 'In one or two short sentences, share the one habit that made your work score best, as advice the other departments can use. No hype.' });
+    this.store.set('tip', { dept: D.id, name: D.name, text: String(tip).trim().slice(0, 300), at: this.now() });
+    this.update(D.id, 'Number 1 this week. Shared a tip with the city: ' + String(tip).trim().slice(0, 160));
+    return 'Tip shared.';
+  }
+  tipFor(D) { const t = this.store.get('tip', null); return t && t.dept !== D.id && this.now() - t.at < 14 * 864e5 ? '\n\nA TIP FROM ' + t.name.toUpperCase() + ', NUMBER 1 THIS WEEK (use it if it helps): ' + t.text : ''; }
+  factsOf(D) { return ((D.facts || []).length ? '\n\nWHAT THE OWNER TOLD YOU (use these facts):\n' + D.facts.map(f => '- ' + f.q + ' ' + f.a).join('\n') : '') + this.tipFor(D); }
   static ASK = '\n\nIf you cannot do this job well because one fact is missing (an address, a date, a price, a name, a detail only the owner knows) and it is not in the notes, do not guess: reply with only this one line: QUESTION FOR THE OWNER: <one short question>.';
   // A reply that is only a question becomes a card that asks the owner. Returns the question, or ''.
   askedIn(text) { const m = /^\s*QUESTION FOR THE OWNER:\s*(.+)$/im.exec(String(text || '')); return m && String(text).replace(m[0], '').trim().length < 40 ? m[1].trim().slice(0, 300) : ''; }
@@ -255,6 +318,7 @@ class City {
       if (kind === 'lead' && !L) kind = 'needs_reply';
       if (kind === 'needs_reply' && (ROBOT.test(m.from) || !M)) kind = 'fyi';
       await this.google.label(mid, ['City/Seen', LABELS[kind] || LABELS.fyi]);
+      this.store.set('mailLog', this.store.get('mailLog', []).concat([{ kind, summary: String(sort.summary || '').slice(0, 120), at: this.now() }]).slice(-200));
       sorted++;
       if (kind === 'lead') { if (await this.leadReply(L, m, sort)) drafted++; }
       else if (kind === 'needs_reply') { await this.mailReply(M, m, sort, pulled); drafted++; }
@@ -340,6 +404,7 @@ class City {
     // the School takes one step every 10 minutes; the Research desk looks for new tools once a week
     if (this.school) out.push({ key: 'school', agent: 'school', every: 10, run: () => this.school.step() });
     if (this.research && this.departments().some(d => d.on)) out.push({ key: 'research', agent: 'research', every: 10080, run: () => this.research.run() });
+    if (this.departments().length) { out.push({ key: 'plan', agent: 'guide', every: 10080, run: () => this.plan() }); out.push({ key: 'star', agent: 'guide', every: 10080, run: () => this.starTip() }); }
     return out;
   }
   async runAgent(agent) {

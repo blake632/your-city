@@ -95,6 +95,10 @@ label.ck{display:flex;gap:10px;align-items:flex-start;margin:14px 0 6px;font-wei
         <div id="cityView"></div>
         <div class="legend"><span><i style="background:#ffd98a;border:1px solid #c9a24a"></i>Lit: working</span><span><i style="background:var(--accent)"></i>A number: needs you</span><span><i style="background:#a9a397"></i>Grey: off</span></div>
       </div>
+      <div id="cityCards"></div>
+      <div class="box" style="padding:4px 16px 14px;margin-top:10px"><label class="f">Ask the city to build something<small>For example: "a desk that finds TikTok trends" or "a crypto paper-trading desk". The Research desk looks for the best build and comes back with a plan.</small><input type="text" id="askCity" placeholder="Build me a..."></label>
+        <div class="chips"><button class="btn yes sm" id="askCityGo">Ask</button><span class="muted" id="askCitySaid"></span></div></div>
+      <div id="ranksBox" hidden><h2>This week's grades</h2><div class="box"><ul class="upd" id="ranks"></ul></div></div>
       <h2 style="margin-top:6px">Departments</h2>
       <ul class="list" id="depts"><li class="muted">Loading…</li></ul>
     </div>
@@ -266,6 +270,11 @@ label.ck{display:flex;gap:10px;align-items:flex-start;margin:14px 0 6px;font-wei
         : el('p', { cls: 'muted', style: 'margin:4px 0 8px', text: bad[0].text }));
       start.appendChild(el('div', { cls: 'chips' }, [el('a', { cls: 'chip strong', href: '#settings', text: 'Open Settings' }), el('a', { cls: 'chip strong', href: '#guide', text: 'Open the Guide' })]));
     } else start.hidden = true;
+    var cc = $('cityCards'); cc.innerHTML = '';   // plans from the Research desk and City Hall: new buildings waiting for your yes
+    S.cards.filter(function (c) { return c.kind === 'propose' && (c.agent === 'research' || c.agent === 'guide'); }).forEach(function (c) { cc.appendChild(el('div', { style: 'margin-top:12px' }, [card(c, function () {})])); });
+    var rk = S.ranks || []; $('ranksBox').hidden = !rk.length; $('ranks').innerHTML = '';
+    rk.forEach(function (r) { $('ranks').appendChild(el('li', {}, [el('div', { style: 'display:flex;gap:10px;align-items:baseline' }, [el('b', { style: 'font:400 1.3rem var(--serif);color:var(--accent)', text: '#' + r.rank }), el('b', { style: 'flex:1', text: r.name }), el('span', { text: r.score + '/100' })]),
+      el('small', { text: (r.prize ? 'Prize: the ' + r.prize.toLowerCase() + ' at the marina. ' : '') + (S.tip && S.tip.dept === r.id ? 'Its tip this week: ' + S.tip.text : '') })])); });
     $('c3box').hidden = use2d; $('city2d').hidden = !use2d;
     if (use2d) { var cv = $('cityView'); cv.innerHTML = ''; cv.appendChild(cityView()); }
     var ul = $('depts'); ul.innerHTML = '';
@@ -410,6 +419,8 @@ label.ck{display:flex;gap:10px;align-items:flex-start;margin:14px 0 6px;font-wei
     if (!ups.length) ru.appendChild(el('li', { cls: 'muted', text: 'Nothing yet. It looks once a week, or press Look for new tools now.' }));
     ups.slice(0, 20).forEach(function (u) { ru.appendChild(el('li', {}, [el('div', { text: u.text }), el('small', { text: ago(u.ts) })])); });
   }
+  $('askCityGo').onclick = function (e) { var b = e.target; b.disabled = true; $('askCitySaid').textContent = 'Hold tight: scanning GitHub for the best builds…';
+    api('/api/askcity', { text: $('askCity').value }).then(function (r) { $('askCity').value = ''; $('askCitySaid').textContent = r.said; return load(); }).catch(function (err) { $('askCitySaid').textContent = ''; toast(err.message); }).then(function () { b.disabled = false; }); };
   $('researchGo').onclick = function (e) { var b = e.target; b.disabled = true; $('researchSaid').textContent = 'Looking on GitHub…';
     api('/api/research', {}).then(function (r) { $('researchSaid').textContent = r.said; return load(); }).catch(function (err) { $('researchSaid').textContent = ''; toast(err.message); }).then(function () { b.disabled = false; }); };
   $('enrollGo').onclick = function () { api('/api/school', { ref: $('enrollRef').value }).then(function () { $('enrollRef').value = ''; toast('Enrolled. Orientation starts within 10 minutes.'); return load(); }).catch(function (e) { toast(e.message); }); };
@@ -461,7 +472,7 @@ label.ck{display:flex;gap:10px;align-items:flex-start;margin:14px 0 6px;font-wei
   function copy(t) { (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).then(function () { toast('Copied.'); }).catch(function () { toast('Select the text and copy it.'); }); }
   // One card: what it is, what goes out exactly, and the buttons.
   function card(c, skip) {
-    var kids = [el('div', { cls: 'place', text: (c.agent === 'school' ? 'The School' : (S.agents.filter(function (a) { return a.id === c.agent; })[0] || { name: c.agent }).name) + ' · ' + ago(c.ts) }), el('div', { cls: 'head', text: c.title })];
+    var kids = [el('div', { cls: 'place', text: (c.agent === 'school' ? 'The School' : c.agent === 'research' ? 'The Research desk' : c.agent === 'guide' ? 'City Hall' : (S.agents.filter(function (a) { return a.id === c.agent; })[0] || { name: c.agent }).name) + ' · ' + ago(c.ts) }), el('div', { cls: 'head', text: c.title })];
     if (c.lead) {
       var L = c.lead, tel = String(L.phone || '').replace(/[^\d+]/g, '');
       kids.push(el('div', { cls: 'lead' }, [el('div', {}, [el('b', { text: L.name || L.email || 'A new lead' }), L.came ? ' · came in ' + L.came : '']),
@@ -478,7 +489,7 @@ label.ck{display:flex;gap:10px;align-items:flex-start;margin:14px 0 6px;font-wei
     if (c.steps) { if (c.about) kids.push(el('p', { cls: 'muted', text: c.about })); kids.push(stepList(c.steps)); }
     var buttons = el('div', { cls: 'big' });
     var go = function (decision, b) { b.disabled = true; api('/api/decide', { id: c.id, decision: decision }).then(function (r) { toast(r.said || (decision === 'decline' ? 'Declined.' : 'Done.')); return load(); }).catch(function (e) { b.disabled = false; toast(e.message); load(); }); };
-    var yes = c.kind === 'fix' ? 'Got it' : c.email ? 'Send the email' : c.kind === 'post' ? 'Use it' : 'Keep it', no = c.email ? 'Don\'t send' : 'Dismiss';
+    var yes = c.kind === 'propose' ? 'Build it' : c.kind === 'fix' ? 'Got it' : c.email ? 'Send the email' : c.kind === 'post' ? 'Use it' : 'Keep it', no = c.email ? 'Don\'t send' : c.kind === 'propose' ? 'Not now' : 'Dismiss';
     if ((c.actions || []).indexOf('answer') > -1) {   // a department asks you something it needs
       var ans = el('textarea', { rows: 3, placeholder: 'Your answer. It is kept for next time too.' }); kids.push(ans);
       var bs = el('button', { cls: 'btn yes', text: 'Send answer', onclick: function () { bs.disabled = true; api('/api/answer', { id: c.id, answer: ans.value }).then(function (r) { toast(r.said); return load(); }).catch(function (e) { bs.disabled = false; toast(e.message); }); } });

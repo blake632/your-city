@@ -86,6 +86,10 @@ html,body{ margin:0; height:100%; background:var(--bg); color:var(--ink); font-f
   padding:12px 13px 12px 16px; border-radius:999px; cursor:pointer; display:flex; gap:6px; align-items:center; box-shadow:0 0 18px -4px var(--gold); }
 #open svg{ width:14px; height:14px; }
 body.clean #hint{ display:none; }
+.prize{ position:absolute; left:0; top:0; padding:4px 9px; border-radius:999px; background:rgba(9,12,21,.92); border:1px solid #f0cf86; color:#f6e3b4; font:700 10px/1 var(--sans); letter-spacing:.06em; white-space:nowrap; pointer-events:none; will-change:transform; }
+.tipbub{ position:absolute; left:0; top:0; width:max-content; max-width:220px; padding:8px 12px 9px; border-radius:12px; background:rgba(20,16,6,.94); border:1px solid rgba(240,207,134,.5); border-top:2px solid #f0cf86; box-shadow:0 0 26px -6px #f0cf86; color:#fbf3dc; pointer-events:none; will-change:transform; }
+.tipbub .who{ font:700 9.5px/1.25 var(--sans); letter-spacing:.09em; text-transform:uppercase; color:#f0cf86; margin-bottom:3px; } .tipbub .txt{ font:500 12px/1.35 var(--sans); }
+.vbub{ position:absolute; left:0; top:0; width:max-content; max-width:170px; padding:7px 11px 8px; border-radius:12px; background:rgba(9,12,21,.95); color:#f6f3ec; font:600 13px/1.3 var(--sans); box-shadow:0 8px 22px rgba(0,0,0,.5); pointer-events:none; will-change:transform; border-top:2px solid var(--c); }
 @media (max-width:560px){
   .qbub{ max-width:170px; padding:6px 9px 7px; } .qbub .txt{ font-size:11px; } .mark3,.mark3 i{ width:30px; height:30px; } .mark3 i{ font-size:18px; }
   #open{ padding:10px 10px 10px 12px; font-size:10.5px; }
@@ -1107,7 +1111,7 @@ function frame(now){ const raw=Math.max(0,(now-last)/1000)||.016, dt=Math.min(.0
   const inside=mode==='inside'&&!trans?1:trans?(trans.dir>0?ease(clamp(trans.t,0,1)):1-ease(clamp(trans.t,0,1))):0;
   hemi.intensity=.8+inside*.45; hemi.color.setRGB(lerp(.29,.62,inside),lerp(.35,.55,inside),lerp(.57,.5,inside)); moon.intensity=.62+inside*.2;
   if(!SKIP) renderer.render(scene,camera); if(!REDUCED&&!VIDEO) adapt(raw);
-  layoutLabels(dt,!labelsSeen); labelsSeen=true; layoutBubbles(dt); updateTag(); layoutMarks();
+  layoutLabels(dt,!labelsSeen); labelsSeen=true; layoutBubbles(dt); updateTag(); layoutMarks(); layoutFx();
   if(VIDEO) return;
   if(!REDUCED||trans||needRender){ needRender=false; if(!REDUCED){ if(onScreen&&!document.hidden) requestAnimationFrame(frame); else sleeping=true; } else if(trans) requestAnimationFrame(frame); else rafPending=false; }
 }
@@ -1123,6 +1127,74 @@ cityList.forEach(ch=>pose(ch,0.001)); updateCars(0.001);
 resize();
 const m0=location.hash.match(/^#inside-(\w+)$/);
 if(m0&&DK[m0[1]]) enter(m0[1],true);
+// ---------- the economy: prize boats for the top 3, the week's star on a stage, new buildings going up, the crowd of judges ----------
+const fxEl=document.createElement('div'); fxEl.style.cssText='position:absolute;inset:0;pointer-events:none;z-index:4'; $('app').appendChild(fxEl);
+const FX=[];   // html tags pinned to a 3D point: {el, at(): Vector3, show()}
+function pin(el,at,show){ fxEl.appendChild(el); const f={el,at,show:show||(()=>true)}; FX.push(f); return f; }
+function layoutFx(){ FX.forEach(f=>{ const on=mode==='city'&&!trans&&f.show(); if(!on){ f.el.style.display='none'; return; } const p=projectXY(f.at()); if(p.z>1){ f.el.style.display='none'; return; } f.el.style.display='';
+  f.el.style.transform=`translate3d(${(p.x-f.el.offsetWidth/2).toFixed(1)}px,${(p.y-f.el.offsetHeight).toFixed(1)}px,0)`; }); }
+// prize boats at the marina: a yacht, a speedboat and a sailboat, in the winners' colours
+function prizeBoat(kind,col){ const g=new THREE.Group(), gold='#f0cf86';
+  if(kind==='Yacht'){ g.add(new THREE.Mesh(merge([P(BOX(4.4,1.6,13),'#f4f1ea',0,.6,0),P(new THREE.ConeGeometry(2.2,3.6,4),'#f4f1ea',0,.6,8.2,Math.PI/2,Math.PI/4,0,1,1,.75),P(BOX(3.6,1.5,6),'#e9e6df',0,2.1,-1),P(BOX(3.62,.5,5),'#14202e',0,2.3,-.8),P(BOX(2.6,1.2,3.2),'#f4f1ea',0,3.5,-1.6),P(BOX(4.5,.25,13.1),col,0,1.25,0),P(BOX(4.46,.12,13.05),gold,0,1.5,0)]),VCOL));
+    mesh(CYL(.08,.08,4,5),METAL,0,6,-1.6,g,false); const f=mesh(new THREE.PlaneGeometry(1.6,1).translate(.8,0,0),lam(col,{side:THREE.DoubleSide,emissive:'#222'}),0,7.4,-1.6,g,false); ANIM.push(t=>{ f.rotation.y=Math.sin(t*1.6)*.4; });
+    for(let i=0;i<8;i++) mesh(SPH(.14,6,4),basic('#ffe6b0'),(i%2?1.85:-1.85),2.3,-3.5+Math.floor(i/2)*1.6,g,false); }
+  else if(kind==='Speedboat'){ g.add(new THREE.Mesh(merge([P(BOX(2.6,1,8),col,0,.4,0),P(new THREE.ConeGeometry(1.3,2.6,4),col,0,.4,5.2,Math.PI/2,Math.PI/4,0,1,1,.7),P(BOX(2.2,.8,2),'#1a2230',0,1.2,.6),P(BOX(2.62,.15,8.02),gold,0,.95,0)]),VCOL)); }
+  else { g.add(new THREE.Mesh(merge([P(BOX(2.2,.9,6.5),'#f1efe9',0,.3,0),P(new THREE.ConeGeometry(1.1,2,4),'#f1efe9',0,.3,4.2,Math.PI/2,Math.PI/4,0,1,1,.7)]),VCOL)); mesh(CYL(.07,.07,8,5),METAL,0,4.6,0,g,false);
+    const sail=new THREE.Shape(); sail.moveTo(0,0); sail.lineTo(0,7); sail.lineTo(3.4,0); sail.lineTo(0,0); mesh(new THREE.ShapeGeometry(sail),lam(col,{side:THREE.DoubleSide,emissive:'#222'}),.1,1,0,g,false).rotation.y=Math.PI/2; }
+  return g; }
+const PRIZES=[];
+function paintPrizes(){ PRIZES.forEach(p=>{ scene.remove(p.g); p.tag.el.remove(); const i=FX.indexOf(p.tag); if(i>-1) FX.splice(i,1); }); PRIZES.length=0;
+  (DATA.ranks||[]).filter(r=>r.prize).slice(0,3).forEach((r,i)=>{ const d=DEPTS.find(x=>x.id===r.id); if(!d) return; const g=prizeBoat(r.prize,d.col), x=-34-i*15, z=-74-i*3; g.position.set(x,-.25,z); g.rotation.y=-.35; scene.add(g);
+    ANIM.push(t=>{ g.position.y=-.25+Math.sin(t*1.1+i)*.12; g.rotation.z=Math.sin(t*.9+i)*.02; });
+    const el=document.createElement('div'); el.className='prize'; el.textContent='#'+r.rank+' '+d.short+' · '+r.prize; const tag=pin(el,()=>new THREE.Vector3(x,9,z),()=>cam.dist<130&&Math.hypot(cam.px-x,cam.pz-z)<70);
+    if(i<2){ const car=makeCar(i?'#c9ced8':'#e8c063'); car.scale.setScalar(1.15); car.position.set(d.bx+9.5,TOP,d.bz+11.5); car.rotation.y=Math.PI/2; car.children[2].visible=false; scene.add(car); const glo=mesh(new THREE.PlaneGeometry(9,9).rotateX(-Math.PI/2),new THREE.MeshBasicMaterial({map:SOFTTEX,color:i?'#c9ced8':'#f0cf86',transparent:true,opacity:.5,blending:THREE.AdditiveBlending,depthWrite:false}),d.bx+9.5,TOP+.03,d.bz+11.5,scene,false); PRIZES.push({g:car,tag:{el:document.createElement('div')}},{g:glo,tag:{el:document.createElement('div')}}); }
+    PRIZES.push({g,tag,d,x,z}); }); }
+// the week's star: on a stage in the plaza, under a spotlight, a crowd listening, the tip in a gold bubble
+const STAR={}; (()=>{ const x=blockX(2)-7, z=blockZ(2)+1.5, g=addTo(new THREE.Group()); g.position.set(x,TOP,z); STAR.g=g; STAR.x=x; STAR.z=z;
+  mesh(CYL(2.4,2.6,.9,20),lam('#2a2230'),0,.45,0,g); mesh(new THREE.TorusGeometry(2.45,.08,6,40),glow('#f0cf86',.9),0,.92,0,g,false).rotation.x=Math.PI/2;
+  const beam=mesh(new THREE.CylinderGeometry(.6,2.6,26,16,1,true),new THREE.MeshBasicMaterial({map:BEAMTEX,color:'#f0cf86',transparent:true,opacity:.45,blending:THREE.AdditiveBlending,depthWrite:false,side:THREE.DoubleSide}),0,13.9,0,g,false);
+  ANIM.push(t=>{ beam.material.opacity=.32+.12*Math.sin(t*1.7); }); g.visible=false; })();
+function paintStar(){ const tip=DATA.tip, d=tip&&DEPTS.find(x=>x.id===tip.dept); STAR.g.visible=!!d; if(STAR.ch){ scene.remove(STAR.ch.root); (STAR.crowd||[]).forEach(c=>scene.remove(c.root)); } if(STAR.tag){ STAR.tag.el.remove(); FX.splice(FX.indexOf(STAR.tag),1); STAR.tag=null; }
+  if(!d) return; const p=PEOPLE.find(q=>q.d===d.k)||person(d,0,'Star','present'); STAR.ch=makeChar(p,d.col,CS*1.15,Object.assign({},p,{role:'Number 1 this week'})); STAR.ch.root.position.set(STAR.x,TOP+.9,STAR.z); STAR.ch.root.rotation.y=.5; STAR.ch.pose='present'; scene.add(STAR.ch.root); cityList.push(STAR.ch);
+  STAR.crowd=[]; for(let i=0;i<14;i++){ const a=-1.1+i*.17, r=5+(i%3)*1.4, q=person({k:'fan',id:'fan'+i,name:'fan'},i,'Listener','stand'); const c=makeChar(q,'#f0cf86',CS*.95,q); c.root.position.set(STAR.x+Math.sin(a+.5)*r,TOP,STAR.z+Math.cos(a+.5)*r); c.root.rotation.y=a+.5+Math.PI; c.pose=i%4?'stand':'talk'; scene.add(c.root); cityList.push(c); STAR.crowd.push(c); }
+  const el=document.createElement('div'); el.className='tipbub'; const w=document.createElement('div'); w.className='who'; w.textContent=p.n+' · '+d.short+' · #1 this week'; const tx=document.createElement('div'); tx.className='txt'; tx.textContent=String(tip.text).slice(0,120); el.append(w,tx);
+  STAR.tag=pin(el,()=>new THREE.Vector3(STAR.x,TOP+8.5,STAR.z),()=>cam.dist<150); }
+// a new building going up: scaffolding, a crane, the building rising floor by floor
+const BUILDS=[];
+function build(k,dur){ const d=DK[k]; if(!d) return; dur=dur||6; const g=d.b.g, H=d.b.h, sc=new THREE.Group(); sc.position.set(d.bx,TOP,d.bz-1.5); scene.add(sc);
+  const w=(d.b.w||16)+2, dd=(d.b.d||12)+2, edge=new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(w,1,dd)),new THREE.LineBasicMaterial({color:'#f0cf86',transparent:true,opacity:.9})); edge.scale.y=.01; edge.position.y=0; sc.add(edge);
+  const crane=new THREE.Group(); crane.position.set(w/2+2,0,0); sc.add(crane); mesh(BOX(.8,H+14,.8),lam('#e8b13a'),0,(H+14)/2,0,crane); const jib=new THREE.Group(); jib.position.y=H+14; crane.add(jib); mesh(BOX(18,.7,.7),lam('#e8b13a'),-6,0,0,jib); mesh(BOX(.12,6,.12),METAL,-12,-3,0,jib,false); mesh(BOX(1.4,1,1.4),lam('#3a3f48'),-12,-6.3,0,jib);
+  const blink=mesh(SPH(.35,8,6),basic('#ff5050'),0,.6,0,jib,false);
+  g.scale.y=.02; d.glow.material.color.set('#f0cf86'); BUILDS.push({d,g,sc,edge,jib,blink,t:0,dur,H}); }
+function stepBuilds(dt){ for(let i=BUILDS.length-1;i>=0;i--){ const b=BUILDS[i]; b.t+=dt; const k=Math.min(1,b.t/b.dur), e=ease(k);
+  b.g.scale.y=Math.max(.02,e); b.edge.scale.y=Math.max(.01,(b.H+3)*Math.min(1,e*1.15)); b.edge.position.y=b.edge.scale.y/2; b.jib.rotation.y=Math.sin(b.t*.8)*.9; b.blink.visible=(b.t%1)<.5;
+  b.edge.material.opacity=k<.85?.9:.9*(1-(k-.85)/.15); if(k>=1){ scene.remove(b.sc); b.d.glow.material.color.set(b.d.col); BUILDS.splice(i,1); b.d.live=true; } } }
+ANIM.push((t,dt)=>stepBuilds(dt||0));
+// a new department arriving without a reload (the video, or a building approved while you watch): a building on the next free lot
+function addDept(x){ const i=DEPTS.length-3; if(i>=SLOTS.length) return null; const used=new Set(DEPTS.map(d=>d.type)); const t=KIND_TYPE[x.kind]||((WORDS.find(([re])=>re.test(x.name))||[])[1])||ORDER.find(o=>!used.has(o))||'hq';
+  const d={k:'d'+i,id:x.id||('new'+i),name:x.name,short:shortOf(x.name),col:PAL[i%PAL.length],c:SLOTS[i][0],r:SLOTS[i][1],type:used.has(t)?(ORDER.find(o=>!used.has(o))||t):t,sub:x.does||'',kind:x.kind||'own',go:x.id||'build'};
+  const bx=blockX(d.c), bz=blockZ(d.r), bld=BUILDERS[d.type](d); bld.g.position.set(bx,TOP,bz-1.5); scene.add(bld.g); Object.assign(d,{b:bld,bx,bz,key:d.c+','+d.r,anchor:new THREE.Vector3(bx,TOP+bld.h+2,bz-1.5)});
+  d.glow=mesh(new THREE.PlaneGeometry(30,30).rotateX(-Math.PI/2),new THREE.MeshBasicMaterial({map:SOFTTEX,color:d.col,transparent:true,opacity:.07,blending:THREE.AdditiveBlending,depthWrite:false}),bx,TOP+.02,bz,scene,false);
+  d.ring=mesh(new THREE.PlaneGeometry(1,1).rotateX(-Math.PI/2),new THREE.MeshBasicMaterial({map:RINGTEX,color:d.col,transparent:true,opacity:0,blending:THREE.AdditiveBlending,depthWrite:false}),bx,TOP+.05,bz-1.5,scene,false); d.ring.visible=false;
+  d.beam=mesh(new THREE.CylinderGeometry(1.1,1.8,60,14,1,true),new THREE.MeshBasicMaterial({map:BEAMTEX,color:d.col,transparent:true,opacity:.5,blending:THREE.AdditiveBlending,depthWrite:false,side:THREE.DoubleSide}),bx,TOP+bld.h+30,bz-1.5,scene,false); d.beam.visible=false;
+  DEPTS.push(d); DK[d.k]=d;
+  if(ADD&&ADD.c===d.c&&ADD.r===d.r){ ADD.el.remove(); ADD.ln.remove(); ADD.dot.remove(); SIGNS.splice(SIGNS.indexOf(ADD),1); }
+  const b=document.createElement('button'); b.type='button'; b.className='sign'; b.style.setProperty('--c',d.col); b.innerHTML='<i></i><span></span><b hidden></b>'; b.querySelector('span').textContent=innerWidth<600?d.short:d.name;
+  b.addEventListener('click',e=>{ e.stopPropagation(); enter(d.k); }); labelsEl.appendChild(b); d.el=b; d.lab={x:0,y:0,w:b.offsetWidth,h:b.offsetHeight,init:false};
+  const ln=document.createElementNS(NS,'line'); leaders.appendChild(ln); const dot=document.createElementNS(NS,'circle'); dot.setAttribute('r','1.8'); leaders.appendChild(dot); d.ln=ln; d.dot=dot; SIGNS.push(d);
+  [['Head of '+d.short,'review'],[d.short+' specialist','type']].forEach(([role,act],j)=>{ const p=person(d,j,role,act); PEOPLE.push(p); PK[p.id]=p; addCityChar(p,bx+(j?1.4:-1.4),bz+8.3,j?-.5:.5); });
+  build(d.k); return d; }
+// the crowd of judges, standing on a lot: 8 people in 12 moods, each with their vote (green yes, red no), a few saying why
+const CROWD={chars:[],tags:[]};
+function judgeCrowd(rows,quotes,lot){ clearCrowd(); const [c,r]=lot||[0,0], cx=blockX(c), cz=blockZ(r);
+  (rows||[]).slice(0,8).forEach((row,ri)=>(row.yes||[]).slice(0,12).forEach((yes,mi)=>{ const p=person({k:'j',id:'j'+ri,name:row.name},mi,row.name,'stand'), ch=makeChar(p,yes?'#3ed69b':'#ff5a6a',1.25,Object.assign({},p,{role:yes?'Voted yes':'Voted no'}));
+    addDisc(ch,yes?'#3ed69b':'#ff5a6a'); ch.root.position.set(cx-10.6+mi*1.93,TOP,cz-7+ri*2.05); ch.root.rotation.y=Math.PI*.15; ch.pose=(ri+mi)%5?'stand':'talk'; scene.add(ch.root); cityList.push(ch); CROWD.chars.push({ch,yes}); }));
+  (quotes||[]).slice(0,4).forEach((q,i)=>{ const pick=CROWD.chars.filter(x=>x.yes===q.yes)[[5,30,61,80][i]%Math.max(1,CROWD.chars.filter(x=>x.yes===q.yes).length)]; if(!pick) return;
+    const el=document.createElement('div'); el.className='vbub'; el.style.setProperty('--c',q.yes?'#3ed69b':'#ff5a6a'); el.textContent=q.text; el.style.opacity=0; const ch=pick.ch;
+    CROWD.tags.push(Object.assign(pin(el,()=>{ const v=new THREE.Vector3(); ch.head.getWorldPosition(v); v.y+=1.6; return v; }),{i})); });
+  return {x:cx,z:cz}; }
+function clearCrowd(){ CROWD.chars.forEach(x=>{ scene.remove(x.ch.root); const i=cityList.indexOf(x.ch); if(i>-1) cityList.splice(i,1); }); CROWD.tags.forEach(f=>{ f.el.remove(); FX.splice(FX.indexOf(f),1); }); CROWD.chars=[]; CROWD.tags=[]; }
+function crowdQuotes(k){ CROWD.tags.forEach((f,i)=>{ f.el.style.opacity=i<k?1:0; }); }
 // ---------- what needs you: "!" over a building with work waiting, a pink "?" and its question over one that asks you something ----------
 const marksEl=$('marks'), qEl=$('qbubs'); let MARKS=[], markSig='';
 function paintMarks(){ const next=DEPTS.filter(d=>d.need||d.ask).map(d=>({d,n:d.need||0,q:d.ask||''})), sig=next.map(m=>m.d.k+':'+m.n+':'+m.q).join('|');
@@ -1146,13 +1218,14 @@ function refresh(){ DEPTS.forEach(d=>{ const x=dataOf(d)||{}, n=x.need||0; d.nee
     if(REDUCED){ d.glow.material.opacity=d.live?.55:.07; d.beam.visible=d.live; } });
   const need=DEPTS.reduce((a,d)=>a+(d.id?d.need||0:0),0), n=DEPTS.filter(d=>d.id).length;
   $('mark').textContent=INIT; $('kick').textContent=DATA.business||'Your business'; $('pill').textContent=n+' department'+(n===1?'':'s')+(need?' · '+need+' need you':'');
-  PANEL_NOW=DATA.panel||null; LED_TEXT=DATA.led||LED_TEXT; sayLines(); paintMarks(); requestRender(); }
+  PANEL_NOW=DATA.panel||null; LED_TEXT=DATA.led||LED_TEXT; sayLines(); paintMarks(); const ps=JSON.stringify([DATA.ranks,DATA.tip]); if(ps!==refresh.ps){ refresh.ps=ps; paintPrizes(); paintStar(); } requestRender(); }
 async function pull(){ if(VIDEO||document.hidden) return; try{ const r=await fetch('/api/city3d',{credentials:'same-origin'}); if(!r.ok) return; const j=await r.json();
   const sig=JSON.stringify([j.business,(j.departments||[]).map(x=>[x.id,x.name,x.kind,!!x.judge])]); if(sig!==SIG){ location.reload(); return; } DATA=j; refresh(); }catch(e){} }
 addEventListener('message',e=>{ if(e.origin===location.origin&&e.data&&e.data.type==='refresh') pull(); });
 setInterval(pull,20000);
 if(EMBED){ $('hud').hidden=true; $('hud').style.display='none'; measure(); }
 refresh();
+DEPTS.forEach(d=>{ const x=dataOf(d); if(d.id&&x&&x.built&&Date.now()-x.built<5*60e3) build(d.k); });   // approved in the last 5 minutes: it goes up as you watch
 (document.fonts&&document.fonts.ready?document.fonts.ready:Promise.resolve()).then(()=>{ measure(); SIGNS.forEach(d=>d.lab.init=false); requestRender(); });
 if(VIDEO){ last=performance.now(); } else if(REDUCED){ requestRender(); } else requestAnimationFrame(frame);
 // For the video: step the world by hand, and point the camera at a building.
@@ -1160,7 +1233,7 @@ let vNow=performance.now();
 function step(dt,norender){ SKIP=!!norender; vNow+=dt*1000; last=vNow-dt*1000; frame(vNow); SKIP=false; }   // norender: move the world on without drawing it
 function look(k,o){ const d=k==='city'?null:DK[k]; o=o||{}; const s=d?{az:o.az!=null?o.az:cam.az,el:o.el!=null?o.el:.42,dist:o.dist||70,pitch:o.pitch!=null?o.pitch:.36,px:d.bx,py:o.py!=null?o.py:(d.b.h*.45),pz:d.bz}:Object.assign(cityState(),o);
   Object.assign(goal,s); if(o.snap) Object.assign(cam,s); }
-window.__city={enter,exit,cam,goal,cityChars,camera,projectXY,headPos,perf,hit,showTag,step,look,refresh,DK,DEPTS,cityState,get mode(){ return mode; },get trans(){ return trans; }};
+window.__city={build,addDept,judgeCrowd,crowdQuotes,clearCrowd,STAR,PRIZES,enter,exit,cam,goal,cityChars,camera,projectXY,headPos,perf,hit,showTag,step,look,refresh,DK,DEPTS,cityState,get mode(){ return mode; },get trans(){ return trans; }};
 })();
 </script>
 </body>

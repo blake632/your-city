@@ -99,6 +99,7 @@ function createServer({ city, password = () => process.env.CITY_PASSWORD, public
       // The School: enroll a tool by its GitHub link; the Research desk: look for new tools now.
       if (p === '/api/school' && req.method === 'POST') { if (!city.school) throw new Error('The School is not open in this city.'); const b = await body(req); return json(res, 200, { ok: true, student: city.school.enroll(b.ref, { note: b.note }) }); }
       if (p === '/api/research' && req.method === 'POST') { if (!city.research) throw new Error('The Research desk is not open in this city.'); return json(res, 200, { ok: true, said: await city.research.run() }); }
+      if (p === '/api/askcity' && req.method === 'POST') { const b = await body(req); return json(res, 200, await city.askCity(b.text)); }
       if (p === '/api/run' && req.method === 'POST') { const b = await body(req); return json(res, 200, { ok: true, said: await city.runAgent(String(b.agent || '')) }); }
       if (p === '/api/ask' && req.method === 'POST') { const b = await body(req); return json(res, 200, await guide.ask(city, b.question, { redirect: city.redirect })); }
       if (p === '/api/google/disconnect' && req.method === 'POST') { city.google.disconnect(); return json(res, 200, { ok: true }); }
@@ -165,7 +166,10 @@ function cityData(city) {
     research: { need: 0, live: now - last('research') < 15 * 60e3, lines: lines('research') },
     school: { need: cards.filter(c => c.agent === 'school').length, live: now - last('school') < 15 * 60e3, lines: lines('school') },
     departments: agents.filter(a => a.id !== 'guide').map(a => ({ id: a.id, name: a.name, kind: a.kind, does: String(a.does || '').slice(0, 160), need: a.need, live: live(a), on: a.on, judge: !!a.judge,
-      ask: (cards.find(c => c.agent === a.id && c.kind === 'ask') || {}).question || '', lines: lines(a.id) })),
+      ask: (cards.find(c => c.agent === a.id && c.kind === 'ask') || {}).question || ((cards.find(c => c.agent === a.id && c.kind === 'propose') || {}).proposal ? 'We need a new building: ' + cards.find(c => c.agent === a.id && c.kind === 'propose').proposal.name : ''),
+      built: (city.department(a.id) || {}).built || 0, lines: lines(a.id) })),
+    ranks: city.ranks().slice(0, 10), tip: city.store.get('tip', null),
+    proposal: (cards.find(c => c.kind === 'propose' && !city.department(c.agent)) || {}).proposal ? { by: cards.find(c => c.kind === 'propose' && !city.department(c.agent)).agent, name: cards.find(c => c.kind === 'propose' && !city.department(c.agent)).proposal.name } : null,
     panel: P ? { title: String(judged.title || '').replace(/^[^:]{0,40}:\s*/, '').slice(0, 40), question: P.question, avg: P.panel.avg, pct: Math.round(P.panel.top / P.panel.n * 100), dist } : null,
     led: post ? String(post.title).replace(/^[^:]{0,20}:\s*/, '').slice(0, 40) : '' };
 }
@@ -176,7 +180,7 @@ function state(city, redirect) {
     google: { configured: city.google.configured(), connected: city.google.connected(), email: city.google.email() }, redirect,
     spend: { today: Math.round(city.ai.spentToday() * 100) / 100, cap: city.ai.cap() }, store: city.store.kind(), alerts: s.alerts,
     ai: aiState(city), googleClient: { id: (city.store.get('googleClient') || {}).id || '', secretSet: !!(city.store.get('googleClient') || {}).secret, fromVariable: !!process.env.GOOGLE_CLIENT_ID },
-    models: aiState(city).models, every: EVERY, school: city.school ? city.school.state().students.slice().reverse().map(st => ({ id: st.id, ref: st.ref, type: st.type, by: st.by, note: st.note, step: st.step, dept: st.dept, scores: st.scores, passed: st.passed, why: st.why, at: st.at })) : [], jev: { mode: city.jev.mode(), keySet: !!city.jev.key(), keyFrom: city.jev.keyFrom(), problem: city.jev.problem() } };
+    models: aiState(city).models, every: EVERY, ranks: city.ranks(), tip: city.store.get('tip', null), school: city.school ? city.school.state().students.slice().reverse().map(st => ({ id: st.id, ref: st.ref, type: st.type, by: st.by, note: st.note, step: st.step, dept: st.dept, scores: st.scores, passed: st.passed, why: st.why, at: st.at })) : [], jev: { mode: city.jev.mode(), keySet: !!city.jev.key(), keyFrom: city.jev.keyFrom(), problem: city.jev.problem() } };
 }
 const shell = (title, inner, script) => '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>' + esc(title) + '</title>' +
   '<link rel="manifest" href="/manifest.webmanifest"><link rel="icon" href="/icon.svg"><style>:root{--bg:#f6f3ec;--ink:#1a1813;--dim:rgba(26,24,19,.66);--accent:#8a5a2b;--card:#fffdf8;--line:rgba(26,24,19,.14)}' +

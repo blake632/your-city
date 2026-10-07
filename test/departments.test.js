@@ -104,3 +104,31 @@ test('a department asks you when a fact is missing; your answer is kept and it w
   assert.deepStrictEqual(c.department(d.id).facts.map(f => [f.q, f.a]), [['What is the address of the open house?', '4410 Shoal Creek Blvd']]);
   assert(/QUESTION FOR THE OWNER/.test(A.calls.find(x => !x.body.output_config || !x.body.output_config.format).body.messages[0].content), 'every job may ask instead of guessing');
 });
+
+test('the city improves itself: a proposal you approve is built; "build me a ..." comes back as a plan; grades rank the departments; the star\'s tip reaches the others', async () => {
+  const { A, city: c } = await city(b => { const p = b.output_config && b.output_config.format ? b.output_config.format.schema.properties : {};
+    if (p.build) return { text: { build: true, name: 'Bookkeeping', does: 'Sort invoices and receipts each week.', why: '14 invoices this month and no one files them.' } };
+    if (p.query) return { text: { name: 'Crypto Desk', does: 'Paper-trade a small test portfolio and report weekly. Paper only.', audience: 'Me', query: 'paper trading bot' } };
+    if (b.output_config && b.output_config.format) return { text: {} };
+    return { text: 'Answer every lead within five minutes.' }; });
+  c.store.set('mailLog', [{ kind: 'receipt', summary: 'Invoice from Ace Supply' }]);
+  const L = c.saveDepartment({ name: 'Leads', does: 'Reply to leads.' });
+  assert.strictEqual(await c.plan(), 'Asked for a new building: Bookkeeping.');
+  const card = c.waiting().find(x => x.kind === 'propose');
+  assert.deepStrictEqual([card.title, card.actions], ['City Hall: we need a new building, Bookkeeping', ['approve', 'decline']]);
+  assert.strictEqual(await c.plan(), 'No new building needed.', 'never the same proposal twice');
+  const r = await c.decide(card.id, 'approve');
+  const B = c.departments().find(d => d.name === 'Bookkeeping');
+  assert(B && B.built && r.department === B.id && r.said === 'Building Bookkeeping now.');
+  c.research = { search: async () => [{ html_url: 'https://github.com/x/paper-bot', full_name: 'x/paper-bot', description: 'Paper trading', stargazers_count: 900 }] };
+  const a = await c.askCity('build me a crypto trading desk');
+  assert(c.updates().some(u => u.agent === 'research' && /Hold tight: scanning GitHub/.test(u.text)));
+  const plan = c.waiting().find(x => x.kind === 'propose' && x.agent === 'research');
+  assert(/x\/paper-bot/.test(plan.body) && plan.tool === 'https://github.com/x/paper-bot' && a.card === plan.id);
+  c.store.put('cards', 'j1', { id: 'j1', agent: L.id, status: 'approved', kind: 'note', ts: 1, judged: { panel: { avg: 4.5 } } });
+  c.store.put('cards', 'j2', { id: 'j2', agent: B.id, status: 'declined', kind: 'note', ts: 2, judged: { panel: { avg: 3 } } });
+  assert.deepStrictEqual(c.ranks().map(x => [x.name, x.rank, x.prize]), [['Leads', 1, 'Yacht'], ['Bookkeeping', 2, 'Speedboat']]);
+  await c.starTip();
+  assert(/NUMBER 1 THIS WEEK.*Answer every lead within five minutes/.test(c.tipFor(B)) && c.tipFor(L) === '', 'the others learn it; the star already knows');
+  assert(A.calls.length > 0);
+});
