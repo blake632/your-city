@@ -4,6 +4,18 @@ This is the full guide. The Guide inside your city shows the same steps, with yo
 
 ## 1. Run your city on Railway
 
+The easy way: one button.
+
+[![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/deploy/6s-uoS?referralCode=6eIidp&utm_medium=integration&utm_source=template&utm_campaign=generic)
+
+1. Click **Deploy on Railway**. Sign in to Railway (Google or email works; no GitHub needed).
+2. Type the password you want for your city (at least 8 characters) and press **Deploy**.
+3. Wait about 2 minutes, click your app, and open its address (it ends in `.up.railway.app`). Sign in with your password.
+
+To change the password later: in Railway, click your app, then **Variables**, and change `CITY_PASSWORD`.
+
+### By hand, if you prefer
+
 1. Make your own copy of this repository: on GitHub click **Fork**, then **Create fork**.
 2. Sign in at railway.com with GitHub. Click **New Project**, then **Deploy from GitHub repo**, and pick your copy.
 3. Add a database: in the project click **Create** (or **+ New**), then **Database**, then **PostgreSQL**. Without it, your city forgets everything each time Railway redeploys.

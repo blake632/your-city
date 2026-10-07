@@ -27,22 +27,25 @@ Your city runs on Railway. Nothing runs on Google: Google only gives your city p
 | A key from the AI you choose | Pay as you go. You set a daily limit (starts at $3) |
 | A Gmail or Google Workspace account, only so the city may read your email | Free |
 
-## Start in 10 minutes
+## Start in 5 minutes
 
-1. On this GitHub page, click **Fork** (top right), then **Create fork**. That makes your own copy.
-2. Go to [railway.com](https://railway.com) and sign in with GitHub.
-3. Click **New Project**, then **Deploy from GitHub repo**, and pick your copy.
-4. In the project, click **Create**, then **Database**, then **PostgreSQL**. This is where your city keeps its memory.
-5. Click your app (not the database), then **Variables**, then **New Variable**. Name: `DATABASE_URL`. Value: `${{Postgres.DATABASE_URL}}` (type it exactly like this).
-6. Click **Settings**, then under **Networking** click **Generate Domain**.
-7. Open that address. **Choose your password.** The first person to choose one becomes the owner, so do this right away.
+[![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/deploy/6s-uoS?referralCode=6eIidp&utm_medium=integration&utm_source=template&utm_campaign=generic)
+
+1. Click **Deploy on Railway** above. No GitHub account needed.
+2. Sign in to Railway (Google or email works).
+3. Type the password you want for your city (at least 8 characters), then press **Deploy**.
+4. Wait about 2 minutes. Click your app: its address is at the top (it ends in `.up.railway.app`). Open it and sign in with your password.
 
 Everything else happens inside your city:
 
-8. **Settings → Your AI**: pick your AI, paste its key, press **Save and test**, then pick a model.
-9. **Settings → Your business**: tell the city about your business.
-10. **City → + Build a department**: name it and say what it does. Build as many as you like (up to 12).
-11. Only if a department reads email (Leads, Mail room): **Settings → Gmail**. The Guide walks you through it (about 5 minutes, once).
+5. **Settings → Your AI**: press **Connect with OpenRouter**. Sign in there and add $5 to $10 of credit. (Or pick another AI and paste its key.)
+6. **Settings → Your business**: tell the city about your business.
+7. **City → + Build a department**: name it and say what it does. Build up to 10.
+8. Only if a department reads email (Leads, Mail room): **Settings → Gmail**. The Guide walks you through it.
+
+Railway costs about $5 a month (the Hobby plan; new accounts start with a free trial). Your AI bills you for what your agents use, with a daily limit you set.
+
+Rather do it by hand? [SETUP.md](SETUP.md) has the manual steps.
 
 Stuck? Open the **Guide** and type your question. More detail is in [SETUP.md](SETUP.md).
 
