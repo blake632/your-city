@@ -965,18 +965,19 @@ let hudRect={x:0,y:0,w:0,h:0}, hintRect={x:0,y:0,w:0,h:0}, VW=innerWidth, VH=inn
 function ov(a,b){ const x=Math.max(0,Math.min(a.x+a.w,b.x+b.w)-Math.max(a.x,b.x)), y=Math.max(0,Math.min(a.y+a.h,b.y+b.h)-Math.max(a.y,b.y)); return x*y; }
 const OFFS=[[0,0],[0,-1],[0,-2],[-1,-.5],[1,-.5],[-1,-1.5],[1,-1.5],[0,-3],[-1.1,0],[1.1,0],[0,-4],[-1.1,-2.5],[1.1,-2.5],[0,1.2],[-1.1,1.2],[1.1,1.2],[0,2.3],[0,-5],[0,3.4],[0,-6]];
 function place(items,obst,gap){ items.sort((a,b)=>(a.below===b.below)?b.ay-a.ay:(a.below?-1:1)); const placed=obst.slice();
-  for(const it of items){ let best=null,bs=1e18;
+  for(const it of items){ let best=null,bs=1e18,bj=0; const m=it.m||{}, idx=OFFS.map((_,j)=>j);
+    if(m.slot!=null){ idx.splice(m.slot,1); idx.unshift(m.slot); }   // try last frame's spot first and favour it, so tags don't hop between spots as the camera moves
     const y0=it.below?it.ay+gap:it.ay-it.h-gap, dir=it.below?-1:1;
-    for(const [ox,oy] of OFFS){ const x=clamp(it.ax-it.w/2+ox*(it.w*.55+6),6,VW-it.w-6), y=clamp(y0+dir*oy*(it.h+6),6,VH-it.h-6);
-      const r={x:x-3,y:y-3,w:it.w+6,h:it.h+6}; let o=0; for(const p of placed) o+=ov(r,p); const sc=o*50+Math.abs(ox)*30+Math.abs(oy)*14+Math.abs(y-y0)*.05;
-      if(sc<bs){ bs=sc; best=r; if(o===0) break; } }
-    placed.push(best); it.tx=best.x+3; it.ty=best.y+3; } }
+    for(const j of idx){ const [ox,oy]=OFFS[j], x=clamp(it.ax-it.w/2+ox*(it.w*.55+6),6,VW-it.w-6), y=clamp(y0+dir*oy*(it.h+6),6,VH-it.h-6);
+      const r={x:x-3,y:y-3,w:it.w+6,h:it.h+6}; let o=0; for(const p of placed) o+=ov(r,p); const sc=o*50+Math.abs(ox)*30+Math.abs(oy)*14+Math.abs(y-y0)*.05-(j===m.slot?40:0);
+      if(sc<bs){ bs=sc; best=r; bj=j; if(o===0&&j!==m.slot) break; } }
+    placed.push(best); it.tx=best.x+3; it.ty=best.y+3; m.slot=bj; } }
 function projectXY(v){ _v.copy(v).project(camera); return {x:(_v.x+1)/2*VW,y:(1-_v.y)/2*VH,z:_v.z}; }
 let labelAlpha=1; const _lv=new THREE.Vector3();
 function layoutLabels(dt,snap){ const show=mode==='city'&&!trans; const items=[];
   const cdx=Math.sin(cam.az), cdz=Math.cos(cam.az);
   SIGNS.forEach(d=>{ const near=d.b.h<25&&(Math.abs(cdz)>=Math.abs(cdx)?d.r===(cdz>0?NR-1:0):d.c===(cdx>0?NC-1:0)); d.below=near;
-    if(near){ const r=Math.max(d.b.w,d.b.d)/2+3.2; _lv.set(d.bx+cdx*r,TOP,d.bz-1.5+cdz*r); } const p=projectXY(near?_lv:d.anchor); const vis=show&&p.z<1&&p.x>-40&&p.x<VW+40&&p.y>-40&&p.y<VH+40; d.el.classList.toggle('off',!vis); d.vis=vis; if(vis) items.push({d,ax:p.x,ay:p.y,w:d.lab.w,h:d.lab.h,below:near}); });
+    if(near){ const r=Math.max(d.b.w,d.b.d)/2+3.2; _lv.set(d.bx+cdx*r,TOP,d.bz-1.5+cdz*r); } const p=projectXY(near?_lv:d.anchor); const vis=show&&p.z<1&&p.x>-40&&p.x<VW+40&&p.y>-40&&p.y<VH+40; d.el.classList.toggle('off',!vis); d.vis=vis; if(vis) items.push({d,m:d.lab,ax:p.x,ay:p.y,w:d.lab.w,h:d.lab.h,below:near}); });
   place(items,[hudRect,hintRect],10);
   const k=snap?1:Math.min(1,dt*9);
   SIGNS.forEach(d=>{ if(!d.vis){ d.ln.style.display=d.dot.style.display='none'; d.lab.init=false; return; } });
@@ -991,7 +992,7 @@ function layoutBubbles(dt,snap){ if(!active||mode!=='inside'){ return; } const I
   I.bubbles.forEach(b=>{ if(!b.measured){ b.w=b.el.offsetWidth; b.h=b.el.offsetHeight; b.measured=b.w>0; }
     const vis=show&&(b.anchor||b.ch.root.visible); b.el.classList.toggle('off',!vis); if(!vis){ b.lnV=false; return; }
     if(b.anchor) _hv.copy(b.anchor).applyMatrix4(I.g.matrixWorld); else { headPos(b.ch,_hv); if(b.off) _hv.add(b.off); }
-    const p=projectXY(_hv); items.push({b,ax:p.x,ay:p.y,w:b.w,h:b.h}); });
+    const p=projectXY(_hv); items.push({b,m:b,ax:p.x,ay:p.y,w:b.w,h:b.h}); });
   const r=$('inside').getBoundingClientRect(); place(items,[{x:0,y:0,w:VW,h:Math.min(r.height-14,90)}],14);
   const k=snap?1:Math.min(1,dt*7);
   I.bubbles.forEach(b=>{ if(b.ln) b.ln.style.display='none'; });

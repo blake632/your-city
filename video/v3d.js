@@ -6,7 +6,7 @@ let chromium; try { ({ chromium } = require('playwright')); } catch (e) { ({ chr
 const { spawn, execFileSync } = require('child_process'), fs = require('fs'), path = require('path'), os = require('os');
 // A Mac draws with its own graphics chip; a server with none draws in software (SwiftShader), about 10x slower.
 const GPU = process.platform === 'darwin', ARGS = GPU ? ['--use-angle=metal', '--ignore-gpu-blocklist'] : ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'];
-const FPS = 30, DUR = 79.5, N = Math.round(DUR * FPS), DIR = __dirname, OUTDIR = path.join(DIR, 'vout'), W = 405, H = 720, DPR = 2;
+const FPS = 30, DUR = 104, N = Math.round(DUR * FPS), DIR = __dirname, OUTDIR = path.join(DIR, 'vout'), W = 405, H = 720, DPR = 2;
 fs.mkdirSync(OUTDIR, { recursive: true }); fs.mkdirSync(path.join(DIR, 'shots'), { recursive: true });
 const FILES = { '/__v/fonts/': path.join(DIR, 'fonts'), '/__v/assets/': path.join(DIR, 'vassets') };
 
@@ -20,6 +20,7 @@ async function openCity(base) {
   await pg.goto(base + '/'); await pg.fill('#pw', 'pw'); await pg.click('button'); await pg.waitForTimeout(300);
   await pg.goto(base + '/city3d?video=1'); await pg.waitForFunction(() => window.__city && window.__city.step);
   await pg.addScriptTag({ path: path.join(DIR, 'vdirector.js') }); await pg.evaluate(() => window.__vready);
+  const vd = await pg.evaluate(() => window.__vdur); if (Math.abs(vd - DUR) > .5) console.log('NOTE: the director runs ' + vd.toFixed(1) + 's but DUR in v3d.js is ' + DUR);
   return { br, pg, errs };
 }
 async function worker(base, a, b, out) {

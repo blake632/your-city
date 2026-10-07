@@ -1,6 +1,6 @@
 # The marketing video
 
-A 79-second phone video (1080 x 1920) of the 3D city.
+A 104-second phone video (1080 x 1920) of the 3D city. It taps into each building to show how that department works.
 It uses Sam's Kitchens, a made-up business. The AI, Gmail and GitHub are stand-ins, so nothing real is shown.
 
 ## Make it on a Mac
