@@ -105,3 +105,13 @@ Tests run offline against a fake Gmail, a fake Anthropic and a fake OpenAI-style
 ```
 npm test
 ```
+
+## Help make it better
+
+Your City is free and open source. Fixes and ideas are welcome: see [CONTRIBUTING.md](CONTRIBUTING.md).
+
+Don't want to set it up yourself? A done-for-you setup is available: you get your whole city set up with you on a call.
+
+## License
+
+[AGPL-3.0](LICENSE). Use it and change it for free. If you share or sell a changed version, or run one for other people online, you share your code under the same license.

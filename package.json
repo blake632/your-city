@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "description": "Your own AI office: agents that sort your email, answer new leads and draft posts. Nothing sends without your click.",
+  "license": "AGPL-3.0-only",
   "type": "commonjs",
   "engines": {
     "node": ">=22"
