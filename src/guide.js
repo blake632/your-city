@@ -27,7 +27,14 @@ const FIXES = {
   budget: { title: 'Today\'s AI budget is used up', steps: c => ['Agents pause until tomorrow so you never spend more than you chose ($' + c.cap.toFixed(2) + ' a day).', 'To keep going today, raise Daily AI budget in Settings.'] },
   no_database: { title: 'Your city forgets everything on each restart', steps: () => ['Right now it saves to a file, and Railway wipes that file every time it redeploys.', 'In Railway, open your project and click Create (or + New), then Database, then PostgreSQL.', RAILWAY_VARS, 'Click New Variable. Name: DATABASE_URL. Value: ${{Postgres.DATABASE_URL}} (type it exactly, with the dollar sign and braces).', 'Railway restarts the city. Your settings start fresh once, then stay.'] },
   no_address: { title: 'Your city has no web address', steps: () => ['In Railway, click your app, then Settings.', 'Under Networking, click Generate Domain.', 'Open that address. That is your city.'] },
-  google_no_client: { title: 'Let your city read your Gmail (one time)', steps: c => [
+  gmail_connect: { title: 'Let your city read your Gmail (about 2 minutes)', steps: () => [
+    'Go to myaccount.google.com/apppasswords and sign in with the Gmail account the city should read. If Google asks, turn on 2-Step Verification first.',
+    'Type My City as the name and press Create.',
+    'Copy the 16-letter password Google shows. It works only for your city, and you can delete it there any time.',
+    'In your city, open Settings, then Gmail. Type your Gmail address, paste the password, and press Connect Gmail.',
+    'A work account where that page is missing? Use Advanced: your own Google app, under Connect Gmail.'] },
+  gmail_pw_wrong: { title: 'Google did not accept the app password', steps: () => ['Changing your Google password cancels every app password, so this happens after a password change.', 'Go to myaccount.google.com/apppasswords and make a new one (name it My City).', 'Open Settings, then Gmail, type your Gmail address, paste the new password, and press Connect Gmail.'] },
+  google_no_client: { title: 'Let your city read your Gmail with your own Google app (advanced)', steps: c => [
     'Your city runs on Railway. This only gives it permission to read and draft your email.',
     'Go to console.cloud.google.com and sign in with the Google account whose email the city should read.',
     'At the top, click the project picker, then New Project. Name it My City and click Create.',
@@ -72,7 +79,7 @@ function checks(city, { redirect }) {
   const mail = !!(city.byKind('leads') || city.byKind('mailroom'));
   if (mail) {
     const gErr = Object.values(errs).find(e => /^(google|gmail)_/.test(e.code));
-    if (!city.google.configured()) add('google', false, '', 'google_no_client');
+    if (!city.google.configured()) add('google', false, '', 'gmail_connect');
     else if (!city.google.connected()) add('google', false, '', 'google_not_connected');
     else add('google', !gErr, 'Gmail is connected (' + city.google.email() + ')', gErr ? gErr.code : 'google_error', gErr ? { detail: gErr.detail } : {});
   }

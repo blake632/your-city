@@ -140,7 +140,9 @@ test('the Guide checklist and Ask the guide work even before anything is set up'
   const list = guide.checks(city, { redirect });
   assert.deepStrictEqual(list.map(c => [c.id, c.ok]), [['business', false], ['ai', false], ['db', true], ['departments', true], ['google', false], ['budget', true]]);
   const g = list.find(c => c.id === 'google');
-  assert(g.fix.steps.some(s => s === 'Under Authorized redirect URIs, click Add URI and paste exactly: ' + redirect), 'the exact address to paste');
+  assert.strictEqual(g.fix.code, 'gmail_connect', 'the easy way first: an app password');
+  assert(g.fix.steps.some(s => /myaccount\.google\.com\/apppasswords/.test(s)), 'where to make the app password');
+  assert(guide.fixFor('google_no_client', { redirect }).steps.some(s => s === 'Under Authorized redirect URIs, click Add URI and paste exactly: ' + redirect), 'the advanced way still has the exact address to paste');
   const a = await guide.ask(city, 'How do I start?', { redirect });
   assert.strictEqual(a.by, 'checklist');
   assert(/Tell the city about your business:\n1\. Open Settings\.[\s\S]*Choose your AI and add its key:\n1\. Easiest: open Settings, then Your AI, and press Connect with OpenRouter\./.test(a.answer), a.answer);

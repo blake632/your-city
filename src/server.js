@@ -120,6 +120,8 @@ function createServer({ city, password = () => process.env.CITY_PASSWORD, public
       if (p === '/api/run' && req.method === 'POST') { const b = await body(req); return json(res, 200, { ok: true, said: await city.runAgent(String(b.agent || '')) }); }
       if (p === '/api/ask' && req.method === 'POST') { const b = await body(req); return json(res, 200, await guide.ask(city, b.question, { redirect: city.redirect })); }
       if (p === '/api/google/disconnect' && req.method === 'POST') { city.google.disconnect(); return json(res, 200, { ok: true }); }
+      // The easy way: Gmail address + app password, checked with Gmail itself before it is kept. The password never comes back to the page.
+      if (p === '/api/gmail/password' && req.method === 'POST') { const b = await body(req); const email = await city.google.connectPassword(b.email, b.password); city.departments().forEach(d => city.clearProblem(d.id)); city.clearProblem('guide'); return json(res, 200, { ok: true, email }); }
       if (p === '/api/google/client' && req.method === 'POST') { const b = await body(req); return json(res, 200, Object.assign({ ok: true }, city.google.saveClient(b))); }
       // Your AI: save the service, key, address and main model, then check the key by listing its models (no cost).
       if (p === '/api/ai' && req.method === 'POST') {
@@ -194,7 +196,7 @@ function cityData(city) {
 function state(city, redirect) {
   const s = city.settings();
   return { settings: s, firstRun: !s.business || !city.departments().length, agents: city.agents(), picks: PICKS, cards: city.waiting(), updates: city.updates().slice(0, 150), checks: guide.checks(city, { redirect }),
-    google: { configured: city.google.configured(), connected: city.google.connected(), email: city.google.email() }, redirect,
+    google: { configured: city.google.configured(), connected: city.google.connected(), email: city.google.email(), mode: city.google.mode() }, redirect,
     spend: { today: Math.round(city.ai.spentToday() * 100) / 100, cap: city.ai.cap() }, store: city.store.kind(), alerts: s.alerts,
     ai: aiState(city), googleClient: { id: (city.store.get('googleClient') || {}).id || '', secretSet: !!(city.store.get('googleClient') || {}).secret, fromVariable: !!process.env.GOOGLE_CLIENT_ID },
     models: aiState(city).models, every: EVERY, ranks: city.ranks(), tip: city.store.get('tip', null), school: city.school ? city.school.state().students.slice().reverse().map(st => ({ id: st.id, ref: st.ref, type: st.type, by: st.by, note: st.note, step: st.step, dept: st.dept, scores: st.scores, passed: st.passed, why: st.why, at: st.at })) : [], jev: { mode: city.jev.mode(), keySet: !!city.jev.key(), keyFrom: city.jev.keyFrom(), problem: city.jev.problem() } };

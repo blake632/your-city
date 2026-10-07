@@ -208,7 +208,7 @@ class City {
     const text = await this.ai.ask({ model: this.agentConf(c.agent).model, effort: 'medium', maxTokens: 8000,
       system: this.voice(s) + ' Rewrite the draft the way the owner asks. Keep everything they did not ask to change. Return only the new text.',
       prompt: 'THE DRAFT:\n' + current + '\n\nWHAT THE OWNER WANTS CHANGED:\n' + note });
-    if (c.email && c.email.draftId) { await this.google.updateDraft(c.email.draftId, Object.assign({}, c.email, { body: text })); c.email.body = text; }
+    if (c.email && c.email.draftId) { const u = await this.google.updateDraft(c.email.draftId, Object.assign({}, c.email, { body: text })); c.email.body = text; if (u && u.draftId) c.email.draftId = u.draftId; }   // over IMAP a changed draft gets a new id
     else c.body = text;
     c.notes = (c.notes || []).concat([{ ts: this.now(), note }]); this.store.put('cards', c.id, c);
     this.update(c.agent, 'Rewrote "' + c.title + '" from your note.');

@@ -50,7 +50,7 @@ h1{font:400 2rem/1.1 var(--serif);margin:4px 0 6px}h2{font:600 13px/1.4 var(--sa
 .chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
 .chip{border:1px solid var(--line2);background:none;border-radius:999px;padding:8px 14px;font-size:14px;cursor:pointer;text-decoration:none;color:var(--ink)}
 .chip.strong{font-weight:600;background:var(--card)}
-.fb{margin-top:12px}textarea,input[type=text],input[type=number],select{width:100%;border:1px solid var(--line2);border-radius:12px;background:var(--card);padding:12px;font-size:16px}
+.fb{margin-top:12px}textarea,input[type=text],input[type=number],input[type=email],input[type=password],select{width:100%;border:1px solid var(--line2);border-radius:12px;background:var(--card);padding:12px;font-size:16px}
 label.f{display:block;margin:14px 0 6px;font-weight:600;font-size:15px}label.f small{display:block;font-weight:400;color:var(--dim)}
 .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.row>*{flex:1 1 220px}
 .box{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:4px 16px;box-shadow:var(--shadow)}
@@ -590,18 +590,31 @@ label.ck{display:flex;gap:10px;align-items:flex-start;margin:14px 0 6px;font-wei
   };
   // ---- Settings ----
   var FIELDS = ['business', 'owner', 'about', 'voice', 'signature', 'dailyCap'], filled = false;
+  var gAdvanced = false;   // Settings, Gmail: the advanced way (your own Google app) shows only when asked for
   function renderSettings() {
     if (!filled) { FIELDS.forEach(function (k) { if ($('s-' + k)) $('s-' + k).value = S.settings[k] == null ? '' : S.settings[k]; }); $('s-alerts').value = S.settings.alerts || 'all'; filled = true; }
     $('spent').textContent = 'Spent today: $' + S.spend.today.toFixed(2) + ' of $' + S.spend.cap.toFixed(2) + '. Agents pause at the limit until tomorrow.';
     var said = new URLSearchParams(location.search).get('said'); $('said').hidden = !said; $('said').textContent = said || '';
     renderAI(); renderJev();
-    $('gclient').hidden = S.google.connected; $('g-id').value = $('g-id').value || S.googleClient.id || ''; $('g-secret').placeholder = S.googleClient.secretSet ? 'Saved. Paste a new one to replace it.' : 'Paste the secret';
+    $('gclient').hidden = S.google.connected || !gAdvanced; $('g-id').value = $('g-id').value || S.googleClient.id || ''; $('g-secret').placeholder = S.googleClient.secretSet ? 'Saved. Paste a new one to replace it.' : 'Paste the secret';
     $('pwBox').hidden = S.passwordFrom === 'variable';
     var g = $('gmail'); g.innerHTML = '';
-    if (S.google.connected) g.appendChild(el('div', {}, [el('p', { style: 'margin:0 0 8px', text: '✓ Connected to ' + (S.google.email || 'your Gmail') + '. The city reads, labels and drafts. It sends only when you press Send.' }),
-      el('div', { cls: 'chips' }, [el('a', { cls: 'chip', href: '/connect/google', text: 'Connect again' }), el('button', { cls: 'chip', text: 'Disconnect', onclick: function () { if (confirm('Disconnect Gmail? Departments that read Gmail stop until you connect again.')) api('/api/google/disconnect', {}).then(load); } })])]));
-    else if (S.google.configured) g.appendChild(el('div', {}, [el('p', { style: 'margin:0 0 8px', text: 'Ready to connect. Google will ask you to allow Gmail access.' }), el('a', { cls: 'btn yes sm', href: '/connect/google', style: 'display:inline-block;text-decoration:none', text: 'Connect Google' })]));
-    else g.appendChild(el('div', {}, [el('p', { style: 'margin:0', text: 'Only needed for departments that read your email (Leads, Mail room). Your city runs on Railway: Google only gives it permission to read and draft your email. First, a one-time step in Google: the Guide has every click. Then paste the two values below.' })]));
+    if (S.google.connected) g.appendChild(el('div', {}, [el('p', { style: 'margin:0 0 8px', text: '✓ Connected to ' + (S.google.email || 'your Gmail') + (S.google.mode === 'password' ? ' with an app password' : '') + '. The city reads, labels and drafts. It sends only when you press Send.' }),
+      el('div', { cls: 'chips' }, [S.google.mode === 'oauth' ? el('a', { cls: 'chip', href: '/connect/google', text: 'Connect again' }) : null, el('button', { cls: 'chip', text: 'Disconnect', onclick: function () { if (confirm('Disconnect Gmail? Departments that read Gmail stop until you connect again.')) api('/api/google/disconnect', {}).then(load); } })])]));
+    else {
+      // The easy way first: a Google app password. The advanced way (your own Google app) sits behind a button.
+      g.appendChild(el('div', {}, [el('b', { text: 'Easiest: an app password (about 2 minutes)' }),
+        el('p', { cls: 'muted', style: 'margin:6px 0 0;font-size:14px', text: 'Only needed for departments that read your email (Leads, Mail room). The city reads, labels and drafts. It sends only when you press Send.' }),
+        stepList(['Open myaccount.google.com/apppasswords and sign in with the Gmail the city should read. If Google asks, turn on 2-Step Verification first.', 'Type My City and press Create.', 'Copy the 16-letter password, then fill in the two boxes below.'], 'margin:10px 0'),
+        el('label', { cls: 'f' }, ['Your Gmail address', el('input', { type: 'email', id: 'gp-email', autocomplete: 'off', placeholder: 'you@gmail.com' })]),
+        el('label', { cls: 'f' }, ['The app password', el('small', { text: '16 letters. Spaces are fine.' }), el('input', { type: 'password', id: 'gp-pass', autocomplete: 'off', placeholder: 'abcd efgh ijkl mnop' })]),
+        el('div', { cls: 'chips' }, [el('button', { cls: 'btn yes sm', id: 'gpGo', text: 'Connect Gmail', onclick: function (e) { var b = e.target; b.disabled = true; b.textContent = 'Checking with Gmail…';
+          api('/api/gmail/password', { email: $('gp-email').value, password: $('gp-pass').value }).then(function (r) { toast('Gmail is connected (' + r.email + ').'); load(); })
+            .catch(function (err) { toast(err.message); b.disabled = false; b.textContent = 'Connect Gmail'; }); } })]),
+        el('p', { cls: 'muted', style: 'margin:14px 0 6px;font-size:14px', text: 'A work account where that page is missing? Use your own Google app instead.' }),
+        S.google.configured ? el('a', { cls: 'btn yes sm', href: '/connect/google', style: 'display:inline-block;text-decoration:none', text: 'Connect Google (advanced)' })
+          : el('button', { cls: 'chip', text: gAdvanced ? 'Hide the advanced way' : 'Advanced: your own Google app', onclick: function () { gAdvanced = !gAdvanced; renderSettings(); } })]));
+    }
     renderAlerts();
   }
   // ---- Your AI: the service, its key, its address and the main model ----

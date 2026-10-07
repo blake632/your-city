@@ -41,7 +41,7 @@ Everything else happens inside your city:
 5. **Settings → Your AI**: press **Connect with OpenRouter**. Sign in there and add $5 to $10 of credit. (Or pick another AI and paste its key.)
 6. **Settings → Your business**: tell the city about your business.
 7. **City → + Build a department**: name it and say what it does. Build up to 10.
-8. Only if a department reads email (Leads, Mail room): **Settings → Gmail**. The Guide walks you through it.
+8. Only if a department reads email (Leads, Mail room): **Settings → Gmail**. Make a Google app password (2 minutes, no Google Cloud) and paste it. The Guide walks you through it.
 
 Railway costs about $5 a month (the Hobby plan; new accounts start with a free trial). Your AI bills you for what your agents use, with a daily limit you set.
 
@@ -82,7 +82,7 @@ src/school.js   the School: new tools try out before they join a department
 src/research.js the Research desk: finds new tools on GitHub every week
 src/guide.js    the setup checklist and every fix, in plain words
 src/ai.js       any AI: Claude, or any OpenAI-style service; models, daily budget, errors
-src/google.js   Google sign-in and Gmail
+src/google.js   Gmail: Google sign-in, or the app password in src/apppass.js (IMAP and SMTP)
 src/server.js   sign-in, the API, the Connect Google flow
 src/push.js     phone alerts (web push, no package)
 src/store.js    Postgres, or data/city.json without a database

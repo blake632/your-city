@@ -1,4 +1,5 @@
-// Your Gmail, through Google's own sign-in. Your city runs on Railway; Google only gives it permission to read and draft your email.
+// Your Gmail. The easy way is an app password (src/apppass.js): when one is saved, every Gmail call below goes through it.
+// The advanced way, for accounts that cannot make app passwords, is Google's own sign-in. Your city runs on Railway; Google only gives it permission to read and draft your email.
 // You make a Google "OAuth client" once (SETUP.md, step 3; the Guide walks you through it), paste its ID and secret in Settings
 // (or set the GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET variables), then press Connect Google in the app.
 // Google gives the city a long-lived pass (a refresh token), kept in your city's database and never shown.
@@ -8,19 +9,23 @@ const SCOPES = ['openid', 'email', 'https://www.googleapis.com/auth/gmail.modify
 
 class Google {
   constructor({ store, clientId = () => (store.get('googleClient') || {}).id || process.env.GOOGLE_CLIENT_ID || '', clientSecret = () => (store.get('googleClient') || {}).secret || process.env.GOOGLE_CLIENT_SECRET || '', api = 'https://gmail.googleapis.com',
-    tokenUrl = 'https://oauth2.googleapis.com/token', authBase = 'https://accounts.google.com/o/oauth2/v2/auth', userinfoUrl = 'https://openidconnect.googleapis.com/v1/userinfo', now = () => Date.now() } = {}) {
+    tokenUrl = 'https://oauth2.googleapis.com/token', authBase = 'https://accounts.google.com/o/oauth2/v2/auth', userinfoUrl = 'https://openidconnect.googleapis.com/v1/userinfo', now = () => Date.now(), appPassword = {} } = {}) {
     Object.assign(this, { store, clientId, clientSecret, api, tokenUrl, authBase, userinfoUrl, now });
     this.access = null; this.labels = null;
+    this.app = new (require('./apppass').AppPassword)(Object.assign({ store }, appPassword));
   }
-  configured() { return !!((this.clientId() || '').trim() && (this.clientSecret() || '').trim()); }
+  // 'password' (the easy way), 'oauth' (Google sign-in) or '' (not connected yet)
+  mode() { return this.app.on() ? 'password' : this.store.get('google') && this.store.get('google').refresh ? 'oauth' : ''; }
+  connectPassword(email, password) { this.access = null; return this.app.connect(email, password); }
+  configured() { return this.app.on() || !!((this.clientId() || '').trim() && (this.clientSecret() || '').trim()); }
   // The Client ID and secret pasted in Settings. A blank secret keeps the saved one.
   saveClient({ id, secret }) {
     const c = this.store.get('googleClient') || {}, next = { id: String(id != null ? id : c.id || '').trim(), secret: String(secret || '').trim() || c.secret || '' };
     if (next.id && !/\.apps\.googleusercontent\.com$/.test(next.id)) throw new CityError('google_client', 'That does not look like a Google Client ID. It ends in .apps.googleusercontent.com.');
     this.store.set('googleClient', next); this.access = null; return { id: next.id, secretSet: !!next.secret };
   }
-  connected() { return !!(this.store.get('google') || {}).refresh; }
-  email() { return (this.store.get('google') || {}).email || ''; }
+  connected() { return this.app.on() || !!(this.store.get('google') || {}).refresh; }
+  email() { return this.app.on() ? this.app.email() : (this.store.get('google') || {}).email || ''; }
   authUrl(redirect, state) {
     return this.authBase + '?' + new URLSearchParams({ client_id: this.clientId().trim(), redirect_uri: redirect, response_type: 'code', scope: SCOPES.join(' '), access_type: 'offline', prompt: 'consent', include_granted_scopes: 'true', state });
   }
@@ -43,7 +48,7 @@ class Google {
     this.labels = null;
     return email;
   }
-  disconnect() { this.store.del('google'); this.access = null; this.labels = null; }
+  disconnect() { this.store.del('google'); this.app.disconnect(); this.access = null; this.labels = null; }
   async token() {
     if (this.access && this.access.until > this.now()) return this.access.token;
     const g = this.store.get('google') || {};
@@ -76,8 +81,8 @@ class Google {
     }
   }
   // ---- Gmail ----
-  async search(q, max = 10) { const r = await this.call('GET', '/gmail/v1/users/me/messages?' + new URLSearchParams({ q, maxResults: String(max) })); return (r && r.messages) || []; }
-  async message(id) { const m = await this.call('GET', '/gmail/v1/users/me/messages/' + encodeURIComponent(id) + '?format=full'); return m ? readMessage(m) : null; }
+  async search(q, max = 10) { if (this.app.on()) return this.app.search(q, max); const r = await this.call('GET', '/gmail/v1/users/me/messages?' + new URLSearchParams({ q, maxResults: String(max) })); return (r && r.messages) || []; }
+  async message(id) { if (this.app.on()) return this.app.message(id); const m = await this.call('GET', '/gmail/v1/users/me/messages/' + encodeURIComponent(id) + '?format=full'); return m ? readMessage(m) : null; }
   async labelId(name) {
     if (!this.labels) { const r = await this.call('GET', '/gmail/v1/users/me/labels'); this.labels = new Map(((r && r.labels) || []).map(l => [l.name, l.id])); }
     if (!this.labels.has(name)) {
@@ -86,10 +91,11 @@ class Google {
     }
     return this.labels.get(name);
   }
-  async label(id, names) { const ids = []; for (const n of names) ids.push(await this.labelId(n)); return this.call('POST', '/gmail/v1/users/me/messages/' + encodeURIComponent(id) + '/modify', { addLabelIds: ids }); }
-  async createDraft(m) { const d = await this.call('POST', '/gmail/v1/users/me/drafts', { message: draftMessage(m) }); return { draftId: d.id, threadId: (d.message && d.message.threadId) || m.threadId || '' }; }
-  async updateDraft(draftId, m) { await this.call('PUT', '/gmail/v1/users/me/drafts/' + encodeURIComponent(draftId), { id: draftId, message: draftMessage(m) }); }
+  async label(id, names) { if (this.app.on()) return this.app.label(id, names); const ids = []; for (const n of names) ids.push(await this.labelId(n)); return this.call('POST', '/gmail/v1/users/me/messages/' + encodeURIComponent(id) + '/modify', { addLabelIds: ids }); }
+  async createDraft(m) { if (this.app.on()) return this.app.createDraft(m); const d = await this.call('POST', '/gmail/v1/users/me/drafts', { message: draftMessage(m) }); return { draftId: d.id, threadId: (d.message && d.message.threadId) || m.threadId || '' }; }
+  async updateDraft(draftId, m) { if (this.app.on()) return this.app.updateDraft(draftId, m); await this.call('PUT', '/gmail/v1/users/me/drafts/' + encodeURIComponent(draftId), { id: draftId, message: draftMessage(m) }); }
   async sendDraft(draftId) {
+    if (this.app.on()) return this.app.sendDraft(draftId);
     const r = await this.call('POST', '/gmail/v1/users/me/drafts/send', { id: draftId });
     if (!r) throw new CityError('draft_gone', 'That draft is no longer in Gmail (it was sent or deleted there).');
     return r;
@@ -104,10 +110,14 @@ function readMessage(m) {
     if (p.body && p.body.data) { const t = Buffer.from(p.body.data, 'base64url').toString('utf8'); if (/^text\/plain/i.test(p.mimeType || '')) plain += t; else if (/^text\/html/i.test(p.mimeType || '')) html += t; }
     (p.parts || []).forEach(walk);
   })(m.payload);
-  const text = (plain || html.replace(/<(style|script)[\s\S]*?<\/\1>/gi, ' ').replace(/<br\s*\/?>|<\/(p|div|tr|li|h\d)>/gi, '\n').replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&#39;|&apos;/g, "'").replace(/&quot;/g, '"'))
-    .replace(/\r/g, '').replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
+  const text = toText(plain, html);
   return { id: m.id, threadId: m.threadId, labels: m.labelIds || [], snippet: m.snippet || '', from: h.from || '', to: h.to || '', replyTo: h['reply-to'] || '', subject: h.subject || '', date: h.date || '',
     messageId: h['message-id'] || '', references: h.references || '', text: text.slice(0, 12000) };
+}
+// The readable text of an email: the plain version, or the HTML one stripped when there is no plain one.
+function toText(plain, html) {
+  return (plain || String(html || '').replace(/<(style|script)[\s\S]*?<\/\1>/gi, ' ').replace(/<br\s*\/?>|<\/(p|div|tr|li|h\d)>/gi, '\n').replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&#39;|&apos;/g, "'").replace(/&quot;/g, '"'))
+    .replace(/\r/g, '').replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim().slice(0, 12000);
 }
 // A plain text email as Gmail's raw format. A reply carries the thread and the headers that keep it in the conversation.
 function draftMessage({ to, cc, subject, body, threadId, inReplyTo, references }) {
@@ -121,4 +131,4 @@ function draftMessage({ to, cc, subject, body, threadId, inReplyTo, references }
 }
 const addressOf = s => ((/<([^>]+)>/.exec(s || '') || [])[1] || String(s || '').trim()).toLowerCase();
 const nameOf = s => String(s || '').replace(/<[^>]*>/, '').replace(/"/g, '').trim();
-module.exports = { Google, SCOPES, readMessage, draftMessage, addressOf, nameOf };
+module.exports = { Google, SCOPES, readMessage, draftMessage, toText, addressOf, nameOf };
