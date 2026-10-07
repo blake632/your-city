@@ -116,34 +116,34 @@
   @font-face{font-family:IS;src:url(/__v/fonts/is-regular.woff2) format('woff2');font-style:normal}
   @font-face{font-family:IS;src:url(/__v/fonts/is-italic.woff2) format('woff2');font-style:italic}
   #hud,#hint,#marks,#qbubs{display:none!important}
-  #inside{background:linear-gradient(180deg,rgba(5,7,13,.96) 60%,rgba(5,7,13,0))!important}#inSub{color:rgba(240,236,228,.9)!important}
+  #inside{top:84px!important;background:linear-gradient(180deg,rgba(5,7,13,0),rgba(5,7,13,.92) 18%,rgba(5,7,13,.92) 70%,rgba(5,7,13,0))!important}#inSub{color:rgba(240,236,228,.9)!important}
   #vo{position:absolute;inset:0;z-index:20;pointer-events:none;font-family:Inter,system-ui,sans-serif}
-  .vcap{position:absolute;left:0;right:0;top:0;padding:26px 22px 90px;background:linear-gradient(rgba(4,6,12,.9),rgba(4,6,12,.6) 55%,rgba(4,6,12,0));opacity:0}
+  .vcap{position:absolute;left:0;right:0;top:92px;padding:22px 40px 34px 22px;background:linear-gradient(rgba(4,6,12,0),rgba(4,6,12,.72) 22%,rgba(4,6,12,.72) 72%,rgba(4,6,12,0));opacity:0}   /* below the apps' top bar */
   .vcap h1{margin:0;font:400 35px/1.06 IS,Georgia,serif;color:#fbf7ef;letter-spacing:-.2px;text-shadow:0 2px 18px rgba(0,0,0,.6)}.vcap h1 em{color:#f0cf86}
   .vcap p{margin:11px 0 0;font:600 14.5px/1.35 Inter,sans-serif;color:rgba(240,236,228,.88)}.vcap small{display:block;margin-top:8px;font:500 10.5px/1.3 Inter,sans-serif;color:rgba(240,236,228,.62)}
-  .card{position:absolute;left:16px;right:16px;bottom:22px;padding:16px 16px 8px;border-radius:20px;background:rgba(10,12,22,.94);border:1px solid rgba(240,207,134,.4);box-shadow:0 16px 40px rgba(0,0,0,.6);opacity:0}
+  .card{position:absolute;left:16px;right:64px;bottom:162px;padding:16px 16px 8px;border-radius:20px;background:rgba(10,12,22,.94);border:1px solid rgba(240,207,134,.4);box-shadow:0 16px 40px rgba(0,0,0,.6);opacity:0}
   .card>b{display:block;font:700 10.5px Inter,sans-serif;letter-spacing:.16em;text-transform:uppercase;color:#f0cf86;margin-bottom:10px}
   .step{display:flex;gap:11px;align-items:flex-start;margin-bottom:10px;opacity:0}.step i{flex:none;width:22px;height:22px;border-radius:50%;background:#f0cf86;color:#0b0d14;font:700 12px/22px Inter,sans-serif;font-style:normal;text-align:center}
   .step span{font:600 15px/1.35 Inter,sans-serif;color:#fbf7ef}
-  .grade{position:absolute;left:50%;bottom:70px;margin-left:-125px;width:250px;padding:14px 0 16px;border-radius:22px;background:rgba(9,12,21,.94);border:1px solid #f0cf86;text-align:center;color:#fbf7ef;box-shadow:0 0 50px -8px #f0cf86;opacity:0}
+  .grade{position:absolute;left:50%;bottom:200px;margin-left:-125px;width:250px;padding:14px 0 16px;border-radius:22px;background:rgba(9,12,21,.94);border:1px solid #f0cf86;text-align:center;color:#fbf7ef;box-shadow:0 0 50px -8px #f0cf86;opacity:0}
   .grade small{display:block;font:700 10px Inter,sans-serif;letter-spacing:.16em;text-transform:uppercase;color:#f0cf86}.grade b{display:block;margin:6px 0 4px;font:400 58px/1 IS,Georgia,serif;color:#fbf7ef}.grade span{font:600 13.5px Inter,sans-serif;color:rgba(240,236,228,.88)}
   .prop .txt{font:500 15px/1.4 Inter,sans-serif;color:#fbf7ef;margin-bottom:14px}
   .vbtn{display:flex;gap:10px;margin-bottom:8px}.vbtn i{flex:1;padding:13px 0;border-radius:14px;text-align:center;font:700 15px Inter,sans-serif;font-style:normal;background:#fbf7ef;color:#1a1813}.vbtn i:first-child{background:#f0cf86;color:#0b0d14}
-  .ask{position:absolute;left:16px;right:16px;bottom:24px;opacity:0}
+  .ask{position:absolute;left:16px;right:64px;bottom:162px;opacity:0}
   .ask .reply{margin:0 30px 12px 0;padding:11px 15px 12px;border-radius:18px 18px 18px 5px;background:rgba(251,247,239,.97);color:#1a1813;font:500 14.5px/1.35 Inter,sans-serif;opacity:0}
   .ask .reply b{display:block;font:700 9.5px/1.2 Inter,sans-serif;letter-spacing:.1em;text-transform:uppercase;color:#7a6330;margin-bottom:4px}
   .ask .field{display:flex;align-items:center;gap:10px;padding:8px 8px 8px 18px;border-radius:999px;background:rgba(10,12,22,.94);border:1px solid rgba(240,207,134,.5)}
   .ask .field span{flex:1;font:500 16px Inter,sans-serif;color:#fbf7ef;white-space:nowrap;overflow:hidden}.ask .field span.ph{color:rgba(240,236,228,.45)}
   .ask .field i{flex:none;width:38px;height:38px;border-radius:50%;background:#f0cf86;color:#0b0d14;font:700 19px/38px Inter,sans-serif;font-style:normal;text-align:center}
   .tap{position:absolute;left:0;top:0;width:50px;height:50px;margin:-25px 0 0 -25px;border-radius:50%;border:3px solid #fff;box-shadow:0 0 20px #fff;opacity:0}
-  .vchips{position:absolute;left:24px;right:24px;bottom:110px;padding:18px 16px 10px;border-radius:20px;background:rgba(10,12,22,.92);border:1px solid rgba(240,207,134,.35);opacity:0}
+  .vchips{position:absolute;left:16px;right:64px;bottom:200px;padding:18px 16px 10px;border-radius:20px;background:rgba(10,12,22,.92);border:1px solid rgba(240,207,134,.35);opacity:0}
   .vchips b{display:block;font:700 10.5px Inter,sans-serif;letter-spacing:.16em;text-transform:uppercase;color:#f0cf86;margin-bottom:12px}
   .vchips span{display:inline-block;margin:0 8px 9px 0;padding:8px 14px;border-radius:999px;border:1px solid rgba(255,255,255,.22);color:#fbf7ef;font:600 15px Inter,sans-serif;opacity:0}
   .vend{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:0 26px;background:radial-gradient(420px 380px at 50% 46%,rgba(4,6,12,.55),rgba(4,6,12,.9));opacity:0}
   .vend h1{margin:0;font:400 54px/1 IS,Georgia,serif;color:#fbf7ef}.vend h1 em{color:#f0cf86}
   .vend h2{margin:22px 0 0;font:italic 400 33px/1.1 IS,Georgia,serif;color:#f0cf86}
   .vend .pill{margin-top:30px;padding:13px 22px;border-radius:999px;background:#f0cf86;color:#0b0d14;font:700 14px Inter,sans-serif;white-space:nowrap}
-  .vend small{position:absolute;bottom:26px;left:0;right:0;font:500 10.5px Inter,sans-serif;color:rgba(240,236,228,.6)}
+  .vend small{position:absolute;bottom:168px;left:24px;right:64px;font:500 10.5px Inter,sans-serif;color:rgba(240,236,228,.6)}
   .dip{position:absolute;inset:0;background:#05070d;opacity:0}
   .arcs{position:absolute;inset:0;width:100%;height:100%;z-index:-1;overflow:visible;filter:drop-shadow(0 0 4px rgba(255,255,255,.6))}.arcs path{fill:none;stroke-linecap:round}
   .wash{position:absolute;inset:0;z-index:-1;mix-blend-mode:screen;opacity:0}
@@ -175,7 +175,7 @@
   if (W.model) W.model.seq.forEach(([t0, n]) => { if (t0) TAPS.push([t0 - .15, () => { const r = [...model.querySelectorAll('.chips i')].find(x => x.textContent === n).getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; }]); });
   const taps = TAPS.map(([a, at]) => ({ a, at, e: el('tap', '') }));
   const chips = el('vchips', '<b>Your AI, your pick</b>' + ['Claude', 'ChatGPT', 'Gemini', 'OpenRouter', 'Groq', 'Mistral', 'Ollama'].map(x => '<span>' + x + '</span>').join(''));
-  const end = el('vend', '<h1>Your <em>City</em></h1><h2>All you\'ll ever need.</h2><p style="margin:16px 0 0;font:600 14px Inter,sans-serif;color:rgba(240,236,228,.85)">Over 1,000 agents. One goal: make your life easier.</p><div class="pill">Free to test · DM me</div><small>Sample business shown. 1,000+ agents: 10 departments, each judged by 104 simulated AI judges.</small>');
+  const end = el('vend', '<h1>Your <em>City</em></h1><h2>All you\'ll ever need.</h2><p style="margin:16px 0 0;font:600 14px Inter,sans-serif;color:rgba(240,236,228,.85)">Over 1,000 agents. One goal: make your life easier.</p><div class="pill">Message me to get started</div><small>Sample business shown. 1,000+ agents: 10 departments, each judged by 104 simulated AI judges.</small>');
   const dip = el('dip', '');
   const fade = (t, a, b, i, o) => Math.min(cl((t - a) / (i || .45)), cl((b - t) / (o || .4)));
   const rise = (e, t, a, px) => { e.style.transform = 'translateY(' + ((1 - ease(cl((t - a) / .5))) * px) + 'px)'; };
@@ -201,10 +201,10 @@
     pool.forEach((s, i) => { if (i >= n) s.g.style.display = 'none'; });
     const placed = [];
     msgs.forEach(m => { const f = city ? fade(t, m.t, m.t + 2.3, .3, .3) : 0; m.e.style.opacity = f; if (f <= 0) return; const q = C.projectXY(end3(m.at)), w = m.e.offsetWidth, h = m.e.offsetHeight;
-      const x = Math.max(10, Math.min(395 - w, q.x - w / 2)); let y = Math.max(150, Math.min(560 - h, q.y - h - 14)); for (const r of placed) if (x < r.x + r.w && r.x < x + w && y < r.y + r.h && r.y < y + h) y = r.y + r.h + 8; placed.push({ x, y, w, h });
+      const x = Math.max(10, Math.min(345 - w, q.x - w / 2)); let y = Math.max(250, Math.min(540 - h, q.y - h - 14)); for (const r of placed) if (x < r.x + r.w && r.x < x + w && y < r.y + r.h && r.y < y + h) y = r.y + r.h + 8; placed.push({ x, y, w, h });
       m.e.style.transform = 'translate3d(' + x.toFixed(1) + 'px,' + (y + (1 - ease(cl((t - m.t) / .4))) * 8).toFixed(1) + 'px,0)'; });
     talk.forEach((s, i) => { const f = fade(t, s.a, s.b, .3, .3); s.e.style.opacity = f; if (f <= 0) return; const q = C.projectXY(C.headPos(C.cityChars[s.who], new V3())), w = s.e.offsetWidth, h = s.e.offsetHeight;
-      const x = Math.max(10, Math.min(395 - w, i ? q.x - 24 : q.x - w + 24)); let y = Math.max(150, q.y - h - 16 - (i ? 0 : 34));   // the first bubble up and left, the reply right
+      const x = Math.max(10, Math.min(345 - w, i ? q.x - 24 : q.x - w + 24)); let y = Math.max(250, q.y - h - 16 - (i ? 0 : 34));   // the first bubble up and left, the reply right
       for (const r of placed) if (x < r.x + r.w && r.x < x + w && y < r.y + r.h && r.y < y + h) y = r.y + r.h + 8; placed.push({ x, y, w, h });
       s.e.style.transform = 'translate3d(' + x.toFixed(1) + 'px,' + y.toFixed(1) + 'px,0) scale(' + (.88 + .12 * ease(cl((t - s.a) / .35))) + ')'; });
     if (model) { const mf = fade(t, W.model.win[0], W.model.win[1]), cur = W.model.seq.filter(x => t >= x[0]).pop(); model.style.opacity = mf; rise(model, t, W.model.win[0], 30);
