@@ -95,6 +95,7 @@ function createServer({ city, password = () => process.env.CITY_PASSWORD, public
         if (fresh) city.update(d.id, 'The ' + d.name + ' department is open. It works ' + EVERY[d.every] + '.');
         return json(res, 200, { ok: true, department: d });
       }
+      if (p === '/api/autopilot' && req.method === 'POST') { const b = await body(req); city.setAutopilot(String(b.id || ''), !!b.on); return json(res, 200, { ok: true }); }
       if (p === '/api/department' && req.method === 'DELETE') { const b = await body(req); city.removeDepartment(String(b.id || '')); return json(res, 200, { ok: true }); }
       // The School: enroll a tool by its GitHub link; the Research desk: look for new tools now.
       if (p === '/api/school' && req.method === 'POST') { if (!city.school) throw new Error('The School is not open in this city.'); const b = await body(req); return json(res, 200, { ok: true, student: city.school.enroll(b.ref, { note: b.note }) }); }

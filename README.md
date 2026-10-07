@@ -8,9 +8,10 @@ Your own AI office, as a 3D city at night: each department a lit building, its p
 - **Jev, the fast judge, checks everything.** Is this email from a real person? Is this lead a customer or a vendor? How hard should the AI think? Is the work finished? Should this idea ship? Jev answers each one, and runs the Crowd's 96 votes. Add a Vercel AI Gateway key for the real Jev, or your own AI plays Jev.
 - **A Research desk and a School.** Every week the Research desk looks on GitHub for open-source playbooks and tools that could help your departments. Each one goes to the School first: orientation (is it real, kept up and safe?), three practice jobs graded by the department's head, then a grade. Only a playbook that passes joins a department. Nothing installs itself.
 - **Ready-made departments if you want them.** Leads reads your Gmail and drafts a reply to each new customer. Mail room sorts your email and drafts replies. Social media writes your posts. Or start from nothing.
-- **You approve everything.** Approve, Decline, or tell it what to change.
+- **You approve everything, until you choose otherwise.** Approve, Decline, or tell it what to change. Each department learns your way from that.
+- **Autopilot, when it has earned it.** Once 8 of a department's last 10 pieces of work were approved as written, one tap lets it approve its own work (up to 20 a day). Questions and weak work still come to you. Turn it off any time.
 
-**Nothing is sent, posted or deleted without your click.** Departments write drafts and cards. You press Send.
+**Nothing is sent, posted or deleted without your click.** Departments write drafts and cards. You press Send. The only exception is a department you put on autopilot yourself.
 
 **Use any AI you like:** Claude, ChatGPT, Gemini, any model through OpenRouter, or another service that works like OpenAI (Groq, Together, Mistral, Ollama...). You pick it inside the app and can switch any time.
 

@@ -115,6 +115,17 @@ When a department cannot do its job well without a fact only you know (an addres
 
 On every card you can **Approve**, **Decline**, **Needs feedback** (tell it what to change and it rewrites the draft, in Gmail too), **Open in Gmail**, or **Skip**.
 
+### Train your city, then turn on autopilot
+
+The **Guide** tab has a **Train your city** list. It shows how close each department is.
+
+1. Open a department and look at its cards. Approve what is right. Decline what is wrong.
+2. Not quite right? Tap **Needs feedback** and say what to change. It rewrites it your way.
+3. When a department asks you a question, answer it. It remembers.
+4. When 8 of its last 10 are approved as written (no feedback, no decline), it is ready. Open it and tap **Turn on autopilot**.
+
+On autopilot, a department approves its own work: it sends its emails and saves its posts and notes, up to 20 a day. Questions, fixes and new buildings still wait for you, and so does anything the panel marks weak. Tap **Turn off autopilot** any time. Changing what a department does turns autopilot off, so it learns the new job first.
+
 ## 6. Phone alerts
 
 On iPhone, alerts work only from the Home Screen:
