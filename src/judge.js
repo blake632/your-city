@@ -39,6 +39,7 @@ async function score(city, d, P, work) {
   return { avg: Math.round(avg * 10) / 10, top, n: reactions.length, pass: avg >= BAR.avg && top / reactions.length >= BAR.top, reactions };
 }
 async function crowd(city, d, P, work) {
+  if (city.jev && city.jev.mode() === 'jev') { const j = await jevCrowd(city, P, work).catch(e => { if (e.code === 'budget') throw e; return null; }); if (j) return j; }
   const r = await city.ai.ask({ model: city.agentConf(d.id).model, effort: 'low', maxTokens: 4000, schema: CROWD,
     system: 'You play each person below in ' + MOODS.length + ' different moods, in this order: ' + MOODS.join('; ') + '. For each person, give ' + MOODS.length + ' honest yes or no answers to "' + P.question + '", one per mood, in that order. Then answer for a typical person who sees it (typical).',
     prompt: 'THE PEOPLE:\n' + P.people.map((p, i) => (i + 1) + '. ' + p.name + ': ' + p.who).join('\n') + '\n\nWHAT THEY SEE:\n' + String(work).slice(0, 6000) });
@@ -46,6 +47,20 @@ async function crowd(city, d, P, work) {
   const n = rows.reduce((a, x) => a + x.yes.length, 0);
   if (n < (P.people.length * MOODS.length) / 2) return null;   // too few answers to count
   return { n, yes: rows.reduce((a, x) => a + x.yes.filter(Boolean).length, 0), typical: !!r.typical, rows };
+}
+// With a Jev key, the Crowd is the real Jev crowd, as in the original city: one Jev pass answers all 96 seats and a typical person.
+async function jevCrowd(city, P, work) {
+  const q = {}, seats = [];
+  P.people.forEach(p => MOODS.forEach(m => { const k = 'c' + seats.length; seats.push(p.name); q[k] = { type: 'noul', instructions: 'You are this person: ' + p.name + ', ' + p.who + '; right now: ' + m + '. Honestly, as this person: ' + P.question }; }));
+  q.base = { type: 'noul', instructions: 'Would a typical person who sees this answer yes to: ' + P.question };
+  let a;
+  try { a = await city.jev.real('WHAT THEY SEE:\n' + String(work).slice(0, 4000), q); if (city.jev.problem()) city.jev.note(null); }
+  catch (e) { if (e.code === 'budget') throw e; city.jev.note({ code: e.code || 'jev_down', message: String(e.message).slice(0, 200), at: Date.now() }); return null; }   // the AI crowd answers instead
+  const rows = P.people.map(p => ({ name: p.name, yes: [] }));
+  seats.forEach((name, k) => { const x = a['c' + k]; if (x) rows[Math.floor(k / MOODS.length)].yes.push(x.noul >= 0.5); });
+  const n = rows.reduce((t, x) => t + x.yes.length, 0);
+  if (n < seats.length / 2) return null;
+  return { n, yes: rows.reduce((t, x) => t + x.yes.filter(Boolean).length, 0), typical: !!(a.base && a.base.noul >= 0.5), rows, by: 'jev' };
 }
 // Judge a piece of work. Returns the text to show (rewritten once if the panel did not pass and the rewrite scored higher) and what the judges said.
 // rewrite(text, note) -> the department's own rewrite. A judging problem never blocks the work: it arrives without a verdict.

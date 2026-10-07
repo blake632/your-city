@@ -91,6 +91,18 @@ When judging is on, each piece of work is checked before it reaches you:
 
 These people are simulated: your AI plays them. They are not real people. The card shows the score, every reaction and all 96 votes. Open a department's **Panel** tab to meet its 8 people. To get a new panel, change who its work is for.
 
+### Jev, the fast judge
+
+Jev answers your city's quick questions, the same ones the original city asks:
+
+- **The quiet lane**: email sorted as junk gets one more look. If it is from a real person who expects an answer, Jev pulls it back and a reply is drafted.
+- **Leads**: before a reply is written, Jev decides if the enquiry is a customer. A vendor, a job seeker or spam (when Jev is 70% sure) gets a card that says so, never a draft. The email address is never sent to Jev.
+- **How hard to think**: quick, normal or hard, for each job.
+- **Finished?**: if the work looks unfinished, the department tries once more and keeps the better try. Ideas get a verdict: ship it, fix it first, or kill it.
+- **The Crowd**: the 96 votes.
+
+Without a key, your own AI answers Jev's questions. For the real Jev (faster and cheaper): go to vercel.com, open **AI Gateway**, then **API Keys**, make a key, and paste it in **Settings → Jev**. Press **Save and test**. If Jev ever has a problem, your AI answers until it is fixed, and the Guide shows the fix.
+
 On every card you can **Approve**, **Decline**, **Needs feedback** (tell it what to change and it rewrites the draft, in Gmail too), **Open in Gmail**, or **Skip**.
 
 ## 6. Phone alerts

@@ -15,6 +15,7 @@ A small Node.js app, drawn as a city: departments the owner names and describes 
 - No Railway variable is required except `DATABASE_URL`. The owner chooses the password on first visit and pastes the AI key and the Google client in Settings; variables still work, and Settings win. Keys live only in the store and never go back to the page.
 - Gmail calls go through `src/google.js` only (scope `gmail.modify`).
 - A new city has no departments: the owner builds each one (`City.saveDepartment`). Never add a department by default.
+- Jev (`src/jev.js`) runs the original city's quick checks (quiet-lane audit, lead kind, effort, done and verdict, the crowd). The real Jev (typesafe-ai/jev on the Vercel AI Gateway) only with the owner's key; otherwise the owner's AI answers the same questions. A Jev failure falls back, never blocks.
 - The Panel and the Crowd (`src/judge.js`) are simulated people played by the owner's AI. Always label them simulated, never as real people or real metrics. A judging problem never holds work back.
 - The home screen is one file, `public/index.html`. Keep it readable on a phone at 400px with no sideways scrolling.
 - The owner is usually not technical: short words, one idea per line, in the app and in the docs.

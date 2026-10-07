@@ -6,6 +6,9 @@ const fs = require('node:fs'), path = require('node:path');
 const RAILWAY_VARS = 'In Railway, open your project, click your app (not the database), then the Variables tab.';
 const FIXES = {
   no_business: { title: 'Tell the city about your business', steps: () => ['Open Settings.', 'Fill in Your business: the name, what you do, and your signature.', 'Press Save. Your departments start on their next run.'] },
+  jev_key_wrong: { title: 'Jev did not accept your key', steps: () => ['Until it is fixed, your own AI answers Jev\'s questions, so nothing stops.', 'Go to vercel.com, open AI Gateway, then API Keys, and make a new key.', 'Open Settings, then Jev. Paste the key and press Save and test.'] },
+  jev_credit: { title: 'Jev is out of credit', steps: () => ['Until it is fixed, your own AI answers Jev\'s questions, so nothing stops.', 'Go to vercel.com, open AI Gateway, and add credit. $5 lasts a long time: Jev is very cheap.'] },
+  jev_down: { title: 'Jev did not answer', steps: () => ['Nothing to do. Your own AI answers Jev\'s questions until Jev is back.', 'If it lasts more than a day, open Settings, then Jev, and press Save and test.'] },
   no_departments: { title: 'Build your first department', steps: () => ['Open City.', 'Tap + Build a department.', 'Give it a name and say in plain words what it should do. Or tap one of the ready-made ones and change it.', 'Press Build it.'] },
   agent_off: { title: 'That department is turned off', steps: () => ['Open City and tap the department.', 'Tap Edit, then Turn on.'] },
   no_ai_key: { title: 'Choose your AI and add its key', steps: c => ['Open Settings, then Your AI.', 'Pick the AI service you want to run your city: Claude, ChatGPT, Gemini, OpenRouter (any model), or another.', 'Get a key at ' + c.ai.keyAt + '. Add a little credit at ' + c.ai.billingAt + ' ($5 to $10 is plenty to start).', 'Paste the key and press Save and test.'] },
@@ -73,6 +76,7 @@ function checks(city, { redirect }) {
     else if (!city.google.connected()) add('google', false, '', 'google_not_connected');
     else add('google', !gErr, 'Gmail is connected (' + city.google.email() + ')', gErr ? gErr.code : 'google_error', gErr ? { detail: gErr.detail } : {});
   }
+  if (city.jev && city.jev.key()) { const jp = city.jev.problem(); add('jev', !jp, 'Jev, the fast judge, is on', jp ? jp.code : 'jev_down'); }
   const spent = city.ai.spentToday(), cap = city.ai.cap();
   add('budget', spent < cap, 'AI spend today: $' + spent.toFixed(2) + ' of $' + cap.toFixed(2), 'budget');
   return out;

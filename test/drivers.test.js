@@ -83,7 +83,7 @@ test('the whole inbox runs on a ChatGPT-style service just the same', async () =
   assert.strictEqual(await city.runAgent(L.id), 'Looked at 1 new email, drafted 1 reply');
   const lead = city.waiting()[0];
   assert.deepStrictEqual([lead.kind, lead.email.to, lead.email.body], ['lead', 'dana@example.com', 'Hi Dana,\n\nThanks for reaching out.\n\nSam']);
-  assert.deepStrictEqual(O.calls.filter(c => c.url.endsWith('/chat/completions')).map(c => c.body.model), ['gpt-test', 'gpt-mini'], 'sorting on the main model, the lead reply on the Leads department\'s own model');
+  assert.deepStrictEqual(O.calls.filter(c => c.url.endsWith('/chat/completions')).map(c => c.body.model), ['gpt-test', 'gpt-test', 'gpt-mini'], 'sorting and Jev\'s lead check on the main model, the lead reply on the Leads department\'s own model');
   assert.strictEqual(city.agents().find(a => a.id === L.id).ownModel, 'gpt-mini');
   city.setAgent(L.id, { model: 'main' }); assert.strictEqual(city.agents().find(a => a.id === L.id).ownModel, '');
 });

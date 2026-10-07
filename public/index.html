@@ -76,6 +76,7 @@ label.ck{display:flex;gap:10px;align-items:flex-start;margin:14px 0 6px;font-wei
 .judge .bar{height:6px;border-radius:3px;background:var(--lift);overflow:hidden;margin:6px 0 10px}.judge .bar i{display:block;height:100%;background:var(--accent)}
 .dots{display:grid;grid-template-columns:repeat(12,1fr);gap:3px;max-width:260px;margin:8px 0 4px}.dots i{aspect-ratio:1;border-radius:50%;border:1.5px solid var(--accent)}.dots i.y{background:var(--accent)}
 .said{list-style:none;margin:8px 0 0;padding:0;font-size:14px}.said li{padding:6px 0;border-top:1px solid var(--line)}.said b{font-weight:600}
+.jevline{display:flex;flex-wrap:wrap;gap:6px;margin:-4px 0 12px}.jevline span{font-size:13px;font-weight:600;border-radius:999px;padding:3px 10px;background:var(--lift);color:var(--ink)}.jevline .ship{color:var(--good)}.jevline .kill{color:var(--bad)}
 .people{list-style:none;margin:0;padding:0}.people li{padding:10px 0;border-bottom:1px solid var(--line)}.people li:last-child{border-bottom:0}
 .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(90px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--on-ink);padding:12px 18px;border-radius:12px;z-index:40;max-width:calc(100% - 32px);font-size:15px}
 </style>
@@ -134,6 +135,14 @@ label.ck{display:flex;gap:10px;align-items:flex-start;margin:14px 0 6px;font-wei
       <label class="f">Main model<small>Every department uses this unless you pick another one for it.</small><input type="text" id="ai-model" list="ai-models" placeholder="Press Save and test to see your models"><datalist id="ai-models"></datalist></label>
       <div class="chips"><button class="btn yes sm" id="aiSave">Save and test</button><span class="muted" id="aiSaid"></span></div>
       <div id="aiFix"></div>
+    </div>
+    <h2>Jev, the fast judge</h2>
+    <div class="box" style="padding:4px 16px 16px">
+      <p class="muted" style="margin:14px 0 0;font-size:15px">Jev answers your city's quick questions: is this email from a real person, is this lead a customer, how hard to think, is the work finished, should this idea ship, and the Crowd's 96 votes.</p>
+      <p id="jevNow" style="margin:10px 0 0;font-weight:600"></p>
+      <label class="f">Vercel AI Gateway key (optional)<small>Without one, your own AI answers Jev's questions. With one, the real Jev answers, faster and for less. Get one at vercel.com, then AI Gateway, then API Keys.</small><input type="password" id="jev-key" autocomplete="off" placeholder="Paste your key"></label>
+      <div class="chips"><button class="btn yes sm" id="jevSave">Save and test</button><button class="chip" id="jevOff" hidden>Stop using the key</button><span class="muted" id="jevSaid"></span></div>
+      <div id="jevFix"></div>
     </div>
     <h2>Your business</h2>
     <div class="box" style="padding:4px 16px 16px">
@@ -415,6 +424,7 @@ label.ck{display:flex;gap:10px;align-items:flex-start;margin:14px 0 6px;font-wei
         el('div', { cls: 'muted', text: [L.phone, L.email].filter(Boolean).join(' · ') }), L.wants ? el('div', { text: 'Wants: ' + L.wants }) : null,
         tel.replace(/\D/g, '').length >= 10 ? el('div', { cls: 'chips' }, [el('a', { cls: 'chip strong', href: 'tel:' + tel, text: '📞 Call' }), el('a', { cls: 'chip strong', href: 'sms:' + tel, text: '💬 Text' })]) : null]));
     }
+    if (c.jev) kids.push(jevLine(c.jev));
     if (c.came) kids.push(el('details', { cls: 'mail' }, [el('summary', { text: 'They wrote: ' + c.came.subject }), el('div', { cls: 'body', text: c.came.text })]));
     var bodyEl = null;
     if (c.email) { bodyEl = el('div', { cls: 'body', text: c.email.body }); kids.push(el('div', { cls: 'mail' }, [el('div', { cls: 'h', text: 'To: ' + c.email.to }), el('div', { cls: 'h', text: 'Subject: ' + c.email.subject }), bodyEl])); }
@@ -442,6 +452,18 @@ label.ck{display:flex;gap:10px;align-items:flex-start;margin:14px 0 6px;font-wei
     kids.push(fb);
     return el('div', { cls: 'card' }, kids);
   }
+  // What Jev decided about this card, in a few chips.
+  function jevLine(j) {
+    var t = [], who = j.mode === 'jev' ? 'Jev' : 'Jev (your AI)';
+    if (j.pulled) t.push([who + ': pulled this out of junk', '']);
+    if (j.kind === 'customer') t.push([who + ': a real customer', 'ship']);
+    else if (j.kind) t.push([who + ': not a customer (' + Math.round((j.sure || 0) * 100) + '% sure)', 'kill']);
+    if (j.done !== null && j.done !== undefined) t.push([who + ': ' + (j.done >= 0.35 ? 'finished' : 'may be unfinished') + ' (' + Math.round(j.done * 100) + '%)', j.done >= 0.35 ? 'ship' : 'kill']);
+    if (j.redone) t.push(['Redone once to finish it', '']);
+    if (j.verdict) t.push([{ ship: 'Verdict: ship it', fix: 'Verdict: fix it first', kill: 'Verdict: kill it' }[j.verdict], j.verdict === 'ship' ? 'ship' : j.verdict === 'kill' ? 'kill' : '']);
+    if (j.effort) t.push(['Thought ' + ({ low: 'quickly', medium: 'normally', high: 'hard' }[j.effort] || j.effort), '']);
+    return el('div', { cls: 'jevline' }, t.map(function (x) { return el('span', { cls: x[1], text: x[0] }); }));
+  }
   // What the Panel and the Crowd said, before the owner saw it. Always labeled simulated.
   function judgedBox(J) {
     if (J.error) return el('p', { cls: 'muted', style: 'font-size:14px', text: '⚖ ' + J.error });
@@ -452,7 +474,7 @@ label.ck{display:flex;gap:10px;align-items:flex-start;margin:14px 0 6px;font-wei
     if (J.crowd) {
       var C = J.crowd, dots = el('div', { cls: 'dots', 'aria-label': C.yes + ' of ' + C.n + ' said yes' });
       C.rows.forEach(function (row) { row.yes.forEach(function (y) { dots.appendChild(el('i', { cls: y ? 'y' : '' })); }); });
-      kids.push(el('div', { cls: 'score' }, [el('b', { text: C.yes + ' of ' + C.n }), el('span', { text: 'The Crowd said yes (8 people in ' + J.moods + ' moods)' })]));
+      kids.push(el('div', { cls: 'score' }, [el('b', { text: C.yes + ' of ' + C.n }), el('span', { text: (C.by === 'jev' ? 'The Jev crowd' : 'The Crowd') + ' said yes (8 people in ' + J.moods + ' moods)' })]));
       kids.push(dots);
     }
     (J.trail || []).forEach(function (t) { kids.push(el('div', { cls: 'muted', style: 'font-size:14px;margin-top:6px', text: t })); });
@@ -484,7 +506,7 @@ label.ck{display:flex;gap:10px;align-items:flex-start;margin:14px 0 6px;font-wei
     if (!filled) { FIELDS.forEach(function (k) { if ($('s-' + k)) $('s-' + k).value = S.settings[k] == null ? '' : S.settings[k]; }); $('s-alerts').value = S.settings.alerts || 'all'; filled = true; }
     $('spent').textContent = 'Spent today: $' + S.spend.today.toFixed(2) + ' of $' + S.spend.cap.toFixed(2) + '. Agents pause at the limit until tomorrow.';
     var said = new URLSearchParams(location.search).get('said'); $('said').hidden = !said; $('said').textContent = said || '';
-    renderAI();
+    renderAI(); renderJev();
     $('gclient').hidden = S.google.connected; $('g-id').value = $('g-id').value || S.googleClient.id || ''; $('g-secret').placeholder = S.googleClient.secretSet ? 'Saved. Paste a new one to replace it.' : 'Paste the secret';
     $('pwBox').hidden = S.passwordFrom === 'variable';
     var g = $('gmail'); g.innerHTML = '';
@@ -518,6 +540,16 @@ label.ck{display:flex;gap:10px;align-items:flex-start;margin:14px 0 6px;font-wei
       if (r.ok) aiFilled = false; return load();   // after a failed test, what they chose stays on screen next to its fix
     }).catch(function (e) { $('aiSaid').textContent = ''; toast(e.message); }).then(function () { b.disabled = false; });
   };
+  function renderJev() {
+    var J = S.jev; $('jevOff').hidden = J.keyFrom !== 'settings';
+    $('jevNow').textContent = J.mode === 'jev' ? (J.problem ? '! Jev has a problem, so your AI is answering for now. The Guide has the fix.' : '✓ The real Jev is answering.') : 'Your own AI is answering Jev\'s questions.';
+    $('jev-key').placeholder = J.keySet ? (J.keyFrom === 'variable' ? 'Set as a Railway variable.' : 'Saved. Paste a new one to replace it.') : 'Paste your key';
+  }
+  $('jevSave').onclick = function () { var b = $('jevSave'); b.disabled = true; $('jevSaid').textContent = 'Testing…'; $('jevFix').innerHTML = '';
+    api('/api/jev', { key: $('jev-key').value }).then(function (r) { $('jev-key').value = ''; $('jevSaid').textContent = r.ok ? (r.mode === 'jev' ? '✓ Jev works.' : 'Your AI will answer Jev\'s questions.') : '';
+      if (!r.ok) $('jevFix').appendChild(el('div', { cls: 'banner' }, [el('b', { text: r.fix.title }), stepList(r.fix.steps, 'margin-top:8px')])); return load(); })
+      .catch(function (e) { $('jevSaid').textContent = ''; toast(e.message); }).then(function () { b.disabled = false; }); };
+  $('jevOff').onclick = function () { api('/api/jev', { off: true }).then(function () { toast('Your own AI answers Jev\'s questions now.'); return load(); }); };
   $('gSave').onclick = function () { api('/api/google/client', { id: $('g-id').value, secret: $('g-secret').value }).then(function () { $('g-secret').value = ''; toast('Saved. Now press Connect Google.'); return load(); }).catch(function (e) { toast(e.message); }); };
   $('pwSave').onclick = function () { api('/api/password', { current: $('pw-now').value, next: $('pw-new').value }).then(function () { $('pw-now').value = ''; $('pw-new').value = ''; toast('Password changed.'); }).catch(function (e) { toast(e.message); }); };
   $('saveBiz').onclick = function () { var b = {}; FIELDS.forEach(function (k) { if (k !== 'dailyCap') b[k] = $('s-' + k).value; }); api('/api/settings', b).then(function () { toast('Saved.'); return load(); }).catch(function (e) { toast(e.message); }); };

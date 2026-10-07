@@ -109,6 +109,13 @@ function createServer({ city, password = () => process.env.CITY_PASSWORD, public
           return json(res, 200, { ok: false, error: e.message, fix });
         }
       }
+      // Jev, the fast judge: save the Vercel AI Gateway key and test it with one tiny question (a fraction of a cent). A wrong key is not kept.
+      if (p === '/api/jev' && req.method === 'POST') {
+        const b = await body(req), before = city.store.get('jev', null); city.jev.save({ key: b.key, off: !!b.off });
+        if (!city.jev.key()) return json(res, 200, { ok: true, mode: 'ai' });
+        try { await city.jev.real('Test.', { ok: { type: 'noul', instructions: 'Is this a test?' } }); return json(res, 200, { ok: true, mode: 'jev' }); }
+        catch (e) { if (b.key) city.store.set('jev', before || {}); const fix = guide.fixFor(e.code || 'jev_down', {}); return json(res, 200, { ok: false, error: e.message, fix }); }
+      }
       if (p === '/api/password' && req.method === 'POST') {
         if (envPw()) return json(res, 400, { error: 'Your password is the CITY_PASSWORD variable in Railway. Change it there.' });
         const b = await body(req);
@@ -142,7 +149,7 @@ function state(city, redirect) {
     google: { configured: city.google.configured(), connected: city.google.connected(), email: city.google.email() }, redirect,
     spend: { today: Math.round(city.ai.spentToday() * 100) / 100, cap: city.ai.cap() }, store: city.store.kind(), alerts: s.alerts,
     ai: aiState(city), googleClient: { id: (city.store.get('googleClient') || {}).id || '', secretSet: !!(city.store.get('googleClient') || {}).secret, fromVariable: !!process.env.GOOGLE_CLIENT_ID },
-    models: aiState(city).models, every: EVERY };
+    models: aiState(city).models, every: EVERY, jev: { mode: city.jev.mode(), keySet: !!city.jev.key(), keyFrom: city.jev.keyFrom(), problem: city.jev.problem() } };
 }
 const shell = (title, inner, script) => '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>' + esc(title) + '</title>' +
   '<link rel="manifest" href="/manifest.webmanifest"><link rel="icon" href="/icon.svg"><style>:root{--bg:#f6f3ec;--ink:#1a1813;--dim:rgba(26,24,19,.66);--accent:#8a5a2b;--card:#fffdf8;--line:rgba(26,24,19,.14)}' +

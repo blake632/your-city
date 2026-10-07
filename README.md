@@ -4,6 +4,7 @@ Your own AI office, drawn as a city.
 
 - **You build the departments.** Name each one and say what it does in plain words: "Leads", "Instagram", "Reviews", "Newsletter", anything. Each one becomes a building in your city.
 - **Their work is judged before you see it.** A panel of 8 people the work is for scores it from 1 to 5. A weak draft is rewritten once. Then a crowd of 96 (the same 8 people in 12 moods) votes yes or no. These people are simulated by your AI, not real people, and the app says so.
+- **Jev, the fast judge, checks everything.** Is this email from a real person? Is this lead a customer or a vendor? How hard should the AI think? Is the work finished? Should this idea ship? Jev answers each one, and runs the Crowd's 96 votes. Add a Vercel AI Gateway key for the real Jev, or your own AI plays Jev.
 - **Ready-made departments if you want them.** Leads reads your Gmail and drafts a reply to each new customer. Mail room sorts your email and drafts replies. Social media writes your posts. Or start from nothing.
 - **You approve everything.** Approve, Decline, or tell it what to change.
 
@@ -70,6 +71,7 @@ Plain Node.js 22, two packages (`@anthropic-ai/sdk`, `pg`), no build step.
 src/main.js     start-up
 src/city.js     settings, departments, cards, the clock
 src/judge.js    the Panel and the Crowd that judge each department's work
+src/jev.js      Jev, the fast judge (the real Jev with a key, or your AI)
 src/guide.js    the setup checklist and every fix, in plain words
 src/ai.js       any AI: Claude, or any OpenAI-style service; models, daily budget, errors
 src/google.js   Google sign-in and Gmail

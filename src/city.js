@@ -4,6 +4,7 @@ const crypto = require('node:crypto');
 const { CityError, MODELS } = require('./ai');
 const guide = require('./guide');
 const { judge } = require('./judge');
+const { Jev } = require('./jev');
 const { addressOf, nameOf } = require('./google');
 
 const EVERY = { 10: 'every 10 minutes', 60: 'every hour', 1440: 'every day', 10080: 'every week' };
@@ -37,8 +38,9 @@ const id = () => Date.now().toString(36) + crypto.randomBytes(3).toString('hex')
 const ago = ms => { const m = Math.round(ms / 6e4); return m < 60 ? m + ' min ago' : m < 2880 ? Math.round(m / 60) + ' hours ago' : Math.round(m / 1440) + ' days ago'; };
 
 class City {
-  constructor({ store, ai, google, push = null, now = () => Date.now(), log = console }) {
+  constructor({ store, ai, google, push = null, jev = null, now = () => Date.now(), log = console }) {
     Object.assign(this, { store, ai, google, push, now, log });
+    this.jev = jev || new Jev({ ai, store });
     this.running = new Set(); this.deciding = new Set(); this.timer = null;
   }
   // ---- settings and agents ----
@@ -180,6 +182,35 @@ class City {
       prompt: 'THE DRAFT:\n' + text + '\n\nWHAT TO CHANGE:\n' + note });
   }
   judged(d, text) { return judge(this, d, text, (t, note) => this.rewriteFor(d, t, note)); }   // the panel reads it as its people would
+  // ---- Jev's quick checks (the same ones the original city runs) ----
+  // Mail the sorter calls junk: is it really from a person who expects an answer? 0.5 or more pulls it back.
+  async jevReal(m) {
+    try { const a = await this.jev.ask('FROM: ' + m.from + '\nSUBJECT: ' + m.subject + '\n\n' + String(m.text).slice(0, 2000), { real: { type: 'noul', instructions: 'Is this email from a real person or office (a customer, a lead, a supplier on a current job, a coworker, a government office) who expects a reply or asks the owner to act, rather than marketing, a newsletter, a cold sales pitch or an automated notice?' } });
+      return a.real ? a.real.noul : 0; } catch (e) { if (e.code === 'budget') throw e; return 0; }
+  }
+  // A new enquiry: a customer, or someone else? Unsure (under 0.7): treated as a customer, so a real one is never buried. No email address goes to Jev.
+  async jevLeadKind(lead, text) {
+    const s = this.settings();
+    try { const a = await this.jev.ask('An enquiry to ' + (s.business || 'a small business') + '. ' + (s.about || '').slice(0, 400) + '\nName: ' + (lead.name || '(none)') + '\nWhat they want: ' + lead.wants + '\n\n' + String(text).replace(/[^\s@]+@[^\s@]+/g, '(email)').slice(0, 2000), {
+        kind: { type: 'choice', instructions: 'What is this enquiry?', criteria: { customer: 'A person or business who may want to buy what this business sells', agent: 'Someone asking on behalf of a customer (an agent, assistant or family member)',
+          vendor: 'A supplier, marketer, agency, recruiter or service trying to sell to the business', job: 'Someone looking for a job or work', other: 'Spam, a test entry, a charity or donation request, or anything else' } } });
+      const k = a.kind; return k && !['customer', 'agent'].includes(k.choice) && k.confidence >= 0.7 ? k : null;
+    } catch (e) { if (e.code === 'budget') throw e; return null; }
+  }
+  // How hard the AI should think on this job: low, medium or high. Unsure: medium.
+  async jevEffort(job) {
+    try { const a = await this.jev.ask('A job for a small business AI team: ' + String(job).slice(0, 1200), { effort: { type: 'choice', instructions: 'How much careful reasoning does doing this job well take?', criteria: {
+      low: 'Quick or mechanical: a short rewrite, a list, a simple answer', medium: 'Normal writing work: a post, an email, a page section', high: 'Deep: a strategy, an ad campaign, a multi-step plan, an analysis or audit' } } });
+      return a.effort && a.effort.confidence >= 0.5 ? a.effort.choice : 'medium'; } catch (e) { if (e.code === 'budget') throw e; return 'medium'; }
+  }
+  // Finished work: is it complete? And for an idea or proposal: ship it, fix it first, or kill it.
+  async jevWorkCheck(job, work) {
+    try { const a = await this.jev.ask('JOB: ' + String(job).slice(0, 1500) + '\n\nWORK:\n' + String(work).slice(0, 12000), {
+        done: { type: 'noul', instructions: 'Does the work fully do what the job asked, with nothing missing or left as a placeholder?' },
+        verdict: { type: 'choice', instructions: 'If the work is an idea or proposal for a small business owner, should it be built?', criteria: { ship: 'Ship it: real demand, clear first step, worth the effort', fix: 'Fix it first: promising but something important is weak or missing', kill: 'Kill it: weak demand, too costly, or off-brand', none: 'It is not an idea or proposal' } } });
+      return { done: a.done ? a.done.noul : null, verdict: a.verdict && a.verdict.confidence >= 0.5 && a.verdict.choice !== 'none' ? a.verdict.choice : '' };
+    } catch (e) { if (e.code === 'budget') throw e; return { done: null, verdict: '' }; }
+  }
   // Leads and Mail room share one look at the inbox: the AI sorts each new email, labels it, and the right department drafts.
   async inbox() {
     const s = this.settings(), me = this.google.email().toLowerCase(), seen = this.store.get('seen', []), L = this.byKind('leads'), M = this.byKind('mailroom');
@@ -195,13 +226,14 @@ class City {
         system: 'You sort email for ' + (s.business || 'a small business') + '. About it: ' + (s.about || 'not described yet') + '. Fill the JSON exactly.',
         prompt: 'From: ' + m.from + '\nTo: ' + m.to + '\nSubject: ' + m.subject + '\nDate: ' + m.date + '\n\n' + m.text.slice(0, 6000) +
           '\n\nKinds:\n- lead: someone who may become a customer asking about the services, prices or availability, including a website form or marketplace notification about such a person.\n- needs_reply: a real person who expects an answer (not a new customer).\n- fyi: worth knowing, no answer needed.\n- receipt: bills, receipts, orders, shipping.\n- newsletter: newsletters, marketing, automatic notices.\n- spam: scams, cold sales pitches, junk.\nsummary: one short line on what it is.\nlead: for a lead, the customer\'s own name, email, phone and what they want as the email states them; empty strings when not stated or not a lead.' });
-      let kind = sort.kind;
+      let kind = sort.kind, pulled = false;
+      if (M && (kind === 'newsletter' || kind === 'spam') && !ROBOT.test(m.from) && await this.jevReal(m) >= 0.5) { kind = 'needs_reply'; pulled = true; }   // Jev audits the quiet lane
       if (kind === 'lead' && !L) kind = 'needs_reply';
       if (kind === 'needs_reply' && (ROBOT.test(m.from) || !M)) kind = 'fyi';
       await this.google.label(mid, ['City/Seen', LABELS[kind] || LABELS.fyi]);
       sorted++;
       if (kind === 'lead') { if (await this.leadReply(L, m, sort)) drafted++; }
-      else if (kind === 'needs_reply') { await this.mailReply(M, m, sort); drafted++; }
+      else if (kind === 'needs_reply') { await this.mailReply(M, m, sort, pulled); drafted++; }
       else if (M) this.update(M.id, 'Sorted "' + (m.subject || '(no subject)').slice(0, 80) + '" as ' + LABELS[kind].replace('City/', '') + '.');
     }
     return sorted ? 'Looked at ' + sorted + ' new email' + (sorted > 1 ? 's' : '') + (drafted ? ', drafted ' + drafted + ' repl' + (drafted > 1 ? 'ies' : 'y') : '') : 'No new email.';
@@ -214,6 +246,10 @@ class City {
     if (!email) { this.addCard({ agent: D.id, kind: 'lead', title: 'New lead, no email address: ' + (lead.name || m.subject), lead, gmail, body: 'The city could not find their email address. Open it in Gmail and reply by hand, or call them.', actions: ['got_it'] }); return false; }
     const sent = this.store.get('leadsSent', {}), dup = this.store.get('leadsDrafted', {});
     if (sent[email] || (dup[email] && this.now() - dup[email] < 30 * 864e5)) { this.update(D.id, 'Skipped a repeat from ' + email + ': a reply was already drafted or sent.'); return false; }
+    const not = await this.jevLeadKind(lead, m.text);
+    if (not) { const what = { vendor: 'someone selling to you', job: 'someone looking for work', other: 'not a real enquiry (spam, a test or a request)' }[not.choice];
+      this.addCard({ agent: D.id, kind: 'lead', title: 'Not a customer: ' + (lead.name || email) + ', ' + what, lead, gmail, body: 'Jev read it as ' + what + ' (' + Math.round(not.confidence * 100) + '% sure), so no reply was written. If Jev is wrong, open it in Gmail and reply by hand.', jev: { mode: this.jev.mode(), kind: not.choice, sure: not.confidence }, actions: ['got_it'] });
+      return false; }
     const first = await this.ai.ask({ model: this.agentConf(D.id).model, effort: 'medium', maxTokens: 8000,
       system: this.voice(s) + ' You write the first reply to a new customer. Follow the owner\'s reply guide exactly.',
       prompt: 'REPLY GUIDE:\n' + D.does + '\n\nTHE CUSTOMER\nName: ' + (lead.name || '(unknown)') + '\nEmail: ' + email + (lead.phone ? '\nPhone: ' + lead.phone : '') + '\nWhat they want: ' + lead.wants + '\nCame in: ' + lead.came +
@@ -224,10 +260,10 @@ class City {
       : { to: email, subject: s.business || m.subject || 'Thanks for reaching out', body };
     const d = await this.google.createDraft(msg);
     dup[email] = this.now(); this.store.set('leadsDrafted', dup);
-    this.addCard({ agent: D.id, kind: 'lead', title: 'Reply to ' + (lead.name || email) + ', ready to send', lead, gmail, email: Object.assign({}, msg, d), judged, actions: ['approve', 'decline'] });
+    this.addCard({ agent: D.id, kind: 'lead', title: 'Reply to ' + (lead.name || email) + ', ready to send', lead, gmail, email: Object.assign({}, msg, d), judged, jev: { mode: this.jev.mode(), kind: 'customer' }, actions: ['approve', 'decline'] });
     return true;
   }
-  async mailReply(D, m, sort) {
+  async mailReply(D, m, sort, pulled) {
     const s = this.settings(), to = addressOf(m.replyTo || m.from);
     const first = await this.ai.ask({ model: this.agentConf(D.id).model, effort: 'medium', maxTokens: 8000, system: this.voice(s) + ' You write the owner\'s reply to this email. Answer what they asked, briefly. The owner\'s note for replies: ' + D.does,
       prompt: 'From: ' + m.from + '\nSubject: ' + m.subject + '\n\n' + m.text.slice(0, 6000) + '\n\nWrite only the reply body, from the greeting to the signature.' });
@@ -235,28 +271,37 @@ class City {
     const msg = { to, subject: /^re:/i.test(m.subject) ? m.subject : 'Re: ' + m.subject, body, threadId: m.threadId, inReplyTo: m.messageId, references: m.references };
     const d = await this.google.createDraft(msg);
     this.addCard({ agent: D.id, kind: 'email', title: 'Reply to ' + (nameOf(m.from) || to) + ': ' + (m.subject || '(no subject)').slice(0, 80), summary: sort.summary,
-      came: { from: m.from, subject: m.subject, text: m.text.slice(0, 3000) }, gmail: 'https://mail.google.com/mail/u/0/#all/' + m.threadId, email: Object.assign({}, msg, d), judged, actions: ['approve', 'decline'] });
+      came: { from: m.from, subject: m.subject, text: m.text.slice(0, 3000) }, gmail: 'https://mail.google.com/mail/u/0/#all/' + m.threadId, email: Object.assign({}, msg, d), judged,
+      jev: pulled ? { mode: this.jev.mode(), pulled: true } : null, actions: ['approve', 'decline'] });
   }
   async social(D) {
     const s = this.settings();
-    const r = await this.ai.ask({ model: this.agentConf(D.id).model, effort: 'medium', maxTokens: 12000, schema: POSTS_SCHEMA,
+    const effort = await this.jevEffort(D.does);
+    const r = await this.ai.ask({ model: this.agentConf(D.id).model, effort, maxTokens: 12000, schema: POSTS_SCHEMA,
       system: this.voice(Object.assign({}, s, { signature: '' })) + ' You write social media posts.',
       prompt: 'Today is ' + new Date(this.now()).toDateString() + '.\n\nWHAT THE OWNER WANTS:\n' + D.does + '\n\nEach post: the platform, the post text with a few fitting hashtags, and the kind of real photo the owner should use. Never describe a photo as if it already exists.' });
     const posts = (r.posts || []).slice(0, 5);
     for (const p of posts.slice().reverse()) {   // the first post shows first
       const { text: body, judged } = await this.judged(D, p.text);
-      this.addCard({ agent: D.id, kind: 'post', title: (p.platform || 'Post') + ': ' + String(body).split('\n')[0].slice(0, 70), body, photo: p.photo, judged, actions: ['approve', 'decline'] });
+      this.addCard({ agent: D.id, kind: 'post', title: (p.platform || 'Post') + ': ' + String(body).split('\n')[0].slice(0, 70), body, photo: p.photo, judged, jev: { mode: this.jev.mode(), effort }, actions: ['approve', 'decline'] });
     }
     return 'Wrote ' + posts.length + ' posts for you to look over.';
   }
   async runOwn(D) {
-    const s = this.settings();
-    const first = await this.ai.ask({ model: this.agentConf(D.id).model, effort: 'medium', maxTokens: 12000, system: this.voice(Object.assign({}, s, { signature: '' })) + ' You are the owner\'s department "' + D.name + '". Be short and useful.',
-      prompt: 'Today is ' + new Date(this.now()).toDateString() + '.\n\nWHAT THIS DEPARTMENT DOES:\n' + D.does + (D.audience ? '\n\nWHO THE WORK IS FOR: ' + D.audience : '') });
+    const s = this.settings(), effort = await this.jevEffort(D.does);
+    const write = extra => this.ai.ask({ model: this.agentConf(D.id).model, effort, maxTokens: 12000, system: this.voice(Object.assign({}, s, { signature: '' })) + ' You are the owner\'s department "' + D.name + '". Be short and useful.',
+      prompt: 'Today is ' + new Date(this.now()).toDateString() + '.\n\nWHAT THIS DEPARTMENT DOES:\n' + D.does + (D.audience ? '\n\nWHO THE WORK IS FOR: ' + D.audience : '') + (extra || '') });
+    let first = await write(), check = await this.jevWorkCheck(D.does, first), redone = false;
+    if (check.done !== null && check.done < 0.35) {   // Jev says it is not finished: one more try, kept only if Jev likes it better
+      const again = await write('\n\nA checker found your last try unfinished (something missing or left as a placeholder). Do the whole job this time.\n\nYOUR LAST TRY:\n' + first.slice(0, 6000));
+      const c2 = await this.jevWorkCheck(D.does, again);
+      if (c2.done !== null && c2.done > check.done) { first = again; check = c2; redone = true; }
+    }
     const { text, judged } = await this.judged(D, first);
+    const jev = { mode: this.jev.mode(), effort, done: check.done, verdict: check.verdict, redone };
     const top = (String(text || '').split('\n').find(l => l.trim()) || 'Nothing to report.').replace(/^[#*\s]+/, '');
-    if (D.review) this.addCard({ agent: D.id, kind: 'note', title: D.name + ': ' + top.slice(0, 90), body: text, judged, actions: ['approve', 'decline'] });
-    else this.update(D.id, top.slice(0, 200), { text2: text, judged });
+    if (D.review) this.addCard({ agent: D.id, kind: 'note', title: D.name + ': ' + top.slice(0, 90), body: text, judged, jev, actions: ['approve', 'decline'] });
+    else this.update(D.id, top.slice(0, 200), { text2: text, judged, jev });
     return D.review ? 'Made a card for you.' : 'Done.';
   }
   // ---- running ----

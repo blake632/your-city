@@ -51,7 +51,8 @@ test('the owner names a department and says what it does; the Panel judges the w
   // judging off: no judge calls at all
   const quiet = c.saveDepartment({ name: 'Notes', does: 'One tip a day.', judge: false });
   const m = A.calls.length; await c.runAgent(quiet.id);
-  assert.strictEqual(A.calls.length - m, 1); assert.strictEqual(c.waiting()[0].judged, null);
+  const judgeCalls = A.calls.slice(m).filter(x => { const f = x.body.output_config && x.body.output_config.format; return f && (f.schema.properties.reactions || f.schema.properties.typical || f.schema.properties.people); });
+  assert.strictEqual(judgeCalls.length, 0, 'no Panel or Crowd'); assert.strictEqual(c.waiting()[0].judged, null);
 });
 
 test('a judging problem never holds the work back; a department can be removed and its cards close', async () => {

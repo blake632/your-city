@@ -73,6 +73,7 @@ class AI {
   modelFor(m) { const c = this.conf(); m = stripModel(m); if (c.provider === 'anthropic') return MODELS[m] ? m : (MODELS[c.model] ? c.model : DEFAULT_MODEL); return m || c.model; }
   cap() { const c = Number((this.store.get('settings', {}) || {}).dailyCap); return c > 0 ? c : DEFAULT_CAP; }
   spentToday() { const s = this.store.get('spend', {}); return s.day === today(this.now()) ? s.usd : 0; }
+  addSpend(usd) { const s = this.store.get('spend', {}), day = today(this.now()); this.store.set('spend', { day, usd: (s.day === day ? s.usd : 0) + usd }); return usd; }
   meter(model, tokensIn, tokensOut) {
     const m = MODELS[model] || ESTIMATE, usd = (tokensIn * m.in + tokensOut * m.out) / 1e6;
     const s = this.store.get('spend', {}), day = today(this.now());
