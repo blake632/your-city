@@ -1106,12 +1106,12 @@ function frame(now){ const raw=Math.max(0,(now-last)/1000)||.016, dt=Math.min(.0
   // interior lighting warmth
   const inside=mode==='inside'&&!trans?1:trans?(trans.dir>0?ease(clamp(trans.t,0,1)):1-ease(clamp(trans.t,0,1))):0;
   hemi.intensity=.8+inside*.45; hemi.color.setRGB(lerp(.29,.62,inside),lerp(.35,.55,inside),lerp(.57,.5,inside)); moon.intensity=.62+inside*.2;
-  renderer.render(scene,camera); if(!REDUCED&&!VIDEO) adapt(raw);
+  if(!SKIP) renderer.render(scene,camera); if(!REDUCED&&!VIDEO) adapt(raw);
   layoutLabels(dt,!labelsSeen); labelsSeen=true; layoutBubbles(dt); updateTag(); layoutMarks();
   if(VIDEO) return;
   if(!REDUCED||trans||needRender){ needRender=false; if(!REDUCED){ if(onScreen&&!document.hidden) requestAnimationFrame(frame); else sleeping=true; } else if(trans) requestAnimationFrame(frame); else rafPending=false; }
 }
-let labelsSeen=false, rafPending=false, onScreen=true, sleeping=false;
+let labelsSeen=false, rafPending=false, onScreen=true, sleeping=false, SKIP=false;
 function wake(){ if(sleeping&&onScreen&&!document.hidden&&!VIDEO){ sleeping=false; last=performance.now(); requestAnimationFrame(frame); } }
 if(window.IntersectionObserver) new IntersectionObserver(e=>{ onScreen=e[e.length-1].isIntersecting; wake(); }).observe(canvas);
 document.addEventListener('visibilitychange',wake); const perf={n:0,sum:0,level:0};
@@ -1157,7 +1157,7 @@ refresh();
 if(VIDEO){ last=performance.now(); } else if(REDUCED){ requestRender(); } else requestAnimationFrame(frame);
 // For the video: step the world by hand, and point the camera at a building.
 let vNow=performance.now();
-function step(dt){ vNow+=dt*1000; last=vNow-dt*1000; frame(vNow); }
+function step(dt,norender){ SKIP=!!norender; vNow+=dt*1000; last=vNow-dt*1000; frame(vNow); SKIP=false; }   // norender: move the world on without drawing it
 function look(k,o){ const d=k==='city'?null:DK[k]; o=o||{}; const s=d?{az:o.az!=null?o.az:cam.az,el:o.el!=null?o.el:.42,dist:o.dist||70,pitch:o.pitch!=null?o.pitch:.36,px:d.bx,py:o.py!=null?o.py:(d.b.h*.45),pz:d.bz}:Object.assign(cityState(),o);
   Object.assign(goal,s); if(o.snap) Object.assign(cam,s); }
 window.__city={enter,exit,cam,goal,cityChars,camera,projectXY,headPos,perf,hit,showTag,step,look,refresh,DK,DEPTS,cityState,get mode(){ return mode; },get trans(){ return trans; }};
