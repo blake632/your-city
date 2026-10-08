@@ -9,6 +9,10 @@ Your own AI office, as a 3D city at night: each department a lit building, its p
 - **A Research desk and a School.** Every week the Research desk looks on GitHub for open-source playbooks and tools that could help your departments. Each one goes to the School first: orientation (is it real, kept up and safe?), three practice jobs graded by the department's head, then a grade. Only a playbook that passes joins a department. Nothing installs itself.
 - **Ready-made departments if you want them.** Leads reads your Gmail and drafts a reply to each new customer. Mail room sorts your email and drafts replies. Social media writes your posts. Or start from nothing.
 - **You approve everything, until you choose otherwise.** Approve, Decline, or tell it what to change. Each department learns your way from that.
+- **See it work in one minute.** In Leads, press **Try a test lead**. A made-up customer writes in, and your reply is ready to look at. Nothing is sent.
+- **Your week in numbers.** Leads answered, your typical reply time, emails sent, posts written, and about how much time you got back. Every Monday it buzzes your phone, and **Share my week** posts it.
+- **Leads from anywhere.** Your city has a private lead link. Point your website form, an ad's lead form or Zapier at it, and each lead gets a ready reply, just like email leads.
+- **Fill in your business from your website.** Type your website and the city fills in your details. You check them and press Save. Add a booking link and lead replies offer it.
 - **Autopilot, when it has earned it.** Once 8 of a department's last 10 pieces of work were approved as written, one tap lets it approve its own work (up to 20 a day). Questions and weak work still come to you. Turn it off any time.
 
 **Nothing is sent, posted or deleted without your click.** Departments write drafts and cards. You press Send. The only exception is a department you put on autopilot yourself.

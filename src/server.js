@@ -3,13 +3,13 @@
 // browser a 30-day signed cookie. The password is kept only as a salted scrypt hash.
 const http = require('node:http'), crypto = require('node:crypto'), fs = require('node:fs'), path = require('node:path');
 const { MODELS, PROVIDERS } = require('./ai');
-const { EVERY, PICKS } = require('./city');
+const { City, EVERY, PICKS } = require('./city');
 const guide = require('./guide');
 
 const PUBLIC = path.join(__dirname, '..', 'public');
 const OPEN = { '/vendor/three.min.js': ['vendor/three.min.js', 'text/javascript'], '/sw.js': ['sw.js', 'text/javascript'], '/manifest.webmanifest': ['manifest.webmanifest', 'application/manifest+json'], '/icon.svg': ['icon.svg', 'image/svg+xml'], '/icon-512.png': ['icon-512.png', 'image/png'], '/apple-touch-icon.png': ['apple-touch-icon.png', 'image/png'] };
 const json = (res, code, obj, h) => { res.writeHead(code, Object.assign({ 'content-type': 'application/json', 'cache-control': 'no-store' }, h || {})); res.end(JSON.stringify(obj)); };
-const body = req => new Promise((ok, bad) => { const ch = []; let n = 0; req.on('data', c => { n += c.length; if (n > 2e6) { bad(new Error('too large')); req.destroy(); } else ch.push(c); }); req.on('end', () => { try { ok(JSON.parse(Buffer.concat(ch).toString() || '{}') || {}); } catch (e) { ok({}); } }); req.on('error', bad); });
+const body = req => new Promise((ok, bad) => { const ch = []; let n = 0; req.on('data', c => { n += c.length; if (n > 2e6) { bad(new Error('too large')); req.destroy(); } else ch.push(c); }); req.on('end', () => { const raw = Buffer.concat(ch).toString(); try { ok(JSON.parse(raw || '{}') || {}); } catch (e) { ok(Object.fromEntries(new URLSearchParams(raw))); } }); req.on('error', bad); });
 const hash = s => crypto.createHash('sha256').update(String(s)).digest();
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
 const scrypt = (pw, salt) => crypto.scryptSync(String(pw), salt, 32).toString('hex');
@@ -34,6 +34,18 @@ function createServer({ city, password = () => process.env.CITY_PASSWORD, public
     const url = new URL(req.url, 'http://x'), p = url.pathname;
     city.redirect = origin(req) + '/connect/google/callback';
     if (p === '/healthz') return json(res, 200, { ok: true });
+    // Your lead link: a website form, an ad's lead form or Zapier sends new leads here. The secret in the link is the only key; no sign-in.
+    if (p.startsWith('/hook/lead/')) {
+      const cors = { 'access-control-allow-origin': '*', 'access-control-allow-headers': 'content-type' };
+      if (req.method === 'OPTIONS') { res.writeHead(204, cors); return res.end(); }
+      if (req.method !== 'POST') return json(res, 405, { error: 'Send leads with POST.' }, cors);
+      const given = hash(p.split('/').pop()), real = hash(city.hookSecret());
+      if (!crypto.timingSafeEqual(given, real)) return json(res, 404, { error: 'not found' }, cors);
+      const b = await body(req);
+      try { city.webLead(b); } catch (e) { return json(res, 400, { error: e.message }, cors); }
+      if (/^https?:\/\//.test(String(b.redirect || ''))) { res.writeHead(303, Object.assign({ location: String(b.redirect) }, cors)); return res.end(); }   // a plain HTML form: back to the owner's thank-you page
+      return json(res, 200, { ok: true }, cors);
+    }
     if (OPEN[p]) { const [f, type] = OPEN[p]; res.writeHead(200, { 'content-type': type, 'cache-control': p === '/sw.js' ? 'no-cache' : p.startsWith('/vendor/') ? 'public, max-age=31536000, immutable' : 'public, max-age=86400' }); return res.end(fs.readFileSync(path.join(PUBLIC, f))); }
     // ---- sign-in ----
     // First visit: nothing opens until the owner chooses a password. Only the first person to do it becomes the owner.
@@ -117,6 +129,8 @@ function createServer({ city, password = () => process.env.CITY_PASSWORD, public
       if (p === '/api/school' && req.method === 'POST') { if (!city.school) throw new Error('The School is not open in this city.'); const b = await body(req); return json(res, 200, { ok: true, student: city.school.enroll(b.ref, { note: b.note }) }); }
       if (p === '/api/research' && req.method === 'POST') { if (!city.research) throw new Error('The Research desk is not open in this city.'); return json(res, 200, { ok: true, said: await city.research.run() }); }
       if (p === '/api/askcity' && req.method === 'POST') { const b = await body(req); return json(res, 200, await city.askCity(b.text)); }
+      if (p === '/api/testlead' && req.method === 'POST') return json(res, 200, await city.testLead());
+      if (p === '/api/site' && req.method === 'POST') { const b = await body(req); return json(res, 200, { ok: true, found: await city.readSite(b.url) }); }
       if (p === '/api/run' && req.method === 'POST') { const b = await body(req); return json(res, 200, { ok: true, said: await city.runAgent(String(b.agent || '')) }); }
       if (p === '/api/ask' && req.method === 'POST') { const b = await body(req); return json(res, 200, await guide.ask(city, b.question, { redirect: city.redirect })); }
       if (p === '/api/google/disconnect' && req.method === 'POST') { city.google.disconnect(); return json(res, 200, { ok: true }); }
@@ -195,7 +209,8 @@ function cityData(city) {
 // Everything the home screen shows, in one answer. Never a key, a password or the Google pass.
 function state(city, redirect) {
   const s = city.settings();
-  return { settings: s, firstRun: !s.business || !city.departments().length, agents: city.agents(), picks: PICKS, cards: city.waiting(), updates: city.updates().slice(0, 150), checks: guide.checks(city, { redirect }),
+  const week = city.results(7);
+  return { results: Object.assign(week, { said: City.said(week) }), hookUrl: String(redirect || '').replace(/\/connect\/google\/callback$/, '') + '/hook/lead/' + city.hookSecret(), settings: s, firstRun: !s.business || !city.departments().length, agents: city.agents(), picks: PICKS, cards: city.waiting(), updates: city.updates().slice(0, 150), checks: guide.checks(city, { redirect }),
     google: { configured: city.google.configured(), connected: city.google.connected(), email: city.google.email(), mode: city.google.mode() }, redirect,
     spend: { today: Math.round(city.ai.spentToday() * 100) / 100, cap: city.ai.cap() }, store: city.store.kind(), alerts: s.alerts,
     ai: aiState(city), googleClient: { id: (city.store.get('googleClient') || {}).id || '', secretSet: !!(city.store.get('googleClient') || {}).secret, fromVariable: !!process.env.GOOGLE_CLIENT_ID },

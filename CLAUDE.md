@@ -7,7 +7,7 @@ A small Node.js app, drawn as a city: departments the owner names and describes 
 - Nothing is sent, posted or deleted without the owner's click. Departments make Gmail drafts and cards; only `City.decide` with `approve` sends.
 - The one exception is autopilot, which the owner turns on per department (`City.setAutopilot`) after it earns it (8 of its last 10 approved as written). It approves through the same `City.decide`; questions, fixes, new buildings and work the panel marked weak always wait; at most 20 a day; a new job turns it off. Never turn it on for the owner.
 - Departments never invent prices, dates or promises. Facts come from the owner's Settings or the message itself.
-- Never log, print, store in the page state, or commit a key, a password or the Google refresh token.
+- Never log, print, store in the page state, or commit a key, a password or the Google refresh token. The one exception is the lead link (`/hook/lead/<secret>`, `City.hookSecret`): the signed-in owner sees it to paste into forms, and it can only add leads (30 an hour).
 - Every failure the owner can fix gets a plain-English fix in `src/guide.js` (`FIXES`): one action per step, naming the exact button. Throw a `CityError` with that code.
 
 ## Working on it
