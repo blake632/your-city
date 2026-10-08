@@ -81,6 +81,10 @@ Your city runs on Railway, not on Google. Google asks every app for permission t
 
 The city asks Google for one permission: read, label and draft your email. It sends an email only when you press **Send the email** on a card.
 
+### Getting paid (for whoever sets cities up for others)
+
+Add a `PAY_URL` variable in Railway (a Stripe payment link, for example) and the city shows a **Keep my city** button at the end of the first-open walkthrough and in the Guide. Change the words with `PAY_TITLE`, `PAY_TEXT` and `PAY_BUTTON`.
+
 ### Wishes
 
 Want your city to do something it can't yet? Type it under **Wish it could do something?** in the Guide. Your wish is saved. If whoever looks after your city added a `WISH_URL` variable in Railway (any address that takes a plain-text POST, like an ntfy.sh topic), it's sent there right away.

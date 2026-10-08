@@ -231,6 +231,7 @@ function state(city, redirect) {
   const week = city.results(7);
   return { results: Object.assign(week, { said: City.said(week) }), hookUrl: String(redirect || '').replace(/\/connect\/google\/callback$/, '') + '/hook/lead/' + city.hookSecret(), settings: s, firstRun: !s.business || !city.departments().length, agents: city.agents(), picks: PICKS, cards: city.waiting(), updates: city.updates().slice(0, 150), checks: guide.checks(city, { redirect }),
     social: city.accounts ? city.accounts.state() : {},
+    pay: process.env.PAY_URL ? { url: process.env.PAY_URL, title: process.env.PAY_TITLE || 'Keep your city', text: process.env.PAY_TEXT || 'Like what it does? Keep it running.', button: process.env.PAY_BUTTON || 'Keep my city' } : null,
     google: { configured: city.google.configured(), connected: city.google.connected(), email: city.google.email(), mode: city.google.mode() }, redirect,
     spend: { today: Math.round(city.ai.spentToday() * 100) / 100, cap: city.ai.cap() }, store: city.store.kind(), alerts: s.alerts,
     ai: aiState(city), googleClient: { id: (city.store.get('googleClient') || {}).id || '', secretSet: !!(city.store.get('googleClient') || {}).secret, fromVariable: !!process.env.GOOGLE_CLIENT_ID },

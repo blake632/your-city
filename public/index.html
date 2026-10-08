@@ -62,6 +62,10 @@ label.f{display:block;margin:14px 0 6px;font-weight:600;font-size:15px}label.f s
 .agent{padding:14px 0;border-bottom:1px solid var(--line)}.agent:last-child{border-bottom:0}.agent b{font:400 1.15rem/1.2 var(--serif)}
 .pill{display:inline-block;border:1px solid var(--line2);border-radius:999px;padding:2px 10px;font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase}
 .pill.on{color:var(--good);border-color:currentColor}.pill.off{color:var(--dim)}
+#setup{position:fixed;inset:0;z-index:50;background:var(--bg);overflow:auto;padding:24px 16px calc(40px + env(safe-area-inset-bottom,0px))}#setup .in{max-width:560px;margin:0 auto}
+#setup input,#setup textarea{display:block;margin-top:6px;width:100%;border:1px solid var(--line2);border-radius:12px;background:var(--card);padding:12px;font-size:16px;font-weight:400}
+#setup .dots{white-space:nowrap;display:block;font:600 12px/1 var(--sans);letter-spacing:.14em;text-transform:uppercase;color:var(--accent);margin:8px 0 14px}
+.tile{display:block;width:100%;text-align:left;border:1px solid var(--line2);background:var(--card);border-radius:14px;padding:14px 16px;margin:0 0 10px;cursor:pointer}.tile b{display:block;font:400 1.2rem/1.2 var(--serif)}.tile span{font-size:14px;color:var(--dim)}.tile[aria-pressed="true"]{border:2px solid var(--accent);background:var(--tint)}
 .banner{background:var(--tint);border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:0 14px 14px 0;padding:14px 16px;margin:0 0 16px}
 .allclear{text-align:center;padding:50px 10px}.allclear .ok{font:400 4rem/1 var(--serif);color:var(--accent)}
 .city{display:block;width:100%;height:auto;margin:0 0 6px;touch-action:manipulation}.city .bld{cursor:pointer}.city .bld:focus{outline:none}.city .bld:focus-visible .top{stroke:var(--ink);stroke-width:1.5}
@@ -156,6 +160,7 @@ label.ck{display:flex;gap:10px;align-items:flex-start;margin:14px 0 6px;font-wei
     <h2>Wish it could do something?</h2>
     <textarea id="wish" rows="2" placeholder="I wish my city could..."></textarea>
     <div class="chips"><button class="btn yes sm" id="wishGo">Send my wish</button><span class="muted" id="wishSaid"></span></div>
+    <div id="payBox"></div>
     <h2>Rather have a person do it?</h2>
     <div class="box" style="padding:14px 16px"><p style="margin:0">Burnoff sets up your city for you, and a person answers when something breaks.</p><div class="chips"><a class="chip strong" href="https://burnoff.app" target="_blank" rel="noopener">Get help at burnoff.app</a></div></div>
   </section>
@@ -234,6 +239,7 @@ label.ck{display:flex;gap:10px;align-items:flex-start;margin:14px 0 6px;font-wei
   <button data-tab="settings"><span class="ic">⚙</span>Settings</button>
 </nav>
 <div class="toast" id="toast" hidden></div>
+<div id="setup" hidden><div class="in" id="setupIn"></div></div>
 <script>
 (function () {
   var $ = function (id) { return document.getElementById(id); };
@@ -284,6 +290,87 @@ label.ck{display:flex;gap:10px;align-items:flex-start;margin:14px 0 6px;font-wei
     var f = $('city3d'); if (f && f.contentWindow) try { f.contentWindow.postMessage({ type: 'refresh' }, location.origin); } catch (e) {}
     if (tab === 'guide') renderGuide();
     if (tab === 'settings') renderSettings();
+    renderSetup();
+  }
+  // ---- First open: a walkthrough for someone who has never used AI. Their business, what they want done, then only the connections that needs. ----
+  var W = { picks: [] };
+  var mem = { get: function (k) { try { return localStorage.getItem(k); } catch (e) { return null; } }, set: function (k, v) { try { localStorage.setItem(k, v); } catch (e) {} } };
+  function renderSetup() {
+    var step = Number(mem.get('setupStep') || 0);
+    if (!step && S.firstRun && !mem.get('setupSkip')) step = 1;
+    if (!S.firstRun && step && step < 3) step = 3;   // came back from connecting an account
+    if (mem.get('setupDone') || !step) { $('setup').hidden = true; return; }
+    $('setup').hidden = false; var box = $('setupIn'); if (box.dataset.step === String(step)) return; box.dataset.step = step; box.innerHTML = '';
+    var go = function (n) { mem.set('setupStep', n); box.dataset.step = ''; renderSetup(); window.scrollTo(0, 0); };
+    var done = function () { mem.set('setupDone', '1'); $('setup').hidden = true; load(); };
+    box.appendChild(el('div', { cls: 'dots', text: 'Step ' + Math.min(step, 4) + ' of 4' }));
+    if (step === 1) {
+      box.appendChild(el('h1', { text: 'Let’s set up your city.' }));
+      box.appendChild(el('p', { cls: 'sub', text: 'It works for you all day: writes your posts, answers your email, follows up with customers. Nothing goes out without your OK. No tech needed.' }));
+      var f = function (id, label, tag, ph) { var i = el(tag || 'input', { id: id, placeholder: ph || '', rows: tag === 'textarea' ? 3 : null }); i.value = (S.settings[id.replace('w-', '')] || ''); return el('label', { cls: 'f' }, [label, i]); };
+      box.appendChild(f('w-business', 'Your business name', 'input', 'Sam’s Kitchens'));
+      box.appendChild(f('w-owner', 'Your name', 'input', 'Sam Lee'));
+      box.appendChild(f('w-about', 'What do you do? One or two sentences.', 'textarea', 'We remodel kitchens in Austin. Most customers find us on Google.'));
+      var site = el('input', { id: 'w-site', placeholder: 'yourwebsite.com (optional)', inputmode: 'url' });
+      box.appendChild(el('label', { cls: 'f' }, ['Have a website? I can fill this in for you.', site]));
+      box.appendChild(el('div', { cls: 'chips' }, [el('button', { cls: 'chip strong', text: 'Fill it in from my website', onclick: function (e) { var b = e.target; b.disabled = true; b.textContent = 'Reading your site…';
+        api('/api/site', { url: site.value }).then(function (r) { if (r.found.business) $('w-business').value = r.found.business; if (r.found.about) $('w-about').value = r.found.about; W.voice = r.found.voice || ''; toast('Filled in. Check it, then press Next.'); }).catch(function (err) { toast(err.message); }).then(function () { b.disabled = false; b.textContent = 'Fill it in from my website'; }); } })]));
+      box.appendChild(el('div', { cls: 'chips', style: 'margin-top:22px' }, [el('button', { cls: 'btn yes', text: 'Next', onclick: function (e) {
+        var b = { business: $('w-business').value.trim(), owner: $('w-owner').value.trim(), about: $('w-about').value.trim() };
+        if (!b.business || !b.about) return toast('Add your business name and what you do.');
+        if (b.owner && !S.settings.signature) b.signature = b.owner + '\n' + b.business; if (W.voice) b.voice = W.voice;
+        e.target.disabled = true; api('/api/settings', b).then(function () { return load(); }).then(function () { go(2); }).catch(function (err) { e.target.disabled = false; toast(err.message); }); } })]));
+      box.appendChild(el('p', { style: 'margin-top:18px' }, [el('a', { href: '#', text: 'I’ll set it up myself', onclick: function (e) { e.preventDefault(); mem.set('setupSkip', '1'); done(); } })]));
+    }
+    if (step === 2) {
+      box.appendChild(el('h1', { text: 'What should your city do for you?' }));
+      box.appendChild(el('p', { cls: 'sub', text: 'Tap everything you want. You can change, add or remove any of it later.' }));
+      var have = DEPTS().map(function (d) { return d.name; });
+      S.picks.forEach(function (p, i) { if (have.indexOf(p.name) > -1) return;
+        var t = el('button', { cls: 'tile', 'aria-pressed': W.picks.indexOf(i) > -1 ? 'true' : 'false', onclick: function () { var k = W.picks.indexOf(i); if (k > -1) W.picks.splice(k, 1); else W.picks.push(i); t.setAttribute('aria-pressed', k > -1 ? 'false' : 'true'); } },
+          [el('b', { text: p.name }), el('span', { text: p.what })]); box.appendChild(t); });
+      box.appendChild(el('p', { cls: 'muted', style: 'font-size:14px', text: 'Want something else? After setup, tell your city in plain words and it builds it.' }));
+      box.appendChild(el('div', { cls: 'chips', style: 'margin-top:18px' }, [el('button', { cls: 'btn yes', text: 'Build my city', onclick: function (e) {
+        if (!W.picks.length && !have.length) return toast('Tap at least one.');
+        var b = e.target; b.disabled = true; b.textContent = 'Building…';
+        var picks = W.picks.map(function (i) { return S.picks[i]; }), chain = Promise.resolve();
+        mem.set('setupKinds', picks.map(function (p) { return p.kind; }).join(','));
+        picks.forEach(function (p) { chain = chain.then(function () { return api('/api/department', { kind: p.kind, name: p.name, does: p.does, every: p.every, audience: p.audience, judge: p.judge }); }); });
+        chain.then(function () { return load(); }).then(function () { go(3); }).catch(function (err) { b.disabled = false; b.textContent = 'Build my city'; toast(err.message); }); } })]));
+    }
+    if (step === 3) {
+      var kinds = DEPTS().map(function (d) { return d.kind; }), rows = [];
+      box.appendChild(el('h1', { text: 'Connect what it needs.' }));
+      box.appendChild(el('p', { cls: 'sub', text: 'Only what your departments use. Each one takes a minute.' }));
+      if (S.ai && S.ai.needs) rows.push(el('div', { cls: 'box', style: 'padding:14px 16px;margin:0 0 12px' }, [el('b', { text: 'Your AI' }), el('p', { cls: 'muted', style: 'margin:4px 0 0', text: 'The brain your city thinks with. One tap, then add a few dollars of credit.' }),
+        el('div', { cls: 'chips' }, [el('a', { cls: 'btn yes sm', href: '/connect/openrouter', style: 'text-decoration:none', text: 'Connect my AI' })])]));
+      if ((kinds.indexOf('leads') > -1 || kinds.indexOf('mailroom') > -1)) {
+        if (S.google.connected) rows.push(el('div', { cls: 'box', style: 'padding:14px 16px;margin:0 0 12px' }, [el('b', { text: '✓ Gmail is connected (' + (S.google.email || '') + ')' })]));
+        else { var ge = el('input', { placeholder: 'you@gmail.com', inputmode: 'email', autocomplete: 'email' }), gp = el('input', { placeholder: 'The 16 letters from Google', autocomplete: 'off' });
+          rows.push(el('div', { cls: 'box', style: 'padding:14px 16px;margin:0 0 12px' }, [el('b', { text: 'Gmail' }), el('p', { cls: 'muted', style: 'margin:4px 0 0', text: 'So it can read new emails and write your replies. It sends only when you tap Send.' }),
+            el('ol', { cls: 'steps', style: 'margin:10px 0 0' }, [el('li', {}, [el('a', { href: 'https://myaccount.google.com/apppasswords', target: '_blank', rel: 'noopener', text: 'Open Google’s app password page' }), ' and sign in.']), el('li', { text: 'Type My City as the name and tap Create.' }), el('li', { text: 'Copy the 16 letters Google shows and paste them here.' })]),
+            el('label', { cls: 'f' }, ['Your Gmail address', ge]), el('label', { cls: 'f' }, ['App password', gp]),
+            el('div', { cls: 'chips' }, [el('button', { cls: 'btn yes sm', text: 'Connect Gmail', onclick: function (e) { var b = e.target; b.disabled = true;
+              api('/api/gmail/password', { email: ge.value, password: gp.value }).then(function (r) { toast('Gmail is connected (' + r.email + ').'); box.dataset.step = ''; return load(); }).catch(function (err) { b.disabled = false; toast(err.message); }); } })]),
+            el('p', { cls: 'muted', style: 'font-size:13px;margin:10px 0 0', text: 'No such page? Google asks you to turn on 2-Step Verification first (myaccount.google.com/security).' })])); } }
+      if (kinds.indexOf('social') > -1) Object.keys(S.social || {}).forEach(function (n) { var x = S.social[n]; if (!x.configured && !x.connected) return;
+        rows.push(el('div', { cls: 'box', style: 'padding:14px 16px;margin:0 0 12px' }, x.connected ? [el('b', { text: '✓ ' + x.name + ' is connected (' + x.who + ')' })] : [el('b', { text: x.name }), el('p', { cls: 'muted', style: 'margin:4px 0 0', text: 'So an approved post goes live there by itself.' }),
+          el('div', { cls: 'chips' }, [el('a', { cls: 'btn yes sm', href: '/connect/' + n, style: 'text-decoration:none', text: 'Connect ' + x.name })])])); });
+      if (!rows.length) rows.push(el('p', { text: 'Nothing to connect. Your city is ready.' }));
+      rows.forEach(function (r) { box.appendChild(r); });
+      box.appendChild(el('div', { cls: 'chips', style: 'margin-top:18px' }, [el('button', { cls: 'btn yes', text: 'Next', onclick: function () { go(4); } })]));
+    }
+    if (step === 4) {
+      box.appendChild(el('h1', { text: 'Your city is working.' }));
+      var said = el('p', { cls: 'sub', text: 'Doing its first jobs now…' }); box.appendChild(said);
+      var first = DEPTS().filter(function (d) { return d.kind === 'social' || d.kind === 'own'; }).slice(0, 2), leads = DEPTS().some(function (d) { return d.kind === 'leads'; });
+      var chain = Promise.resolve(); if (mem.get('setupRan')) first = [], leads = false; mem.set('setupRan', '1'); first.forEach(function (d) { chain = chain.then(function () { return api('/api/run', { agent: d.id }).catch(function () {}); }); });
+      if (leads) chain = chain.then(function () { return api('/api/testlead', {}).catch(function () {}); });
+      chain.then(function () { said.textContent = 'Its first work is waiting for you. Approve what you like, decline what you don’t. It learns from every tap.'; });
+      if (S.pay && S.pay.url) box.appendChild(el('div', { cls: 'box', style: 'padding:16px;margin:8px 0 0' }, [el('b', { text: S.pay.title }), el('p', { cls: 'muted', style: 'margin:4px 0 0', text: S.pay.text }),
+        el('div', { cls: 'chips' }, [el('a', { cls: 'btn yes sm', href: S.pay.url, target: '_blank', rel: 'noopener', style: 'text-decoration:none', text: S.pay.button })])]));
+      box.appendChild(el('div', { cls: 'chips', style: 'margin-top:18px' }, [el('button', { cls: 'btn yes', text: 'Open my city', onclick: done })]));
+    }
   }
   var DEPTS = function () { return S.agents.filter(function (a) { return a.id !== 'guide'; }); };
   // ---- Your city: the drawing, then the list ----
@@ -601,6 +688,8 @@ label.ck{display:flex;gap:10px;align-items:flex-start;margin:14px 0 6px;font-wei
   }
   // ---- Guide ----
   function renderGuide() {
+    var pb = $('payBox'); pb.innerHTML = '';
+    if (S.pay && S.pay.url) { pb.appendChild(el('h2', { text: S.pay.title })); pb.appendChild(el('div', { cls: 'box', style: 'padding:14px 16px' }, [el('p', { style: 'margin:0', text: S.pay.text }), el('div', { cls: 'chips' }, [el('a', { cls: 'chip strong', href: S.pay.url, target: '_blank', rel: 'noopener', text: S.pay.button })])])); }
     var box = $('checks'); box.innerHTML = '';
     S.checks.forEach(function (c) {
       var steps = c.fix ? stepList(c.fix.steps, 'margin-top:8px') : null;
