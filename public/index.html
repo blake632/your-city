@@ -293,7 +293,7 @@ label.ck{display:flex;gap:10px;align-items:flex-start;margin:14px 0 6px;font-wei
     if (S.firstRun || bad.length) {
       start.hidden = false;
       start.appendChild(el('b', { text: S.firstRun ? 'Welcome. Start here.' : 'Your setup needs ' + bad.length + ' thing' + (bad.length > 1 ? 's' : '') + '.' }));
-      start.appendChild(S.firstRun ? el('ol', { cls: 'steps', style: 'margin:6px 0 8px' }, [el('li', { text: 'Settings, then Your AI: press Connect with OpenRouter.' }), el('li', { text: 'Settings, then Your business: type your website and press Fill it in.' }), el('li', { text: 'Here: tap + Build a department. Start with Leads, then press Try a test lead.' })])
+      start.appendChild(S.firstRun ? el('ol', { cls: 'steps', style: 'margin:6px 0 8px' }, [S.ai && !S.ai.needs ? null : el('li', { text: 'Settings, then Your AI: press Connect with OpenRouter.' }), el('li', { text: 'Settings, then Your business: type your website and press Fill it in.' }), el('li', { text: 'Here: tap + Build a department. Start with Leads, then press Try a test lead.' }), el('li', { text: 'Settings, then Your accounts and Gmail: connect what you use.' })].filter(Boolean))
         : el('p', { cls: 'muted', style: 'margin:4px 0 8px', text: bad[0].text }));
       start.appendChild(el('div', { cls: 'chips' }, [el('a', { cls: 'chip strong', href: '#settings', text: 'Open Settings' }), el('a', { cls: 'chip strong', href: '#guide', text: 'Open the Guide' })]));
     } else start.hidden = true;
