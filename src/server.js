@@ -91,6 +91,23 @@ function createServer({ city, password = () => process.env.CITY_PASSWORD, public
       catch (e) { city.problem('guide', e); msg = e.message + ' Open the Guide for the fix.'; }
       res.writeHead(302, { location: '/?said=' + encodeURIComponent(msg) + '#settings' }); return res.end();
     }
+    // ---- LinkedIn and Facebook: press Connect, say yes there, and come back connected ----
+    const net = /^\/connect\/(linkedin|facebook)(\/callback)?$/.exec(p);
+    if (net && city.accounts) {
+      const n = net[1], back = origin(req) + '/connect/' + n + '/callback', name = city.accounts.name(n);
+      if (!net[2]) {
+        if (!city.accounts.configured(n)) { res.writeHead(302, { location: '/?said=' + encodeURIComponent(name + ' is not turned on for this city yet. Ask the person who set it up.') + '#settings' }); return res.end(); }
+        const st = crypto.randomBytes(16).toString('hex'); states.set(n + ':' + st, Date.now() + 10 * 60e3);
+        res.writeHead(302, { location: city.accounts.authUrl(n, back, st) }); return res.end();
+      }
+      const st = url.searchParams.get('state'), until = states.get(n + ':' + st); states.delete(n + ':' + st);
+      let msg;
+      if (url.searchParams.get('error')) msg = name + ' said no (' + url.searchParams.get('error') + '). Nothing was connected.';
+      else if (!until || until < Date.now()) msg = 'That took too long. Press Connect ' + name + ' again.';
+      else try { msg = name + ' is connected (' + await city.accounts.finish(n, url.searchParams.get('code'), back) + '). Approved posts go live there.'; }
+      catch (e) { city.problem('guide', e); msg = name + ' did not connect: ' + e.message; }
+      res.writeHead(302, { location: '/?said=' + encodeURIComponent(msg) + '#settings' }); return res.end();
+    }
     // ---- OpenRouter: press Connect, sign in there, and the city gets its own AI key. Nothing to copy. ----
     // The state rides in the path (OpenRouter adds ?code= to the callback); the owner must be signed in, and PKCE ties the code to this city.
     if (p === '/connect/openrouter') {
@@ -134,6 +151,7 @@ function createServer({ city, password = () => process.env.CITY_PASSWORD, public
       if (p === '/api/site' && req.method === 'POST') { const b = await body(req); return json(res, 200, { ok: true, found: await city.readSite(b.url) }); }
       if (p === '/api/run' && req.method === 'POST') { const b = await body(req); return json(res, 200, { ok: true, said: await city.runAgent(String(b.agent || '')) }); }
       if (p === '/api/ask' && req.method === 'POST') { const b = await body(req); return json(res, 200, await guide.ask(city, b.question, { redirect: city.redirect })); }
+      if (p === '/api/social/disconnect' && req.method === 'POST') { const b = await body(req); if (city.accounts && city.accounts.nets().includes(b.net)) city.accounts.disconnect(b.net); return json(res, 200, { ok: true }); }
       if (p === '/api/google/disconnect' && req.method === 'POST') { city.google.disconnect(); return json(res, 200, { ok: true }); }
       // The easy way: Gmail address + app password, checked with Gmail itself before it is kept. The password never comes back to the page.
       if (p === '/api/gmail/password' && req.method === 'POST') { const b = await body(req); const email = await city.google.connectPassword(b.email, b.password); city.departments().forEach(d => city.clearProblem(d.id)); city.clearProblem('guide'); return json(res, 200, { ok: true, email }); }
@@ -212,6 +230,7 @@ function state(city, redirect) {
   const s = city.settings();
   const week = city.results(7);
   return { results: Object.assign(week, { said: City.said(week) }), hookUrl: String(redirect || '').replace(/\/connect\/google\/callback$/, '') + '/hook/lead/' + city.hookSecret(), settings: s, firstRun: !s.business || !city.departments().length, agents: city.agents(), picks: PICKS, cards: city.waiting(), updates: city.updates().slice(0, 150), checks: guide.checks(city, { redirect }),
+    social: city.accounts ? city.accounts.state() : {},
     google: { configured: city.google.configured(), connected: city.google.connected(), email: city.google.email(), mode: city.google.mode() }, redirect,
     spend: { today: Math.round(city.ai.spentToday() * 100) / 100, cap: city.ai.cap() }, store: city.store.kind(), alerts: s.alerts,
     ai: aiState(city), googleClient: { id: (city.store.get('googleClient') || {}).id || '', secretSet: !!(city.store.get('googleClient') || {}).secret, fromVariable: !!process.env.GOOGLE_CLIENT_ID },

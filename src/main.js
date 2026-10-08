@@ -4,6 +4,7 @@ const { AI } = require('./ai');
 const { Google } = require('./google');
 const { Push } = require('./push');
 const { City } = require('./city');
+const { Social } = require('./social');
 const { School } = require('./school');
 const { Research } = require('./research');
 const { createServer } = require('./server');
@@ -13,6 +14,7 @@ const { createServer } = require('./server');
   const ai = new AI({ store }), google = new Google({ store });
   const push = new Push(store, { subject: 'mailto:' + (google.email() || 'city-owner@example.com') });
   const city = new City({ store, ai, google, push });
+  city.accounts = new Social({ store });
   city.school = new School({ city }); city.research = new Research({ city, school: city.school });   // they reach GitHub, so they are added here, not in tests
   const server = createServer({ city });
   const port = Number(process.env.PORT) || 3000;

@@ -197,6 +197,8 @@ label.ck{display:flex;gap:10px;align-items:flex-start;margin:14px 0 6px;font-wei
       <label class="f">Booking link (optional)<small>Your Calendly or Google booking page. Lead replies offer it, so customers can pick a time.</small><input type="text" id="s-booking" placeholder="https://calendly.com/..." inputmode="url"></label>
       <div class="chips"><button class="btn yes sm" id="saveBiz">Save</button></div>
     </div>
+    <h2>Your accounts</h2>
+    <div class="box" style="padding:14px 16px" id="accounts"></div>
     <h2>Gmail</h2>
     <div class="box" style="padding:14px 16px" id="gmail"></div>
     <div class="box" style="padding:4px 16px 16px;margin-top:10px" id="gclient">
@@ -637,6 +639,12 @@ label.ck{display:flex;gap:10px;align-items:flex-start;margin:14px 0 6px;font-wei
     hk.appendChild(stepList(['Website form, Zapier or Make: send a POST to this link.', 'Send these fields: name, email, phone, message. An email or a phone is enough.', 'Keep the link private. Anyone with it can add leads (at most 30 an hour).'].concat(S.agents.some(function (a) { return a.kind === 'leads'; }) ? [] : ['Build a Leads department first.']), 'margin:12px 0 0'));
     $('gclient').hidden = S.google.connected || !gAdvanced; $('g-id').value = $('g-id').value || S.googleClient.id || ''; $('g-secret').placeholder = S.googleClient.secretSet ? 'Saved. Paste a new one to replace it.' : 'Paste the secret';
     $('pwBox').hidden = S.passwordFrom === 'variable';
+    var ac = $('accounts'); ac.innerHTML = '';
+    ac.appendChild(el('p', { cls: 'muted', style: 'margin:0 0 10px;font-size:14px', text: 'Connect once. When you approve a post, it goes live there. Nothing posts without your Approve.' }));
+    Object.keys(S.social || {}).forEach(function (n) { var x = S.social[n];
+      ac.appendChild(el('div', { cls: 'chips', style: 'align-items:center' }, x.connected ? [el('span', { text: '✓ ' + x.name + ': ' + x.who + (x.until ? ' (connect again by ' + new Date(x.until).toLocaleDateString() + ')' : '') }), el('a', { cls: 'chip', href: '/connect/' + n, text: 'Connect again' }), el('button', { cls: 'chip', text: 'Disconnect', onclick: function () { if (confirm('Disconnect ' + x.name + '? Approved posts stop going there.')) api('/api/social/disconnect', { net: n }).then(load); } })]
+        : x.configured ? [el('a', { cls: 'btn yes sm', href: '/connect/' + n, style: 'display:inline-block;text-decoration:none', text: 'Connect ' + x.name })]
+        : [el('span', { cls: 'muted', text: x.name + ': ask the person who set up your city to turn this on.' })])); });
     var g = $('gmail'); g.innerHTML = '';
     if (S.google.connected) g.appendChild(el('div', {}, [el('p', { style: 'margin:0 0 8px', text: '✓ Connected to ' + (S.google.email || 'your Gmail') + (S.google.mode === 'password' ? ' with an app password' : '') + '. The city reads, labels and drafts. It sends only when you press Send.' }),
       el('div', { cls: 'chips' }, [S.google.mode === 'oauth' ? el('a', { cls: 'chip', href: '/connect/google', text: 'Connect again' }) : null, el('button', { cls: 'chip', text: 'Disconnect', onclick: function () { if (confirm('Disconnect Gmail? Departments that read Gmail stop until you connect again.')) api('/api/google/disconnect', {}).then(load); } })])]));

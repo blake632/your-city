@@ -193,7 +193,11 @@ class City {
         await this.google.sendDraft(c.email.draftId);
         status = 'sent'; said = 'Sent your reply to ' + (c.email.to || 'them') + '.';
         if (c.kind === 'lead' && c.lead && c.lead.email) { const fu = this.store.get('leadsSent', {}); fu[c.lead.email] = this.now(); this.store.set('leadsSent', fu); }
-      } else if (decision === 'approve' && c.kind === 'post') { status = 'approved'; said = 'Saved: ' + c.title + '. Copy it from Updates whenever you post.'; }
+      } else if (decision === 'approve' && c.kind === 'post') {
+        const D = this.department(c.agent), nets = this.accounts ? this.accounts.targets(c.title + ' ' + (D ? D.name : '')) : [];
+        const done = []; for (const n of nets) done.push(await this.accounts.publish(n, c.body));   // a failure keeps the card waiting, and says why
+        status = 'approved'; if (done.length) c.posted = done; said = done.length ? 'Posted on ' + done.join(' and ') + ': ' + c.title : 'Saved: ' + c.title + '. Copy it from Updates whenever you post.';
+      }
       else if (decision === 'decline' && c.email) said = 'Not sent. The draft stays in your Gmail drafts if you want it later.';
       Object.assign(c, { status, decidedAt: this.now() }); this.store.put('cards', c.id, c);
       if (c.auto && decision === 'approve') said = 'On autopilot: ' + (said || c.title);
