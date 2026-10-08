@@ -116,7 +116,7 @@
     msg(43.7, 'research', 'web1', 'Searching GitHub for the best bookkeeping tools…', 'Research desk'); msg(45.2, 'web3', 'research', 'Found one: 1,840 stars. Checking it’s safe…', 'Research desk');
     msg(46.7, 'research', 'school', 'It’s safe. Sending it to class.'); msg(49.7, 'school', 'hall', 'Passed its practice jobs. Joining Bookkeeping.', 'The School');
     W.model = { win: [64.3, 68.1], seq: [[0, 'Claude', '#e07a4f'], [65.1, 'ChatGPT', '#10a37f'], [65.9, 'Gemini', '#4f8df5'], [66.7, 'Kimi', '#8b6cff'], [67.5, 'Claude', '#e07a4f']] };
-    cap(-1, 2.6, 'I just connected <em>my Gmail.</em>', 'Watch what happens.');   // the hook: on screen from the first frame
+    cap(-1, 2.6, 'Small business owner? <em>Your inbox is about to run itself.</em>', 'I connected my Gmail. Watch.');   // the hook: on screen from the first frame
     cap(2.7, 4.1, 'Scanning <em>your email…</em>', '');
     cap(4.4, 7.4, '<span class="n">1,000</span> AI helpers <em>get to work.</em>', 'It reads your inbox and sorts every email.');
     cap(7.6, 9.6, 'Your day, <em>already sorted.</em>', 'Replies drafted. Receipts filed. Junk gone.');
