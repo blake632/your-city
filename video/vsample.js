@@ -77,7 +77,7 @@ async function vsample({ proposals = true } = {}) {
   const O = city.saveDepartment({ name: 'Open House', does: 'Write the invite for this weekend\'s open house at our finished Crestview kitchen (4410 Shoal Creek Blvd, Saturday 10 to 2, free).', audience: 'Austin homeowners thinking about a kitchen remodel', judge: true, every: 10080 });
   const I = city.saveDepartment(Object.assign(pick('social'), { name: 'Instagram', audience: 'Austin homeowners who follow home design accounts' }));
   const R = city.saveDepartment(Object.assign({}, PICKS.find(p => p.name === 'Reviews'), { judge: false }));
-  city.saveDepartment(Object.assign({}, PICKS.find(p => p.name === 'Newsletter'), { on: false }));
+  city.saveDepartment(Object.assign({}, PICKS.find(p => p.name === 'Newsletter'), { on: process.env.VCUT === 'dept' }));   // lit for its own video
   const M = city.saveDepartment(Object.assign(pick('mailroom'), { name: 'Mail Room' }));
   for (const d of [L, O, I, R]) await city.runAgent(d.id);
   city.ask(city.department(O.id), 'Should the invite mention parking on Shoal Creek?');

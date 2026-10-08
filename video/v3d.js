@@ -7,8 +7,10 @@ let chromium; try { ({ chromium } = require('playwright')); } catch (e) { ({ chr
 const { spawn, execFileSync } = require('child_process'), fs = require('fs'), path = require('path'), os = require('os');
 // A Mac draws with its own graphics chip; a server with none draws in software (SwiftShader), about 10x slower.
 const GPU = process.platform === 'darwin', ARGS = GPU ? ['--use-angle=metal', '--ignore-gpu-blocklist'] : ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'];
-const CUT = ['short', 'endcard'].includes(process.argv[2]) ? process.argv[2] : ['short', 'endcard'].includes(process.env.VCUT) ? process.env.VCUT : 'full'; process.env.VCUT = CUT;   // workers inherit it
-const FPS = 30, DUR = { full: 104, short: 74.2, endcard: 4.5 }[CUT], N = Math.round(DUR * FPS), DIR = __dirname, OUTDIR = path.join(DIR, 'vout'), W = 405, H = 720, DPR = 2;
+const CUTS = ['short', 'endcard', 'dept'], CUT = CUTS.includes(process.argv[2]) ? process.argv[2] : CUTS.includes(process.env.VCUT) ? process.env.VCUT : 'full'; process.env.VCUT = CUT;   // workers inherit it
+//   node v3d.js dept leads             one department's 25-second Instagram video (leads, mail, social, reviews, newsletter): vout/dept-<name>.mp4
+if (CUT === 'dept' && process.argv[2] === 'dept') process.env.VDEPT = process.argv[3] || 'leads';
+const FPS = 30, DUR = { full: 104, short: 74.2, endcard: 4.5, dept: 25 }[CUT], N = Math.round(DUR * FPS), DIR = __dirname, OUTDIR = path.join(DIR, 'vout'), W = 405, H = 720, DPR = 2;
 fs.mkdirSync(OUTDIR, { recursive: true }); fs.mkdirSync(path.join(DIR, 'shots'), { recursive: true });
 const FILES = { '/__v/fonts/': path.join(DIR, 'fonts'), '/__v/assets/': path.join(DIR, 'vassets') };
 
@@ -21,7 +23,7 @@ async function openCity(base) {
     const f = path.join(FILES[pre], path.basename(u.pathname)); if (!fs.existsSync(f)) return r.abort(); r.fulfill({ path: f, contentType: f.endsWith('.woff2') ? 'font/woff2' : 'image/png' }); });
   await pg.goto(base + '/'); await pg.fill('#pw', 'pw'); await pg.click('button'); await pg.waitForTimeout(300);
   await pg.goto(base + '/city3d?video=1'); await pg.waitForFunction(() => window.__city && window.__city.step);
-  await pg.evaluate(c => { window.__vcut = c; }, CUT); await pg.addScriptTag({ path: path.join(DIR, 'vdirector.js') }); await pg.evaluate(() => window.__vready);
+  await pg.evaluate(([c, d]) => { window.__vcut = c; window.__vdept = d; }, [CUT, process.env.VDEPT || '']); await pg.addScriptTag({ path: path.join(DIR, 'vdirector.js') }); await pg.evaluate(() => window.__vready);
   const vd = await pg.evaluate(() => window.__vdur); if (Math.abs(vd - DUR) > .5) console.log('NOTE: the director runs ' + vd.toFixed(1) + 's but DUR in v3d.js is ' + DUR);
   return { br, pg, errs };
 }
@@ -63,7 +65,7 @@ async function stills(base, times) {
     await Promise.all([...Array(parts).keys()].map(i => { const out = path.join(OUTDIR, 'seg' + i + '.mp4'); segs.push(out);
       return new Promise((res, rej) => { const p = spawn(process.execPath, [__filename, 'worker', s.base, String(cut[i]), String(cut[i + 1]), out], { stdio: 'inherit' }); p.on('close', c => c ? rej(new Error('worker ' + i + ' failed')) : res()); }); }));
     fs.writeFileSync(path.join(OUTDIR, 'list.txt'), segs.map(f => "file '" + f + "'").join('\n'));
-    const final = path.join(OUTDIR, { short: 'your-city-short.mp4', endcard: 'your-city-endcard.mp4' }[CUT] || 'your-city.mp4');
+    const final = path.join(OUTDIR, { short: 'your-city-short.mp4', endcard: 'your-city-endcard.mp4', dept: 'dept-' + process.env.VDEPT + '.mp4' }[CUT] || 'your-city.mp4');
     execFileSync('ffmpeg', ['-y', '-loglevel', 'error', '-f', 'concat', '-safe', '0', '-i', path.join(OUTDIR, 'list.txt'), '-f', 'lavfi', '-i', 'anullsrc=r=44100:cl=stereo',
       '-c:v', 'copy', '-c:a', 'aac', '-b:a', '128k', '-shortest', '-movflags', '+faststart', final]);
     console.log('WROTE', final);

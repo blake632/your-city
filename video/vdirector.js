@@ -4,7 +4,7 @@
 // a new department you tap to build, one you ask for in words (via the Research desk and the School), the prizes, and the end card.
 (() => {
   const C = window.__city, V3 = window.THREE.Vector3, byName = n => C.DEPTS.find(d => d.name === n);
-  const K = { L: byName('Leads').k, O: byName('Open House').k, I: byName('Instagram').k, M: byName('Mail Room').k };
+  const K = { L: byName('Leads').k, O: byName('Open House').k, I: byName('Instagram').k, M: byName('Mail Room').k, R: byName('Reviews').k, N: byName('Newsletter').k };
   const ease = x => x <= 0 ? 0 : x >= 1 ? 1 : x < .5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2, lin = (a, b, x) => a + (b - a) * x, cl = x => Math.max(0, Math.min(1, x));
   const angLerp = (a, b, x) => { let d = b - a; d = Math.atan2(Math.sin(d), Math.cos(d)); return a + d * x; };
   const mix = (A, B, x) => ({ az: angLerp(A.az, B.az, x), el: lin(A.el, B.el, x), dist: Math.exp(lin(Math.log(A.dist), Math.log(B.dist), x)), pitch: lin(A.pitch, B.pitch, x), px: lin(A.px, B.px, x), py: lin(A.py, B.py, x), pz: lin(A.pz, B.pz, x) });
@@ -32,6 +32,32 @@
   const QUOTES = [{ yes: false, text: 'I hate this. It says nothing.' }, { yes: false, text: 'Generic. Feels automated.' }, { yes: true, text: 'I\'d reply to this email.' }, { yes: true, text: 'Warm, and it asks one clear question.' }];
   const BOOK = { name: 'Bookkeeping', does: 'File every invoice and receipt each week, and tell me what is due.' }, CRYPTO = { name: 'Crypto Desk', does: 'Paper-trade a small test portfolio and report weekly. Paper only.' }, STORE = { name: 'Store Desk', does: 'Find products worth testing, write the listings, and walk me through setting up Shopify step by step.' };
   let ROWS = [];
+  const DEPT = {
+    leads: { k: 'L', hook: 'A new lead at 9 pm? <em>Answered in minutes.</em>', hookP: 'In your voice. You just tap Send.', sub: 'Answers every new customer, in your voice.',
+      steps: ['Dana asks about a kitchen remodel.', 'Leads writes her a reply, in your voice.', 'Your phone buzzes: the reply is ready.', 'You tap Send. Done.'],
+      trial: { head: 'Email to a new customer', aud: '96 simulated customers', ph: 'To: Dana Ruiz · asked about a kitchen remodel', q: 'Would you reply to this?', yes1: 18, yes2: 74,
+        one: 'Thanks for your interest. Let us know if you have questions.', two: 'Hi Dana, opening the wall to the dining room is one of our favorite projects. When would you like the work to start?' },
+      after: 'Every lead. <em>Every time.</em>', afterP: 'Even at 9 pm on a Sunday.', end: 'Never miss<br>a lead again.' },
+    mail: { k: 'M', hook: 'Your inbox, <em>sorted before your coffee.</em>', hookP: 'Every email read. Every reply drafted.', sub: 'Reads your Gmail and sorts every email.',
+      steps: ['Reads every new email.', 'Customers go straight to Leads.', 'Receipts get filed. Junk gets skipped.', 'Replies are drafted. You just approve.'],
+      msgs: [[0, K.L, 'New customer: Dana wants a new kitchen.'], [1, 'hall', 'A customer asked about parking. Reply drafted.', 'Mail Room'], [2, 'hall', 'Receipt from the tile supplier. Filed.', 'Mail Room'],
+        [3, 'hall', 'Newsletter. Skipped.', 'Mail Room'], [4, 'hall', 'Spam. It never gets a reply.', 'Mail Room']],
+      after: 'An inbox <em>that runs itself.</em>', afterP: 'Nothing is sent until you tap Send.', end: 'Inbox zero,<br>every day.' },
+    social: { k: 'I', hook: 'A week of posts, <em>written for you.</em>', hookP: 'You pick the photo. It writes the rest.', sub: 'Writes your posts for the week.',
+      steps: ['Writes 3 posts for this week.', 'Tells you which real photo to use.', 'Tests each post on its audience first.', 'Nothing posts until you say so.'],
+      trial: { head: 'Instagram post', aud: '96 simulated Instagram users', ph: '📷 The finished kitchen, morning light', q: 'Would you stop scrolling?', yes1: 23, yes2: 74,
+        one: 'New kitchen done. Check it out!', two: 'Same walls. Whole new kitchen. This 1970s galley in Crestview now opens to the dining room. ✨' },
+      after: 'Post every week. <em>Skip the work.</em>', afterP: 'Weak posts get rewritten before you see them.', end: 'Show up every week.<br>Without the work.' },
+    reviews: { k: 'R', hook: 'More 5-star reviews. <em>No awkward asking.</em>', hookP: 'It tells you who to ask, and writes the ask.', sub: 'Gets you more Google reviews.',
+      steps: ['Every Monday: who to ask this week.', '“The Hendersons: kitchen done Friday.”', 'It writes a short, warm ask.', 'You check it and send it.'],
+      trial: { head: 'Review request', aud: '96 simulated past customers', ph: 'To: the Hendersons · kitchen done Friday', q: 'Would you leave a review?', yes1: 21, yes2: 72,
+        one: 'Please leave us a review on Google.', two: 'Hi Karen, it was a joy building your kitchen. If you love it, a quick Google review helps your neighbors find us.' },
+      after: 'Happy customers, <em>on the record.</em>', afterP: 'One tap from you. A review that lasts for years.', end: 'Let happy customers<br>do the selling.' },
+    newsletter: { k: 'N', hook: 'Stay in touch with past customers. <em>Zero writing.</em>', hookP: 'A short email they actually open.', sub: 'A short email to your past customers.',
+      steps: ['Writes a short email to past customers.', 'One useful tip. One thing that’s new.', 'Tested on its readers before you see it.', 'You approve it. They remember you.'],
+      trial: { head: 'Customer email', aud: '96 simulated past customers', ph: 'To: your past customers', q: 'Would you open this?', yes1: 19, yes2: 70,
+        one: 'October newsletter from Sam’s Kitchens.', two: 'Before winter: check the seal under your kitchen sink. It takes 2 minutes. (Plus: our new tile is in.)' },
+      after: 'They remember you. <em>They come back.</em>', afterP: 'And they send their friends.', end: 'Customers who<br>come back.' } };
   if (window.__vcut === 'endcard') {
     // The ad's last 4.5 seconds: the lit city pulling back, light trails between the departments, and the offer.
     window.__vdur = 4.5;
@@ -40,6 +66,24 @@
     W.endHtml = '<h1>Your <em>City</em></h1><h2>First 5 businesses<br>get set up free.</h2><p style="margin:16px 0 0;font:600 14px Inter,sans-serif;color:rgba(240,236,228,.85)">We set it up with you on a call.</p><div class="pill">Tap Sign Up below</div><small>Then $500 per setup. Sample business shown. AI judges are simulated.</small>';
     let seed = 3; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647, KS = C.DEPTS.map(d => d.k);
     W.arcs = []; for (let t = -1.5; t < 4.5; t += .1) { const a = KS[Math.floor(rnd() * KS.length)], b = KS[Math.floor(rnd() * KS.length)]; if (a !== b) W.arcs.push({ t, a, b, dur: 1.5 + rnd() * .6 }); }
+  } else if (window.__vcut === 'dept') {
+    // One department, about 25 seconds, for the Burnoff Instagram: the hook (what you get), a tap into its building and how it works,
+    // its work tested and rewritten (or, for the Mail Room, the inbox sorting itself), the line to remember, and the end card.
+    const D = DEPT[window.__vdept] || DEPT.leads, k = K[D.k];
+    window.__vdur = 25;
+    const RISE = Object.assign({}, CITY, { az: CITY.az - 1.1, el: 1.3, dist: CITY.dist * 2.1, pitch: 1.08 }), A3 = Object.assign({}, S.A1, { az: .58 });
+    MOVES.push([0, 3.6, RISE, CITY], [12, 18, S.A1, A3], [18, 25, A3, FIN]);
+    cap(-1, 3.3, D.hook, D.hookP);
+    const tx = visit(k, 3.4, 6.2, D.sub, D.steps, { cut: true, gap: 1.1, lead: .3 });
+    if (D.trial) W.trials = [Object.assign({ win: [tx + .3, tx + 5.6], flip: tx + 2.5, done: tx + 4.6 }, D.trial)];
+    let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647, KS = C.DEPTS.map(d => d.k);
+    W.arcs = []; W.msgs = [];
+    for (let t = tx; t < 21; t += .16) { const a = KS[Math.floor(rnd() * KS.length)], b = KS[Math.floor(rnd() * KS.length)]; if (a !== b) W.arcs.push({ t, a, b, dur: 1.5 + rnd() * .6 }); }
+    (D.msgs || []).forEach(([dt, b, text, head], i) => { const t = tx + .3 + dt; W.arcs.push({ t, a: k, b, dur: 1.6, big: true }); W.msgs.push({ t, a: k, b, text, head, life: 2.2 }); });
+    if (D.msgs) for (let t = tx - .2, i = 0; t < tx + .8; t += .1, i++) W.arcs.push({ t, a: 'web' + (i % 5), b: k, dur: 1.3 });   // the email pours in
+    cap(tx + 5.9, tx + 8.6, D.after, D.afterP);
+    W.end = 20.9;
+    W.endHtml = '<h1>Burn<em>off</em></h1><h2>' + D.end + '</h2><p style="margin:16px 0 0;font:600 14px Inter,sans-serif;color:rgba(240,236,228,.85)">Your AI office. You approve everything.</p><div class="pill">Link in bio · burnoff.app</div><small>Sample business shown. Judges are simulated by AI.</small>';
   } else if (!SHORT) {
     // The story: a new email comes in, the Mail Room sorts it, Leads writes the reply, the judges score it; then a tour of the other departments,
     // a new department you tap to build, one you ask for in words (via the Research desk and the School), the prizes, and the end card.
