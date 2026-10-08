@@ -102,3 +102,16 @@ test('fill in my details from my website: the page text only, never its scripts'
   await assert.rejects(t.city.readSite('http://127.0.0.1:1'), /Could not open/);
   site.close();
 });
+
+test('A wish is kept, sent to the person who looks after the city, and kept even when the send fails', async () => {
+  const store = await Store.open({ memory: true }), sent = [];
+  const city = new City({ store, ai: new AI({ store, env: {} }), google: new Google({ store }), log: { error() {} }, wishTo: () => 'https://ntfy.example/topic',
+    post: async (u, o) => { sent.push([u, o.body, o.headers.title]); if (o.body === 'fail') throw new Error('down'); return { ok: true }; } });
+  city.saveSettings({ owner: 'Ray' });
+  await assert.rejects(city.wish('  '), /Say what you wish/);
+  assert.match((await city.wish('Post to LinkedIn for me')).said, /sent/);
+  await city.wish('fail');
+  assert.deepStrictEqual(sent.map(s => s[1]), ['Post to LinkedIn for me', 'fail']);
+  assert.strictEqual(sent[0][2], 'Wish from Ray');
+  assert.deepStrictEqual(store.list('wishes').map(w => [w.text, w.sent]), [['Post to LinkedIn for me', true], ['fail', false]]);
+});

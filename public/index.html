@@ -153,6 +153,9 @@ label.ck{display:flex;gap:10px;align-items:flex-start;margin:14px 0 6px;font-wei
     <textarea id="q" rows="3" placeholder="Something not working? Ask in your own words."></textarea>
     <div class="chips"><button class="btn yes sm" id="askGo">Ask</button><span class="muted" id="thinking"></span></div>
     <div id="answer"></div>
+    <h2>Wish it could do something?</h2>
+    <textarea id="wish" rows="2" placeholder="I wish my city could..."></textarea>
+    <div class="chips"><button class="btn yes sm" id="wishGo">Send my wish</button><span class="muted" id="wishSaid"></span></div>
     <h2>Rather have a person do it?</h2>
     <div class="box" style="padding:14px 16px"><p style="margin:0">Burnoff sets up your city for you, and a person answers when something breaks.</p><div class="chips"><a class="chip strong" href="https://burnoff.app" target="_blank" rel="noopener">Get help at burnoff.app</a></div></div>
   </section>
@@ -469,6 +472,8 @@ label.ck{display:flex;gap:10px;align-items:flex-start;margin:14px 0 6px;font-wei
     if (!ups.length) ru.appendChild(el('li', { cls: 'muted', text: 'Nothing yet. It looks once a week, or press Look for new tools now.' }));
     ups.slice(0, 20).forEach(function (u) { ru.appendChild(el('li', {}, [el('div', { text: u.text }), el('small', { text: ago(u.ts) })])); });
   }
+  $('wishGo').onclick = function (e) { var b = e.target; b.disabled = true;
+    api('/api/wish', { text: $('wish').value }).then(function (r) { $('wish').value = ''; $('wishSaid').textContent = r.said; }).catch(function (err) { toast(err.message); }).then(function () { b.disabled = false; }); };
   $('askCityGo').onclick = function (e) { var b = e.target; b.disabled = true; $('askCitySaid').textContent = 'Hold tight: scanning GitHub for the best builds…';
     api('/api/askcity', { text: $('askCity').value }).then(function (r) { $('askCity').value = ''; $('askCitySaid').textContent = r.said; return load(); }).catch(function (err) { $('askCitySaid').textContent = ''; toast(err.message); }).then(function () { b.disabled = false; }); };
   $('researchGo').onclick = function (e) { var b = e.target; b.disabled = true; $('researchSaid').textContent = 'Looking on GitHub…';

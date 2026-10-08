@@ -45,8 +45,8 @@ const id = () => Date.now().toString(36) + crypto.randomBytes(3).toString('hex')
 const ago = ms => { const m = Math.round(ms / 6e4); return m < 60 ? m + ' min ago' : m < 2880 ? Math.round(m / 60) + ' hours ago' : Math.round(m / 1440) + ' days ago'; };
 
 class City {
-  constructor({ store, ai, google, push = null, jev = null, now = () => Date.now(), log = console }) {
-    Object.assign(this, { store, ai, google, push, now, log });
+  constructor({ store, ai, google, push = null, jev = null, now = () => Date.now(), log = console, wishTo = () => process.env.WISH_URL || '', post = (u, o) => fetch(u, o) }) {
+    Object.assign(this, { store, ai, google, push, now, log, wishTo, post });
     this.jev = jev || new Jev({ ai, store });
     this.running = new Set(); this.deciding = new Set(); this.timer = null;
   }
@@ -262,6 +262,15 @@ class City {
     const c = this.propose('research', r, 'You asked: "' + text + '". Here is the best build the Research desk found.' + found, tool ? { tool } : {});
     if (!c) throw new Error('The city has no free lot. Remove a department first.');
     return { ok: true, said: 'The Research desk has a plan for ' + r.name + '. Open it to build.', card: c.id };
+  }
+  // A wish: something the owner wants the city to do that it cannot yet. It is kept, and sent to the person who looks after the city
+  // (the WISH_URL variable: any address that takes a plain-text POST, e.g. an ntfy.sh topic). A send that fails never loses the wish.
+  async wish(text) {
+    text = String(text || '').trim().slice(0, 1000); if (!text) throw new Error('Say what you wish your city could do.');
+    const wid = id(), w = this.store.put('wishes', wid, { text, at: this.now(), sent: false }), url = this.wishTo();
+    if (url) try { const r = await this.post(url, { method: 'POST', headers: { 'content-type': 'text/plain', title: 'Wish from ' + (this.settings().owner || this.settings().business || 'a city') }, body: text }); this.store.put('wishes', wid, Object.assign(w, { sent: r.ok })); } catch (e) { this.log.error('wish: ' + e.message); }
+    this.update('guide', 'You wished for: "' + text.slice(0, 200) + '". It went to the person who looks after your city.');
+    return { ok: true, said: 'Got it. Your wish was sent. You will hear back.' };
   }
   // Grades: each department's score from its Panel results (70%) and how often you approved its work (30%). The best win prizes.
   ranks() {

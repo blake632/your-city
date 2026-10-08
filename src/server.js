@@ -129,6 +129,7 @@ function createServer({ city, password = () => process.env.CITY_PASSWORD, public
       if (p === '/api/school' && req.method === 'POST') { if (!city.school) throw new Error('The School is not open in this city.'); const b = await body(req); return json(res, 200, { ok: true, student: city.school.enroll(b.ref, { note: b.note }) }); }
       if (p === '/api/research' && req.method === 'POST') { if (!city.research) throw new Error('The Research desk is not open in this city.'); return json(res, 200, { ok: true, said: await city.research.run() }); }
       if (p === '/api/askcity' && req.method === 'POST') { const b = await body(req); return json(res, 200, await city.askCity(b.text)); }
+      if (p === '/api/wish' && req.method === 'POST') { const b = await body(req); return json(res, 200, await city.wish(b.text)); }
       if (p === '/api/testlead' && req.method === 'POST') return json(res, 200, await city.testLead());
       if (p === '/api/site' && req.method === 'POST') { const b = await body(req); return json(res, 200, { ok: true, found: await city.readSite(b.url) }); }
       if (p === '/api/run' && req.method === 'POST') { const b = await body(req); return json(res, 200, { ok: true, said: await city.runAgent(String(b.agent || '')) }); }
