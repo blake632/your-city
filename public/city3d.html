@@ -61,6 +61,13 @@ html,body{ margin:0; height:100%; background:var(--bg); color:var(--ink); font-f
 .it .k{ font:600 9.5px/1 var(--sans); letter-spacing:.22em; text-transform:uppercase; color:var(--gold); }
 .it h2{ margin:4px 0 0; font:500 27px/1.05 var(--serif); }
 .it p{ margin:3px 0 0; font:500 11.5px/1.3 var(--sans); color:var(--muted); display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; max-width:520px; }
+#meet{ position:absolute; left:50%; bottom:16px; transform:translateX(-50%); width:min(440px,calc(100% - 32px)); z-index:6; padding:14px 16px 12px; border-radius:16px;
+  background:rgba(8,10,18,.95); border:1px solid var(--gold); box-shadow:0 0 28px -10px var(--gold); color:var(--ink); font:500 14px/1.45 var(--sans); }
+#meet[hidden]{ display:none; }
+#meet .who{ font:600 9.5px/1 var(--sans); letter-spacing:.2em; text-transform:uppercase; color:var(--gold); margin-bottom:6px; }
+#meet p{ margin:0 0 10px; } #meet .row{ display:flex; gap:10px; align-items:center; justify-content:flex-end; flex-wrap:wrap; }
+#meet button{ appearance:none; border:1px solid var(--gold); background:var(--gold); color:#0b0d14; font:600 12px/1 var(--sans); letter-spacing:.06em; padding:10px 14px; border-radius:999px; cursor:pointer; }
+#meet button.ghost{ background:none; color:var(--muted); border-color:transparent; } #meet button:focus-visible{ outline:2px solid #fff; outline-offset:2px; }
 #fallback{ position:absolute; inset:0; display:grid; place-items:center; padding:24px; text-align:center; background:radial-gradient(900px 500px at 50% 30%,#141a33,#05070d); z-index:9; }
 #fallback[hidden]{ display:none; }
 #fallback h2{ font:500 34px/1 var(--serif); margin:0 0 12px; } #fallback h2 em{ color:var(--gold); }
@@ -120,6 +127,7 @@ body.clean #hint{ display:none; }
     <div class="it"><div class="k">Inside</div><h2 id="inName"></h2><p id="inSub"></p></div>
     <button id="open" type="button">Open<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M6 3l5 5-5 5"/></svg></button>
   </div>
+  <div id="meet" hidden role="dialog" aria-live="polite" aria-label="Meet your team"><div class="who" id="meetWho"></div><p id="meetSay"></p><div class="row"><button type="button" class="ghost" id="meetSkip">Skip</button><button type="button" id="meetNext"></button></div></div>
   <div id="marks"></div>
   <div id="qbubs"></div>
   <div id="fallback" hidden><div><h2>Your <em>City</em></h2><p></p></div></div>
@@ -1009,6 +1017,31 @@ function updateTag(){ if(!tagCh) return; if(performance.now()>tagUntil||!isShown
   tagEl.style.transform=`translate3d(${clamp(p.x-w/2,6,VW-w-6).toFixed(1)}px,${clamp(p.y-h-8,6,VH-h-6).toFixed(1)}px,0)`; }
 function isShown(ch){ let o=ch.root; while(o){ if(!o.visible) return false; o=o.parent; } return true; }
 
+// ================= meet the team =================
+// Inside each building, its first agent says who they are and what they do. A new city (or a new department) gets a short tour, once.
+const INTRO={hall:'I check your setup and tell you exactly how to fix anything that is not working. Ask me anything.',
+  research:'I look for new tools that could help your departments, and suggest a new building when you need one.',
+  school:'New tools practice here first. Only the ones that pass join a department.',
+  leads:'I watch your email for new customers and write your first reply, in your voice. You read it and tap Send.',
+  mailroom:'I sort every new email into labels and write a draft for each one that needs you. Nothing is sent without you.',
+  social:'I write your posts for the week and test them on a practice audience first. I never post anything myself.'};
+const INTRO_BY_NAME={reviews:'Every Monday I bring you 3 simple ways to get more Google reviews.',newsletter:'I write a short email to your past customers: one tip, one thing that is new.',
+  ads:'Every week I write 3 short ads for Facebook and Google. You choose what runs.'};
+function introOf(d){ const crew=PEOPLE.filter(x=>x.d===d.k), p=crew.find(x=>['type','sort','present'].includes(x.act))||crew[0], hi=p?'Hi, I\'m '+p.n.split(' ')[0]+', your '+p.role.toLowerCase()+'. ':'';
+  const job=INTRO[d.k]||INTRO[d.kind]||INTRO_BY_NAME[String(d.name).trim().toLowerCase()]||('My job: '+(String(d.sub).split(/(?<=[.!?])\s/)[0]||'').slice(0,150).replace(/^\w/,c=>c.toLowerCase())+' You check my work before it goes anywhere.');
+  return {who:(p?p.n+' · ':'')+d.name, say:hi+job}; }
+const seen=k=>{ try{ return !!localStorage.getItem('meet:'+(DK[k].id||k)); }catch(e){ return true; } }, markSeen=k=>{ try{ localStorage.setItem('meet:'+(DK[k].id||k),'1'); }catch(e){} };
+let tour=[];
+function showMeet(k){ const d=DK[k], m=introOf(d); $('meetWho').textContent=m.who; $('meetSay').textContent=m.say; markSeen(k);
+  const i=tour.indexOf(k), next=i>-1?tour[i+1]:null;
+  $('meetNext').textContent=next?'Next: meet '+DK[next].short+' →':i>-1?'Done':'Got it'; $('meetSkip').hidden=!next; $('meet').hidden=false; }
+function hideMeet(){ $('meet').hidden=true; }
+$('meetNext').addEventListener('click',()=>{ const i=tour.indexOf(active), next=i>-1?tour[i+1]:null;
+  if(next){ const go=()=>trans?setTimeout(go,200):enter(next); go(); } else { tour=[]; hideMeet(); if(i>-1) exit(); } });
+$('meetSkip').addEventListener('click',()=>{ tour.forEach(markSeen); tour=[]; hideMeet(); exit(); });
+function startTour(){ if(CLEAN||mode!=='city') return; const mine=DEPTS.filter(d=>d.id).map(d=>d.k); if(!mine.length) return;
+  tour=mine.concat('hall').filter(k=>!seen(k)); if(tour.length) enter(tour[0]); }
+
 // ================= enter / exit =================
 function setShellFade(d,k){ // k: 0 = building whole, 1 = opened
   const b=d.b; b.shell.scale.y=Math.max(0.02,1-ease(clamp(k*1.25-.15,0,1)));
@@ -1026,11 +1059,11 @@ function enter(k,instant){ const d=DK[k]; if(!d||trans) return; if(mode==='insid
   const from=Object.assign({},cam), to=interiorState(d); mode='inside';
   if(REDUCED||instant){ Object.assign(cam,to); Object.assign(goal,to); setShellFade(d,1); I.g.scale.y=1; trans=null; }
   else trans={from,to,t:0,dur:1.9,dir:1,d};
-  history.replaceState(null,'','#inside-'+k); setTimeout(()=>$('back').focus({preventScroll:true}),50); requestRender(); }
+  history.replaceState(null,'','#inside-'+k); setTimeout(()=>$('back').focus({preventScroll:true}),50); if(!CLEAN) showMeet(k); requestRender(); }
 function exit(instant){ if(!active) return; if(trans&&trans.dir<0) return; const open0=trans?trans.open||0:1; trans=null; const d=DK[active], I=INT[active]; hideTag();
   const done=()=>{ I.g.visible=false; setShellFade(d,0); hideBlock(d.key,false); (d.extras||[]).forEach(o=>o.visible=true); peopleOf(d.k).forEach(id=>{ if(cityChars[id]) cityChars[id].root.visible=true; }); if(d.k===PANEL_HOME){ panelCity.forEach(c=>c.root.visible=true); benches.visible=true; }
     I.bubbles.forEach(b=>{ b.el.classList.add('off'); if(b.ln) b.ln.style.display='none'; }); active=null; };
-  $('inside').hidden=true; $('hint').style.opacity=1; $('hud').style.opacity=1; mode='city';
+  $('inside').hidden=true; hideMeet(); $('hint').style.opacity=1; $('hud').style.opacity=1; mode='city';
   if(REDUCED||instant){ done(); const s=cityState(); Object.assign(cam,s); Object.assign(goal,s); trans=null; }
   else { I.bubbles.forEach(b=>b.el.classList.add('off')); trans={from:Object.assign({},cam),to:cityState(),t:0,dur:1.6,dir:-1,d,done,open0}; }
   if(location.hash) history.replaceState(null,'',location.pathname+location.search); SIGNS.forEach(x=>x.lab.init=false); requestRender(); }
@@ -1227,6 +1260,7 @@ if(EMBED){ $('hud').hidden=true; $('hud').style.display='none'; measure(); }
 refresh();
 DEPTS.forEach(d=>{ const x=dataOf(d); if(d.id&&x&&x.built&&Date.now()-x.built<5*60e3) build(d.k); });   // approved in the last 5 minutes: it goes up as you watch
 (document.fonts&&document.fonts.ready?document.fonts.ready:Promise.resolve()).then(()=>{ measure(); SIGNS.forEach(d=>d.lab.init=false); requestRender(); });
+setTimeout(startTour,1500);   // a new city, or a new department: meet the team once
 if(VIDEO){ last=performance.now(); } else if(REDUCED){ requestRender(); } else requestAnimationFrame(frame);
 // For the video: step the world by hand, and point the camera at a building.
 let vNow=performance.now();
