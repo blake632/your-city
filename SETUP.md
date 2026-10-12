@@ -4,6 +4,18 @@ This is the full guide. The Guide inside your city shows the same steps, with yo
 
 ## 1. Run your city on Railway
 
+The easy way: one button.
+
+[![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/deploy/your-city?referralCode=6eIidp&utm_medium=integration&utm_source=template&utm_campaign=generic)
+
+1. Click **Deploy on Railway**. Sign in to Railway (Google or email works; no GitHub needed).
+2. Type the password you want for your city (at least 8 characters) and press **Deploy**.
+3. Wait about 2 minutes, click your app, and open its address (it ends in `.up.railway.app`). Sign in with your password.
+
+To change the password later: in Railway, click your app, then **Variables**, and change `CITY_PASSWORD`.
+
+### By hand, if you prefer
+
 1. Make your own copy of this repository: on GitHub click **Fork**, then **Create fork**.
 2. Sign in at railway.com with GitHub. Click **New Project**, then **Deploy from GitHub repo**, and pick your copy.
 3. Add a database: in the project click **Create** (or **+ New**), then **Database**, then **PostgreSQL**. Without it, your city forgets everything each time Railway redeploys.
@@ -35,9 +47,22 @@ Your key is kept in your city's database. It never shows on the page again, and 
 
 Your city never spends more in a day than the **Daily AI budget** in Settings (it starts at $3). When the budget is used up, departments pause until tomorrow. For Claude the city knows the exact prices. For other services it estimates, so check your AI account's usage page now and then.
 
-## 3. Let your city read Gmail (one time)
+## 3. Let your city read Gmail (about 2 minutes)
 
-Your city runs on Railway, not on Google. This step only gives it permission to read and draft your email. Google asks every app for that permission through a small "app" you create for your own account. It takes about 5 minutes, once.
+Only needed for departments that read your email (Leads, Mail room). The city reads, labels and drafts your email. It sends an email only when you press **Send the email** on a card.
+
+**The easy way: an app password.** No Google Cloud project.
+
+1. Go to **myaccount.google.com/apppasswords** and sign in with the Gmail account the city should read. If Google asks, turn on 2-Step Verification first (myaccount.google.com/security).
+2. Type **My City** as the name and press **Create**.
+3. Copy the 16-letter password Google shows. It only works for your city. You can delete it on that page any time, and changing your Google password cancels it.
+4. In your city, open **Settings → Gmail**. Type your Gmail address, paste the password, and press **Connect Gmail**. The city checks it with Gmail before it keeps it.
+
+That page is missing for some work (Google Workspace) accounts and for accounts with Advanced Protection. Use the advanced way below instead.
+
+### The advanced way: your own Google app
+
+Your city runs on Railway, not on Google. Google asks every app for permission through a small "app" you create for your own account. Press **Advanced: your own Google app** in **Settings → Gmail**, then:
 
 1. Go to console.cloud.google.com and sign in with the Google account whose email the city should read.
 2. Click the project picker at the top, then **New Project**. Name it My City and click **Create**. Make sure the new project is selected.
@@ -55,6 +80,14 @@ Your city runs on Railway, not on Google. This step only gives it permission to 
 11. Google may say it has not verified the app. That is expected: it is your own app. Click **Advanced**, then **Go to My City**, then allow Gmail access.
 
 The city asks Google for one permission: read, label and draft your email. It sends an email only when you press **Send the email** on a card.
+
+### Getting paid (for whoever sets cities up for others)
+
+Add a `PAY_URL` variable in Railway (a Stripe payment link, for example) and the city shows a **Keep my city** button at the end of the first-open walkthrough and in the Guide. Change the words with `PAY_TITLE`, `PAY_TEXT` and `PAY_BUTTON`.
+
+### Wishes
+
+Want your city to do something it can't yet? Type it under **Wish it could do something?** in the Guide. Your wish is saved. If whoever looks after your city added a `WISH_URL` variable in Railway (any address that takes a plain-text POST, like an ntfy.sh topic), it's sent there right away.
 
 ## 4. Tell the city about your business
 

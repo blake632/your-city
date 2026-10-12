@@ -3,13 +3,13 @@
 // browser a 30-day signed cookie. The password is kept only as a salted scrypt hash.
 const http = require('node:http'), crypto = require('node:crypto'), fs = require('node:fs'), path = require('node:path');
 const { MODELS, PROVIDERS } = require('./ai');
-const { EVERY, PICKS } = require('./city');
+const { City, EVERY, PICKS } = require('./city');
 const guide = require('./guide');
 
 const PUBLIC = path.join(__dirname, '..', 'public');
 const OPEN = { '/vendor/three.min.js': ['vendor/three.min.js', 'text/javascript'], '/sw.js': ['sw.js', 'text/javascript'], '/manifest.webmanifest': ['manifest.webmanifest', 'application/manifest+json'], '/icon.svg': ['icon.svg', 'image/svg+xml'], '/icon-512.png': ['icon-512.png', 'image/png'], '/apple-touch-icon.png': ['apple-touch-icon.png', 'image/png'] };
 const json = (res, code, obj, h) => { res.writeHead(code, Object.assign({ 'content-type': 'application/json', 'cache-control': 'no-store' }, h || {})); res.end(JSON.stringify(obj)); };
-const body = req => new Promise((ok, bad) => { const ch = []; let n = 0; req.on('data', c => { n += c.length; if (n > 2e6) { bad(new Error('too large')); req.destroy(); } else ch.push(c); }); req.on('end', () => { try { ok(JSON.parse(Buffer.concat(ch).toString() || '{}') || {}); } catch (e) { ok({}); } }); req.on('error', bad); });
+const body = req => new Promise((ok, bad) => { const ch = []; let n = 0; req.on('data', c => { n += c.length; if (n > 2e6) { bad(new Error('too large')); req.destroy(); } else ch.push(c); }); req.on('end', () => { const raw = Buffer.concat(ch).toString(); try { ok(JSON.parse(raw || '{}') || {}); } catch (e) { ok(Object.fromEntries(new URLSearchParams(raw))); } }); req.on('error', bad); });
 const hash = s => crypto.createHash('sha256').update(String(s)).digest();
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
 const scrypt = (pw, salt) => crypto.scryptSync(String(pw), salt, 32).toString('hex');
@@ -34,7 +34,23 @@ function createServer({ city, password = () => process.env.CITY_PASSWORD, public
     const url = new URL(req.url, 'http://x'), p = url.pathname;
     city.redirect = origin(req) + '/connect/google/callback';
     if (p === '/healthz') return json(res, 200, { ok: true });
+    // Your lead link: a website form, an ad's lead form or Zapier sends new leads here. The secret in the link is the only key; no sign-in.
+    if (p.startsWith('/hook/lead/')) {
+      const cors = { 'access-control-allow-origin': '*', 'access-control-allow-headers': 'content-type' };
+      if (req.method === 'OPTIONS') { res.writeHead(204, cors); return res.end(); }
+      if (req.method !== 'POST') return json(res, 405, { error: 'Send leads with POST.' }, cors);
+      const given = hash(p.split('/').pop()), real = hash(city.hookSecret());
+      if (!crypto.timingSafeEqual(given, real)) return json(res, 404, { error: 'not found' }, cors);
+      const b = await body(req);
+      try { city.webLead(b); } catch (e) { return json(res, 400, { error: e.message }, cors); }
+      if (/^https?:\/\//.test(String(b.redirect || ''))) { res.writeHead(303, Object.assign({ location: String(b.redirect) }, cors)); return res.end(); }   // a plain HTML form: back to the owner's thank-you page
+      return json(res, 200, { ok: true }, cors);
+    }
     if (OPEN[p]) { const [f, type] = OPEN[p]; res.writeHead(200, { 'content-type': type, 'cache-control': p === '/sw.js' ? 'no-cache' : p.startsWith('/vendor/') ? 'public, max-age=31536000, immutable' : 'public, max-age=86400' }); return res.end(fs.readFileSync(path.join(PUBLIC, f))); }
+    // A hosted city whose plan ended (CITY_PAUSED): nothing opens and nothing runs. Its data stays.
+    if (process.env.CITY_PAUSED) { res.writeHead(402, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' });
+      return res.end(shell('Plan ended', '<h1>Your <em>City</em></h1><p>Your ' + esc(process.env.HOSTED_BY || '') + ' plan has ended, so your city is resting. Everything is kept.</p>' +
+        (/^https:\/\//.test(process.env.CITY_RESTART || '') ? '<p><a href="' + esc(process.env.CITY_RESTART) + '">Start it again</a></p>' : '') + (process.env.HOSTED_HELP ? '<p class=muted>Questions: ' + esc(process.env.HOSTED_HELP) + '</p>' : ''))); }
     // ---- sign-in ----
     // First visit: nothing opens until the owner chooses a password. Only the first person to do it becomes the owner.
     if (!hasPassword()) {
@@ -52,7 +68,7 @@ function createServer({ city, password = () => process.env.CITY_PASSWORD, public
       fails = fails.filter(t => t > Date.now() - 10 * 60e3);
       if (fails.length >= 10) return json(res, 429, { error: 'Too many tries. Wait 10 minutes.' });
       const b = await body(req);
-      if (!checkPassword(b.password)) { fails.push(Date.now()); return json(res, 401, { error: envPw() ? 'That password is not right. It is the CITY_PASSWORD variable in Railway.' : 'That password is not right.' }); }
+      if (!checkPassword(b.password)) { fails.push(Date.now()); return json(res, 401, { error: envPw() && !process.env.HOSTED_BY ? 'That password is not right. It is the CITY_PASSWORD variable in Railway.' : 'That password is not right.' }); }
       return json(res, 200, { ok: true }, { 'set-cookie': cookie() });
     }
     if (!signedIn(req)) {
@@ -79,6 +95,39 @@ function createServer({ city, password = () => process.env.CITY_PASSWORD, public
       catch (e) { city.problem('guide', e); msg = e.message + ' Open the Guide for the fix.'; }
       res.writeHead(302, { location: '/?said=' + encodeURIComponent(msg) + '#settings' }); return res.end();
     }
+    // ---- LinkedIn and Facebook: press Connect, say yes there, and come back connected ----
+    const net = /^\/connect\/(linkedin|facebook)(\/callback)?$/.exec(p);
+    if (net && city.accounts) {
+      const n = net[1], back = origin(req) + '/connect/' + n + '/callback', name = city.accounts.name(n);
+      if (!net[2]) {
+        if (!city.accounts.configured(n)) { res.writeHead(302, { location: '/?said=' + encodeURIComponent(name + ' is not turned on for this city yet. Ask the person who set it up.') + '#settings' }); return res.end(); }
+        const st = crypto.randomBytes(16).toString('hex'); states.set(n + ':' + st, Date.now() + 10 * 60e3);
+        res.writeHead(302, { location: city.accounts.authUrl(n, back, st) }); return res.end();
+      }
+      const st = url.searchParams.get('state'), until = states.get(n + ':' + st); states.delete(n + ':' + st);
+      let msg;
+      if (url.searchParams.get('error')) msg = name + ' said no (' + url.searchParams.get('error') + '). Nothing was connected.';
+      else if (!until || until < Date.now()) msg = 'That took too long. Press Connect ' + name + ' again.';
+      else try { msg = name + ' is connected (' + await city.accounts.finish(n, url.searchParams.get('code'), back) + '). Approved posts go live there.'; }
+      catch (e) { city.problem('guide', e); msg = name + ' did not connect: ' + e.message; }
+      res.writeHead(302, { location: '/?said=' + encodeURIComponent(msg) + '#settings' }); return res.end();
+    }
+    // ---- OpenRouter: press Connect, sign in there, and the city gets its own AI key. Nothing to copy. ----
+    // The state rides in the path (OpenRouter adds ?code= to the callback); the owner must be signed in, and PKCE ties the code to this city.
+    if (p === '/connect/openrouter') {
+      const st = crypto.randomBytes(16).toString('hex'), link = city.ai.openRouterLink(origin(req) + '/connect/openrouter/done/' + st);
+      states.set('or:' + st, { until: Date.now() + 10 * 60e3, verifier: link.verifier });
+      res.writeHead(302, { location: link.url }); return res.end();
+    }
+    if (p.startsWith('/connect/openrouter/done/')) {
+      const key = 'or:' + p.split('/').pop(), s = states.get(key); states.delete(key);
+      let msg;
+      if (!s || s.until < Date.now()) msg = 'That sign-in took too long. Press Connect with OpenRouter again.';
+      else if (!url.searchParams.get('code')) msg = 'OpenRouter did not connect. Nothing changed.';
+      else try { const model = await city.ai.openRouterKey(url.searchParams.get('code'), s.verifier); city.departments().forEach(d => city.clearProblem(d.id)); msg = 'Your AI is connected through OpenRouter' + (model ? ', using ' + model : '') + '. Add a little credit at openrouter.ai, then Credits.'; }
+      catch (e) { city.problem('guide', e); msg = e.message; }
+      res.writeHead(302, { location: '/?said=' + encodeURIComponent(msg) + '#settings' }); return res.end();
+    }
     // ---- the home screen's API ----
     try {
       if (p === '/api/city3d') return json(res, 200, cityData(city));
@@ -101,9 +150,15 @@ function createServer({ city, password = () => process.env.CITY_PASSWORD, public
       if (p === '/api/school' && req.method === 'POST') { if (!city.school) throw new Error('The School is not open in this city.'); const b = await body(req); return json(res, 200, { ok: true, student: city.school.enroll(b.ref, { note: b.note }) }); }
       if (p === '/api/research' && req.method === 'POST') { if (!city.research) throw new Error('The Research desk is not open in this city.'); return json(res, 200, { ok: true, said: await city.research.run() }); }
       if (p === '/api/askcity' && req.method === 'POST') { const b = await body(req); return json(res, 200, await city.askCity(b.text)); }
+      if (p === '/api/wish' && req.method === 'POST') { const b = await body(req); return json(res, 200, await city.wish(b.text)); }
+      if (p === '/api/testlead' && req.method === 'POST') return json(res, 200, await city.testLead());
+      if (p === '/api/site' && req.method === 'POST') { const b = await body(req); return json(res, 200, { ok: true, found: await city.readSite(b.url) }); }
       if (p === '/api/run' && req.method === 'POST') { const b = await body(req); return json(res, 200, { ok: true, said: await city.runAgent(String(b.agent || '')) }); }
       if (p === '/api/ask' && req.method === 'POST') { const b = await body(req); return json(res, 200, await guide.ask(city, b.question, { redirect: city.redirect })); }
+      if (p === '/api/social/disconnect' && req.method === 'POST') { const b = await body(req); if (city.accounts && city.accounts.nets().includes(b.net)) city.accounts.disconnect(b.net); return json(res, 200, { ok: true }); }
       if (p === '/api/google/disconnect' && req.method === 'POST') { city.google.disconnect(); return json(res, 200, { ok: true }); }
+      // The easy way: Gmail address + app password, checked with Gmail itself before it is kept. The password never comes back to the page.
+      if (p === '/api/gmail/password' && req.method === 'POST') { const b = await body(req); const email = await city.google.connectPassword(b.email, b.password); city.departments().forEach(d => city.clearProblem(d.id)); city.clearProblem('guide'); return json(res, 200, { ok: true, email }); }
       if (p === '/api/google/client' && req.method === 'POST') { const b = await body(req); return json(res, 200, Object.assign({ ok: true }, city.google.saveClient(b))); }
       // Your AI: save the service, key, address and main model, then check the key by listing its models (no cost).
       if (p === '/api/ai' && req.method === 'POST') {
@@ -163,7 +218,7 @@ function cityData(city) {
   const dist = P ? [1, 2, 3, 4, 5].map(n => P.panel.reactions.filter(r => r.score === n).length) : null;
   const post = cards.find(c => c.kind === 'post');
   return { business: city.settings().business || '',
-    hall: { need: problems, lines: lines('guide') },
+    hall: { need: problems, lines: lines('guide'), mayor: (m => m && city.department(m.id) ? { name: m.name, votes: m.votes, of: m.of, out: m.out || '' } : null)(city.store.get('mayor', null)) },
     research: { need: 0, live: now - last('research') < 15 * 60e3, lines: lines('research') },
     school: { need: cards.filter(c => c.agent === 'school').length, live: now - last('school') < 15 * 60e3, lines: lines('school') },
     departments: agents.filter(a => a.id !== 'guide').map(a => ({ id: a.id, name: a.name, kind: a.kind, does: String(a.does || '').slice(0, 160), need: a.need, live: live(a), on: a.on, judge: !!a.judge,
@@ -177,11 +232,14 @@ function cityData(city) {
 // Everything the home screen shows, in one answer. Never a key, a password or the Google pass.
 function state(city, redirect) {
   const s = city.settings();
-  return { settings: s, firstRun: !s.business || !city.departments().length, agents: city.agents(), picks: PICKS, cards: city.waiting(), updates: city.updates().slice(0, 150), checks: guide.checks(city, { redirect }),
-    google: { configured: city.google.configured(), connected: city.google.connected(), email: city.google.email() }, redirect,
+  const week = city.results(7);
+  return { results: Object.assign(week, { said: City.said(week) }), hookUrl: String(redirect || '').replace(/\/connect\/google\/callback$/, '') + '/hook/lead/' + city.hookSecret(), settings: s, firstRun: !s.business || !city.departments().length, agents: city.agents(), picks: PICKS, cards: city.waiting(), updates: city.updates().slice(0, 150), checks: guide.checks(city, { redirect }),
+    social: city.accounts ? city.accounts.state() : {},
+    pay: process.env.PAY_URL ? { url: process.env.PAY_URL, title: process.env.PAY_TITLE || 'Keep your city', text: process.env.PAY_TEXT || 'Like what it does? Keep it running.', button: process.env.PAY_BUTTON || 'Keep my city' } : null,
+    google: { configured: city.google.configured(), connected: city.google.connected(), email: city.google.email(), mode: city.google.mode() }, redirect,
     spend: { today: Math.round(city.ai.spentToday() * 100) / 100, cap: city.ai.cap() }, store: city.store.kind(), alerts: s.alerts,
     ai: aiState(city), googleClient: { id: (city.store.get('googleClient') || {}).id || '', secretSet: !!(city.store.get('googleClient') || {}).secret, fromVariable: !!process.env.GOOGLE_CLIENT_ID },
-    models: aiState(city).models, every: EVERY, ranks: city.ranks(), tip: city.store.get('tip', null), school: city.school ? city.school.state().students.slice().reverse().map(st => ({ id: st.id, ref: st.ref, type: st.type, by: st.by, note: st.note, step: st.step, dept: st.dept, scores: st.scores, passed: st.passed, why: st.why, at: st.at })) : [], jev: { mode: city.jev.mode(), keySet: !!city.jev.key(), keyFrom: city.jev.keyFrom(), problem: city.jev.problem() } };
+    models: aiState(city).models, every: EVERY, ranks: city.ranks(), tip: city.store.get('tip', null), mayor: city.store.get('mayor', null), school: city.school ? city.school.state().students.slice().reverse().map(st => ({ id: st.id, ref: st.ref, type: st.type, by: st.by, note: st.note, step: st.step, dept: st.dept, scores: st.scores, passed: st.passed, why: st.why, at: st.at })) : [], jev: { mode: city.jev.mode(), keySet: !!city.jev.key(), keyFrom: city.jev.keyFrom(), problem: city.jev.problem() } };
 }
 const shell = (title, inner, script) => '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>' + esc(title) + '</title>' +
   '<link rel="manifest" href="/manifest.webmanifest"><link rel="icon" href="/icon.svg"><style>:root{--bg:#f6f3ec;--ink:#1a1813;--dim:rgba(26,24,19,.66);--accent:#8a5a2b;--card:#fffdf8;--line:rgba(26,24,19,.14)}' +
@@ -192,7 +250,7 @@ const shell = (title, inner, script) => '<!doctype html><html lang="en"><head><m
   'button{width:100%;margin-top:12px;padding:15px;border:0;border-radius:12px;background:var(--ink);color:var(--bg);font:600 16px system-ui;cursor:pointer}#m{min-height:1.5em}.muted{font-size:14px;margin-top:28px}</style></head><body><main>' + inner + '</main>' + (script ? '<script>' + script + '</script>' : '') + '</body></html>';
 function loginPage() {
   return shell('Sign in', '<h1>Your <em>City</em></h1><p>Enter your city password.</p><form id=f><input id=pw type=password autocomplete=current-password placeholder="Password" autofocus><button>Open my city</button></form><p id=m></p>' +
-    '<p class=muted>Forgot it, or never chose one? In Railway, click your app, then Variables. Add <code>CITY_PASSWORD</code> with a new password. It takes over in a minute and signs everyone else out.</p>',
+    (process.env.HOSTED_HELP ? '<p class=muted>Forgot it? Email ' + esc(process.env.HOSTED_HELP) + ' and a person resets it for you.</p>' : '<p class=muted>Forgot it, or never chose one? In Railway, click your app, then Variables. Add <code>CITY_PASSWORD</code> with a new password. It takes over in a minute and signs everyone else out.</p>'),
     'document.getElementById("f").onsubmit=async e=>{e.preventDefault();const r=await fetch("/login",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({password:document.getElementById("pw").value})});if(r.ok)return location.reload();document.getElementById("m").textContent=(await r.json().catch(()=>({}))).error||"That did not work.";};');
 }
 // The very first visit: choose the password that opens your city.
