@@ -10,7 +10,7 @@ const GPU = process.platform === 'darwin', ARGS = GPU ? ['--use-angle=metal', '-
 const CUTS = ['short', 'endcard', 'dept', 'diary'], CUT = CUTS.includes(process.argv[2]) ? process.argv[2] : CUTS.includes(process.env.VCUT) ? process.env.VCUT : 'full'; process.env.VCUT = CUT;   // workers inherit it
 //   node v3d.js dept leads             one department's 25-second Instagram video (leads, mail, social, reviews, newsletter): vout/dept-<name>.mp4
 if (['dept', 'diary'].includes(CUT) && process.argv[2] === CUT) process.env.VDEPT = process.argv[3] || (CUT === 'dept' ? 'leads' : 'chatbox');   // node v3d.js diary chatbox|walk|build
-const FPS = 30, DUR = { full: 104, short: 74.2, endcard: 4.5, dept: 25, diary: 19.5 }[CUT], N = Math.round(DUR * FPS), DIR = __dirname, OUTDIR = path.join(DIR, 'vout'), W = 405, H = 720, DPR = 2;
+const FPS = 30, DUR = { full: 104, short: 74.2, endcard: 4.5, dept: 25, diary: process.env.VDEPT === 'vote' ? 21 : 19.5 }[CUT], N = Math.round(DUR * FPS), DIR = __dirname, OUTDIR = path.join(DIR, 'vout'), W = 405, H = 720, DPR = 2;
 fs.mkdirSync(OUTDIR, { recursive: true }); fs.mkdirSync(path.join(DIR, 'shots'), { recursive: true });
 const FILES = { '/__v/fonts/': path.join(DIR, 'fonts'), '/__v/assets/': path.join(DIR, 'vassets') };
 

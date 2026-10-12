@@ -17,6 +17,9 @@ function ai(b) {
   const f = b.output_config && b.output_config.format, props = f ? f.schema.properties : {}, p = b.messages[0].content;
   if (props.question && props.people) return { text: { question: /DEPARTMENT: "Leads"/.test(p) ? 'Would you reply to this email?' : /Instagram/.test(p) ? 'Would you stop scrolling for this?' : 'Would you come to see this kitchen?', people: PEOPLE.map(([name, who]) => ({ name, who })) } };
   if (props.reactions) { const lead = /Dana/.test(p), r = /Let us know if you have questions/.test(p) ? LEAD.first : lead ? LEAD.better : WEAK.test(p) ? REACT.first : REACT.better; return { text: { reactions: PEOPLE.map(([name], i) => ({ name, said: r[i][1], score: r[i][0] })) } }; }
+  if (props.votes) { const id = n => (/- id (\S+): /.exec(p.split('\n').find(l => l.includes(': ' + n + ' (')) || '') || [])[1];
+    return { text: { votes: [['Open House', 'Leads', 'Answers every customer within minutes.'], ['Reviews', 'Leads', 'Its replies get people to call.'], ['Mail Room', 'Leads', 'Every lead I send it gets an answer.'],
+      ['Leads', 'Reviews', 'Five new reviews this week.'], ['Instagram', 'Mail Room', 'Keeps the inbox clean.']].map(([a, b, why]) => ({ voter: id(a), vote: id(b), why })) } }; }
   if (props.query) return { text: { name: 'Crypto Desk', does: 'Paper-trade a small test portfolio and send me a weekly report. Paper only: no real trades, never advice.', audience: 'Me', query: 'crypto paper trading' } };
   if (props.queries) return { text: { queries: ['google review requests', 'review reply playbook'] } };
   if (props.score) return { text: { score: /PRACTICE|plan/i.test(p) ? 88 : 84, pass: true, notes: 'Clear, warm and on brand. Nothing invented.' } };
@@ -91,6 +94,7 @@ async function vsample({ proposals = true } = {}) {
   const past = (id, avg, status, n) => { for (let i = 0; i < n; i++) store.put('cards', 'past' + id + i, { id: 'past' + id + i, agent: id, kind: 'note', status, ts: 1000 + i, judged: { panel: { avg } } }); };
   past(L.id, 4.7, 'sent', 3); past(R.id, 4.1, 'approved', 2); past(I.id, 3.9, 'approved', 2); past(I.id, 3.4, 'declined', 1); past(O.id, 3.6, 'approved', 1);
   await city.starTip();
+  if (process.env.VDEPT === 'vote') { store.set('mayor', { id: I.id, name: 'Instagram', votes: 3, of: 5 }); await city.election(); }   // the real election: Instagram is voted out
   if (proposals) { city.propose(M.id, { name: 'Bookkeeping', does: 'File every invoice and receipt each week, and tell me what is due.', audience: 'Me' }, '14 invoices came in this month and nobody files them.'); await city.askCity('Build me a crypto trading desk'); }
   const srv = createServer({ city, password: () => 'pw', publicUrl: () => '', log: { error() {} } }), base = await listen(srv);
   return { base, city, store, ids: { L: L.id, O: O.id, I: I.id, R: R.id, M: M.id }, close: () => { srv.close(); A.close(); G.close(); } };

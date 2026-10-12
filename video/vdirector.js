@@ -93,6 +93,18 @@
       msg(7.7, K.M, 'hall', 'Spam → never answered', 'Mail Room'); msg(8.8, K.M, K.O, 'A question about parking → Open House'); msg(10.4, K.L, 'hall', 'Reply ready. Waiting for my OK.', 'Leads', 2.6);
       amb(4, 19);
       cap(12.4, 15.6, 'Nothing leaves <em>without my OK.</em>', '');
+    } else if (D === 'vote') {
+      const HALL = spot(bx(2), bz(1), 18, .3, .45, 100), HALL2 = spot(bx(2), bz(1), 18, .5, .4, 86);
+      MOVES.push([0, 3.4, RISE, CITY], [8.6, 10, CITY, HALL], [10, 15.6, HALL, HALL2], [15.6, 19.5, HALL2, FIN]);
+      W.lit = null;
+      cap(-1, 3.3, 'My AI agents just <em>voted out their boss.</em>', '');
+      cap(3.5, 7.6, 'Every week they vote on <em>who runs City Hall.</em>', 'No agent can vote for itself.');
+      msg(3.6, K.O, 'hall', 'Leads. It answers every customer within minutes.', 'Open House votes'); msg(4.6, K.R, 'hall', 'Leads. Its replies get people to call.', 'Reviews votes');
+      msg(5.6, K.M, 'hall', 'Leads. Every lead I send it gets an answer.', 'Mail Room votes'); msg(6.6, K.L, 'hall', 'Reviews. Five new reviews this week.', 'Leads votes'); msg(7.6, K.I, 'hall', 'Mail Room. Keeps the inbox clean.', 'Instagram votes');
+      amb(3.4, 19);
+      W.plan = { win: [10, 15.2], head: 'The vote', rows: [['3', 'Leads'], ['1', 'Reviews'], ['1', 'Mail Room'], ['0', 'Instagram (the old mayor)']] };
+      cap(15.3, 17.4, 'Instagram is out. <em>Leads runs City Hall.</em>', '');
+      W.end = 17.6; window.__vdur = 21;
     } else {   // build
       const BOOK = { name: 'Bookkeeping', does: 'File every invoice and receipt each week, and tell me what is due.' };
       MOVES.push([0, 3.4, RISE, CITY], [7.2, 8.6, CITY, S.B1], [8.6, 13, S.B1, S.B2], [13, 19.5, S.B2, FIN]);
