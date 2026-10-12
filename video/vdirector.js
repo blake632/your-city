@@ -189,7 +189,7 @@
     W.connect = { win: [-1, 2.7], tap: 1.1, on: 1.3 }; W.scan = [2.7, 4, K.M]; W.count = [4.5, 6.2]; W.tron = { t: 4, at: K.M, speed: 150, until: 69 };
     W.trials = [{ win: [18.2, 22.6], flip: 20.2, done: 21.8, head: 'Instagram post', aud: '96 simulated Instagram users', ph: '📷 The finished kitchen, morning light', q: 'Would you stop scrolling?', yes1: 23, yes2: 74,
         one: 'New kitchen done. Check it out!', two: 'Same walls. Whole new kitchen. This 1970s galley in Crestview now opens to the dining room. ✨' },
-      { win: [22.8, 27.2], flip: 24.8, done: 26.4, head: 'Open House invite', aud: '96 simulated Austin homeowners', ph: '4410 Shoal Creek Blvd · this Saturday', q: 'Would you come see it?', yes1: 27, yes2: 71,
+      { win: [22.8, 27.2], flip: 24.8, done: 26.4, head: 'Open House invite', aud: '96 simulated Austin homeowners', ph: 'Crestview · this Saturday', q: 'Would you come see it?', yes1: 27, yes2: 71,
         one: 'Come see a kitchen we just finished. Open house this weekend.', two: 'This Saturday, 10 to 2: walk through a finished kitchen remodel in Crestview. Free, no sign-up.' },
       { win: [27.4, 31.9], flip: 29.4, done: 31, head: 'Email to a new customer', aud: '96 simulated customers', ph: 'To: Dana Ruiz · asked about a kitchen remodel', q: 'Would you reply to this?', yes1: 18, yes2: 74,
         one: 'Thanks for your interest. Let us know if you have questions.', two: 'Hi Dana, opening the wall to the dining room is one of our favorite projects. When would you like the work to start?' }];

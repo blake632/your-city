@@ -30,7 +30,7 @@ function ai(b) {
   if (props.kind) return { text: { kind: 'lead', summary: 'Kitchen remodel enquiry', lead: { name: 'Dana Ruiz', email: 'dana@example.com', phone: '512 555 0100', wants: 'A kitchen remodel this spring, opening the wall to the dining room' } } };
   if (/WHAT TO CHANGE/.test(p) && /Dana/.test(p)) return { text: 'Hi Dana,\n\nThank you for reaching out about your kitchen. Opening the wall to the dining room is one of our favorite projects.\n\nWhen would you like the work to start?\n\nI am happy to talk it through on a quick call: 512 555 0199.\n\nSam Lee\nSam\'s Kitchens\n512 555 0199' };
   if (/THE CUSTOMER/.test(p)) return { text: 'Hi Dana,\n\nThanks for your interest. Let us know if you have questions.\n\nSam' };
-  if (/WHAT TO CHANGE/.test(p)) return { text: 'This Saturday from 10 to 2, walk through a finished kitchen remodel in Crestview. See the wall we opened, the quartz, and how we kept the family cooking during the work. Free, no sign-up. 4410 Shoal Creek Blvd.' };
+  if (/WHAT TO CHANGE/.test(p)) return { text: 'This Saturday from 10 to 2, walk through a finished kitchen remodel in Crestview. See the wall we opened, the quartz, and how we kept the family cooking during the work. Free, no sign-up.' };
   if (/THE CUSTOMER_UNUSED/.test(p)) return { text: 'Hi Dana,\n\nThank you for reaching out about your kitchen. Opening the wall to the dining room is one of our favorite projects.\n\nWhen would you like the work to start?\n\nI am happy to talk it through on a quick call: 512 555 0199.\n\nSam Lee\nSam\'s Kitchens\n512 555 0199' };
   if (/You vet new tools/.test(b.system || '')) return { text: 'Real and kept up: changed last month, 1,840 stars, MIT licence.\nWhat it does: request and reply templates for customer reviews.\nGood at: short, friendly asks. Bad at: nothing local.\nNo safety or licence problems.\nVERDICT: SAFE' };
   if (/habit that made your work score best/.test(p)) return { text: 'Answer every new lead within five minutes, and ask them one clear question.' };
@@ -77,13 +77,13 @@ async function vsample({ proposals = true } = {}) {
   store.set('google', { refresh: 'rt', email: 'sam@samskitchens.com' });
   const pick = k => Object.assign({}, PICKS.find(p => p.kind === k));
   const L = city.saveDepartment(Object.assign(pick('leads'), { audience: 'Austin homeowners who just asked about a remodel' }));
-  const O = city.saveDepartment({ name: 'Open House', does: 'Write the invite for this weekend\'s open house at our finished Crestview kitchen (4410 Shoal Creek Blvd, Saturday 10 to 2, free).', audience: 'Austin homeowners thinking about a kitchen remodel', judge: true, every: 10080 });
+  const O = city.saveDepartment({ name: 'Open House', does: 'Write the invite for this weekend\'s open house at our finished Crestview kitchen (Saturday 10 to 2, free).', audience: 'Austin homeowners thinking about a kitchen remodel', judge: true, every: 10080 });
   const I = city.saveDepartment(Object.assign(pick('social'), { name: 'Instagram', audience: 'Austin homeowners who follow home design accounts' }));
   const R = city.saveDepartment(Object.assign({}, PICKS.find(p => p.name === 'Reviews'), { judge: false }));
   city.saveDepartment(Object.assign({}, PICKS.find(p => p.name === 'Newsletter'), { on: process.env.VCUT === 'dept' }));   // lit for its own video
   const M = city.saveDepartment(Object.assign(pick('mailroom'), { name: 'Mail Room' }));
   for (const d of [L, O, I, R]) await city.runAgent(d.id);
-  city.ask(city.department(O.id), 'Should the invite mention parking on Shoal Creek?');
+  city.ask(city.department(O.id), 'Should the invite mention where to park?');
   // the Research desk and the School at work
   city.school = new School({ city, fetchImpl: gh }); city.research = new Research({ city, school: city.school, fetchImpl: gh });
   city.school.enroll('https://github.com/homepro-ai/estimate-helper/blob/main/agents/review-asker.md', { by: 'owner' });
