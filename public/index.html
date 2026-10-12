@@ -65,7 +65,7 @@ label.f{display:block;margin:14px 0 6px;font-weight:600;font-size:15px}label.f s
 #setup{position:fixed;inset:0;z-index:50;background:var(--bg);overflow:auto;padding:24px 16px calc(40px + env(safe-area-inset-bottom,0px))}#setup .in{max-width:560px;margin:0 auto}
 #setup input,#setup textarea{display:block;margin-top:6px;width:100%;border:1px solid var(--line2);border-radius:12px;background:var(--card);padding:12px;font-size:16px;font-weight:400}
 #setup .dots{white-space:nowrap;display:block;font:600 12px/1 var(--sans);letter-spacing:.14em;text-transform:uppercase;color:var(--accent);margin:8px 0 14px}
-.tile{display:block;width:100%;text-align:left;border:1px solid var(--line2);background:var(--card);border-radius:14px;padding:14px 16px;margin:0 0 10px;cursor:pointer}.tile b{display:block;font:400 1.2rem/1.2 var(--serif)}.tile span{font-size:14px;color:var(--dim)}.tile[aria-pressed="true"]{border:2px solid var(--accent);background:var(--tint)}
+.tile{display:block;width:100%;text-align:left;border:1px solid var(--line2);background:var(--card);border-radius:14px;padding:14px 16px;margin:0 0 10px;cursor:pointer}.tile b{display:block;font:400 1.2rem/1.2 var(--serif)}.tile span{font-size:14px;color:var(--dim)}.tile[aria-pressed="true"]{border:2px solid var(--accent);background:var(--tint)}.tile b::after{content:"+ Add";float:right;font:600 13px/1.6 var(--sans,system-ui);color:var(--dim)}.tile[aria-pressed="true"] b::after{content:"✓ Added";color:var(--accent)}
 .banner{background:var(--tint);border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:0 14px 14px 0;padding:14px 16px;margin:0 0 16px}
 .allclear{text-align:center;padding:50px 10px}.allclear .ok{font:400 4rem/1 var(--serif);color:var(--accent)}
 .city{display:block;width:100%;height:auto;margin:0 0 6px;touch-action:manipulation}.city .bld{cursor:pointer}.city .bld:focus{outline:none}.city .bld:focus-visible .top{stroke:var(--ink);stroke-width:1.5}
@@ -106,7 +106,7 @@ label.ck{display:flex;gap:10px;align-items:flex-start;margin:14px 0 6px;font-wei
         <div class="legend"><span><i style="background:#ffd98a;border:1px solid #c9a24a"></i>Lit: working</span><span><i style="background:var(--accent)"></i>A number: needs you</span><span><i style="background:#a9a397"></i>Grey: off</span></div>
       </div>
       <div id="cityCards"></div>
-      <div class="box" style="padding:4px 16px 14px;margin-top:10px"><label class="f">Ask the city to build something<small>For example: "a desk that finds TikTok trends" or "a crypto paper-trading desk". The Research desk looks for the best build and comes back with a plan.</small><input type="text" id="askCity" placeholder="Build me a..."></label>
+      <div class="box" id="askBox" style="padding:4px 16px 14px;margin-top:10px"><label class="f">Ask the city to build something<small>For example: "a desk that finds TikTok trends" or "a desk that writes my weekly specials". The Research desk looks for the best build and comes back with a plan.</small><input type="text" id="askCity" placeholder="Build me a..."></label>
         <div class="chips"><button class="btn yes sm" id="askCityGo">Ask</button><span class="muted" id="askCitySaid"></span></div></div>
       <div id="ranksBox" hidden><h2>This week's grades</h2><div class="box"><ul class="upd" id="ranks"></ul></div></div>
       <h2 style="margin-top:6px">Departments</h2>
@@ -306,19 +306,22 @@ label.ck{display:flex;gap:10px;align-items:flex-start;margin:14px 0 6px;font-wei
     box.appendChild(el('div', { cls: 'dots', text: 'Step ' + Math.min(step, 4) + ' of 4' }));
     if (step === 1) {
       box.appendChild(el('h1', { text: 'Let’s set up your city.' }));
-      box.appendChild(el('p', { cls: 'sub', text: 'It works for you all day: writes your posts, answers your email, follows up with customers. Nothing goes out without your OK. No tech needed.' }));
+      box.appendChild(el('p', { cls: 'sub', text: 'It works for you all day: sorts your email, answers new customers and drafts your replies. Nothing goes out without your OK. No tech needed.' }));
       var f = function (id, label, tag, ph) { var i = el(tag || 'input', { id: id, placeholder: ph || '', rows: tag === 'textarea' ? 3 : null }); i.value = (S.settings[id.replace('w-', '')] || ''); return el('label', { cls: 'f' }, [label, i]); };
       box.appendChild(f('w-business', 'Your business name', 'input', 'Sam’s Kitchens'));
       box.appendChild(f('w-owner', 'Your name', 'input', 'Sam Lee'));
-      box.appendChild(f('w-about', 'What do you do? One or two sentences.', 'textarea', 'We remodel kitchens in Austin. Most customers find us on Google.'));
+      box.appendChild(f('w-about', 'What do you do? A few sentences.', 'textarea', 'We remodel kitchens in Austin. Most customers find us on Google.'));
+      var ph = el('input', { id: 'w-phone', placeholder: '(555) 123-4567', inputmode: 'tel', autocomplete: 'tel' });
+      box.appendChild(el('label', { cls: 'f' }, ['Your business phone, so customers can call you', ph]));
       var site = el('input', { id: 'w-site', placeholder: 'yourwebsite.com (optional)', inputmode: 'url' });
       box.appendChild(el('label', { cls: 'f' }, ['Have a website? I can fill this in for you.', site]));
-      box.appendChild(el('div', { cls: 'chips' }, [el('button', { cls: 'chip strong', text: 'Fill it in from my website', onclick: function (e) { var b = e.target; b.disabled = true; b.textContent = 'Reading your site…';
-        api('/api/site', { url: site.value }).then(function (r) { if (r.found.business) $('w-business').value = r.found.business; if (r.found.about) $('w-about').value = r.found.about; W.voice = r.found.voice || ''; toast('Filled in. Check it, then press Next.'); }).catch(function (err) { toast(err.message); }).then(function () { b.disabled = false; b.textContent = 'Fill it in from my website'; }); } })]));
+      if (S.ai && S.ai.needs) site.parentNode.hidden = true;   // reading a website needs the AI: until it is connected they type it in
+      else box.appendChild(el('div', { cls: 'chips' }, [el('button', { cls: 'chip strong', text: 'Fill it in from my website', onclick: function (e) { var b = e.target; b.disabled = true; b.textContent = 'Reading your site…';
+        api('/api/site', { url: site.value }).then(function (r) { if (r.found.business) $('w-business').value = r.found.business; if (r.found.about) $('w-about').value = r.found.about; if (r.found.phone && !ph.value) ph.value = r.found.phone; W.voice = r.found.voice || ''; toast('Filled in. Check it, then press Next.'); }).catch(function (err) { toast(err.message); }).then(function () { b.disabled = false; b.textContent = 'Fill it in from my website'; }); } })]));
       box.appendChild(el('div', { cls: 'chips', style: 'margin-top:22px' }, [el('button', { cls: 'btn yes', text: 'Next', onclick: function (e) {
         var b = { business: $('w-business').value.trim(), owner: $('w-owner').value.trim(), about: $('w-about').value.trim() };
         if (!b.business || !b.about) return toast('Add your business name and what you do.');
-        if (b.owner && !S.settings.signature) b.signature = b.owner + '\n' + b.business; if (W.voice) b.voice = W.voice;
+        if (!S.settings.signature || ph.value.trim()) b.signature = [b.owner, b.business, ph.value.trim()].filter(Boolean).join('\n'); if (W.voice) b.voice = W.voice;
         e.target.disabled = true; api('/api/settings', b).then(function () { return load(); }).then(function () { go(2); }).catch(function (err) { e.target.disabled = false; toast(err.message); }); } })]));
       box.appendChild(el('p', { style: 'margin-top:18px' }, [el('a', { href: '#', text: 'I’ll set it up myself', onclick: function (e) { e.preventDefault(); mem.set('setupSkip', '1'); done(); } })]));
     }
@@ -329,7 +332,7 @@ label.ck{display:flex;gap:10px;align-items:flex-start;margin:14px 0 6px;font-wei
       S.picks.forEach(function (p, i) { if (have.indexOf(p.name) > -1) return;
         var t = el('button', { cls: 'tile', 'aria-pressed': W.picks.indexOf(i) > -1 ? 'true' : 'false', onclick: function () { var k = W.picks.indexOf(i); if (k > -1) W.picks.splice(k, 1); else W.picks.push(i); t.setAttribute('aria-pressed', k > -1 ? 'false' : 'true'); } },
           [el('b', { text: p.name }), el('span', { text: p.what })]); box.appendChild(t); });
-      box.appendChild(el('p', { cls: 'muted', style: 'font-size:14px', text: 'Want something else? After setup, tell your city in plain words and it builds it.' }));
+      box.appendChild(el('p', { cls: 'muted', style: 'font-size:14px', text: S.plan && S.plan.kinds && S.plan.kinds.indexOf('own') < 0 ? 'Want posts, reviews, a newsletter or ads too? They come with the Pro plan.' : 'Want something else? After setup, tell your city in plain words and it builds it.' }));
       box.appendChild(el('div', { cls: 'chips', style: 'margin-top:18px' }, [el('button', { cls: 'btn yes', text: 'Build my city', onclick: function (e) {
         if (!W.picks.length && !have.length) return toast('Tap at least one.');
         var b = e.target; b.disabled = true; b.textContent = 'Building…';
@@ -348,11 +351,12 @@ label.ck{display:flex;gap:10px;align-items:flex-start;margin:14px 0 6px;font-wei
         if (S.google.connected) rows.push(el('div', { cls: 'box', style: 'padding:14px 16px;margin:0 0 12px' }, [el('b', { text: '✓ Gmail is connected (' + (S.google.email || '') + ')' })]));
         else { var ge = el('input', { placeholder: 'you@gmail.com', inputmode: 'email', autocomplete: 'email' }), gp = el('input', { placeholder: 'The 16 letters from Google', autocomplete: 'off' });
           rows.push(el('div', { cls: 'box', style: 'padding:14px 16px;margin:0 0 12px' }, [el('b', { text: 'Gmail' }), el('p', { cls: 'muted', style: 'margin:4px 0 0', text: 'So it can read new emails and write your replies. It sends only when you tap Send.' }),
-            el('ol', { cls: 'steps', style: 'margin:10px 0 0' }, [el('li', {}, [el('a', { href: 'https://myaccount.google.com/apppasswords', target: '_blank', rel: 'noopener', text: 'Open Google’s app password page' }), ' and sign in.']), el('li', { text: 'Type My City as the name and tap Create.' }), el('li', { text: 'Copy the 16 letters Google shows and paste them here.' })]),
-            el('label', { cls: 'f' }, ['Your Gmail address', ge]), el('label', { cls: 'f' }, ['App password', gp]),
+            el('ol', { cls: 'steps', style: 'margin:10px 0 0' }, [el('li', {}, [el('a', { href: 'https://myaccount.google.com/signinoptions/twosv', target: '_blank', rel: 'noopener', text: 'Turn on 2-Step Verification' }), ' (skip this if it is already on).']),
+              el('li', {}, [el('a', { href: 'https://myaccount.google.com/apppasswords', target: '_blank', rel: 'noopener', text: 'Open Google’s app password page' }), ' and sign in.']), el('li', { text: 'Type My City as the name and tap Create.' }), el('li', { text: 'Copy the 16 letters Google shows and paste them below.' })]),
+            el('label', { cls: 'f' }, ['Your Gmail address (a business email run by Google works too)', ge]), el('label', { cls: 'f' }, ['App password', gp]),
             el('div', { cls: 'chips' }, [el('button', { cls: 'btn yes sm', text: 'Connect Gmail', onclick: function (e) { var b = e.target; b.disabled = true;
               api('/api/gmail/password', { email: ge.value, password: gp.value }).then(function (r) { toast('Gmail is connected (' + r.email + ').'); box.dataset.step = ''; return load(); }).catch(function (err) { b.disabled = false; toast(err.message); }); } })]),
-            el('p', { cls: 'muted', style: 'font-size:13px;margin:10px 0 0', text: 'No such page? Google asks you to turn on 2-Step Verification first (myaccount.google.com/security).' })])); } }
+            el('p', { cls: 'muted', style: 'font-size:13px;margin:10px 0 0', text: 'Use Outlook, Yahoo or another email? Your city works with Gmail. Forward your business email to a Gmail address and connect that' + (S.help ? ', or write to ' + S.help + ' and a person helps you.' : '.') })])); } }
       if (kinds.indexOf('social') > -1) Object.keys(S.social || {}).forEach(function (n) { var x = S.social[n]; if (!x.configured && !x.connected) return;
         rows.push(el('div', { cls: 'box', style: 'padding:14px 16px;margin:0 0 12px' }, x.connected ? [el('b', { text: '✓ ' + x.name + ' is connected (' + x.who + ')' })] : [el('b', { text: x.name }), el('p', { cls: 'muted', style: 'margin:4px 0 0', text: 'So an approved post goes live there by itself.' }),
           el('div', { cls: 'chips' }, [el('a', { cls: 'btn yes sm', href: '/connect/' + n, style: 'text-decoration:none', text: 'Connect ' + x.name })])])); });
@@ -361,8 +365,11 @@ label.ck{display:flex;gap:10px;align-items:flex-start;margin:14px 0 6px;font-wei
       box.appendChild(el('div', { cls: 'chips', style: 'margin-top:18px' }, [el('button', { cls: 'btn yes', text: 'Next', onclick: function () { go(4); } })]));
     }
     if (step === 4) {
-      box.appendChild(el('h1', { text: 'Your city is working.' }));
-      var said = el('p', { cls: 'sub', text: 'Doing its first jobs now…' }); box.appendChild(said);
+      var waits = DEPTS().some(function (d) { return d.kind === 'leads' || d.kind === 'mailroom'; }) && !S.google.connected;
+      box.appendChild(el('h1', { text: waits ? 'Almost ready.' : 'Your city is working.' }));
+      if (waits) box.appendChild(el('div', { cls: 'box', style: 'padding:14px 16px;margin:0 0 12px' }, [el('b', { text: 'Connect your Gmail to start.' }), el('p', { cls: 'muted', style: 'margin:4px 0 0', text: 'Until then your city cannot read new emails. Here is a practice reply so you can see how it writes.' }),
+        el('div', { cls: 'chips' }, [el('button', { cls: 'btn yes sm', text: 'Connect Gmail', onclick: function () { go(3); } })])]));
+      var said = el('p', { cls: 'sub', text: waits ? 'Writing a practice reply now…' : 'Doing its first jobs now…' }); box.appendChild(said);
       var first = DEPTS().filter(function (d) { return d.kind === 'social' || d.kind === 'own'; }).slice(0, 2), leads = DEPTS().some(function (d) { return d.kind === 'leads'; });
       var chain = Promise.resolve(); if (mem.get('setupRan')) first = [], leads = false; mem.set('setupRan', '1'); first.forEach(function (d) { chain = chain.then(function () { return api('/api/run', { agent: d.id }).catch(function () {}); }); });
       if (leads) chain = chain.then(function () { return api('/api/testlead', {}).catch(function () {}); });
@@ -376,6 +383,7 @@ label.ck{display:flex;gap:10px;align-items:flex-start;margin:14px 0 6px;font-wei
   // ---- Your city: the drawing, then the list ----
   function renderHome() {
     var start = $('startHere'); start.innerHTML = '';
+    $('askBox').hidden = !!(S.plan && S.plan.kinds && S.plan.kinds.indexOf('own') < 0);   // Starter cannot build new departments
     var bad = S.checks.filter(function (c) { return !c.ok; });
     if (S.firstRun || bad.length) {
       start.hidden = false;
@@ -505,7 +513,7 @@ label.ck{display:flex;gap:10px;align-items:flex-start;margin:14px 0 6px;font-wei
     var a = S.agents.filter(function (x) { return x.id === dept; })[0];
     if (!a || a.id === 'guide') { location.hash = a ? 'guide' : ''; return; }
     var cards = S.cards.filter(function (c) { return c.agent === dept; }), ups = S.updates.filter(function (u) { return u.agent === dept; });
-    $('deptName').textContent = a.name; $('deptAbout').textContent = a.does || a.about;
+    $('deptName').textContent = a.name; $('deptAbout').textContent = a.about || a.does;
     var tools = $('deptTools'); tools.innerHTML = '';
     tools.appendChild(el('span', { cls: 'pill ' + (a.on ? 'on' : 'off'), style: 'align-self:center', text: a.on ? 'On' : 'Off' }));
     tools.appendChild(el('a', { cls: 'chip', href: '#' + a.id + '/edit', text: '✎ Edit' }));

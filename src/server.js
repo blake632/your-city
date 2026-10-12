@@ -221,7 +221,7 @@ function cityData(city) {
     hall: { need: problems, lines: lines('guide'), mayor: (m => m && city.department(m.id) ? { name: m.name, votes: m.votes, of: m.of, out: m.out || '' } : null)(city.store.get('mayor', null)) },
     research: { need: 0, live: now - last('research') < 15 * 60e3, lines: lines('research') },
     school: { need: cards.filter(c => c.agent === 'school').length, live: now - last('school') < 15 * 60e3, lines: lines('school') },
-    departments: agents.filter(a => a.id !== 'guide').map(a => ({ id: a.id, name: a.name, kind: a.kind, does: String(a.does || '').slice(0, 160), need: a.need, live: live(a), on: a.on, judge: !!a.judge,
+    departments: agents.filter(a => a.id !== 'guide').map(a => ({ id: a.id, name: a.name, kind: a.kind, does: String(a.does || '').slice(0, 160), what: a.about, need: a.need, live: live(a), on: a.on, judge: !!a.judge,
       ask: (cards.find(c => c.agent === a.id && c.kind === 'ask') || {}).question || ((cards.find(c => c.agent === a.id && c.kind === 'propose') || {}).proposal ? 'We need a new building: ' + cards.find(c => c.agent === a.id && c.kind === 'propose').proposal.name : ''),
       built: (city.department(a.id) || {}).built || 0, lines: lines(a.id) })),
     ranks: city.ranks().slice(0, 10), tip: city.store.get('tip', null),
@@ -233,7 +233,7 @@ function cityData(city) {
 function state(city, redirect) {
   const s = city.settings();
   const week = city.results(7);
-  return { results: Object.assign(week, { said: City.said(week) }), hookUrl: String(redirect || '').replace(/\/connect\/google\/callback$/, '') + '/hook/lead/' + city.hookSecret(), settings: s, firstRun: !s.business || !city.departments().length, agents: city.agents(), picks: city.picks(), plan: city.tier(), cards: city.waiting(), updates: city.updates().slice(0, 150), checks: guide.checks(city, { redirect }),
+  return { results: Object.assign(week, { said: City.said(week) }), hookUrl: String(redirect || '').replace(/\/connect\/google\/callback$/, '') + '/hook/lead/' + city.hookSecret(), settings: s, firstRun: !s.business || !city.departments().length, agents: city.agents(), picks: city.picks(), plan: city.tier(), help: process.env.HOSTED_HELP || '', cards: city.waiting(), updates: city.updates().slice(0, 150), checks: guide.checks(city, { redirect }),
     social: city.accounts ? city.accounts.state() : {},
     pay: process.env.PAY_URL ? { url: process.env.PAY_URL, title: process.env.PAY_TITLE || 'Keep your city', text: process.env.PAY_TEXT || 'Like what it does? Keep it running.', button: process.env.PAY_BUTTON || 'Keep my city' } : null,
     google: { configured: city.google.configured(), connected: city.google.connected(), email: city.google.email(), mode: city.google.mode() }, redirect,

@@ -29,7 +29,8 @@ async function people(city, d) {
   city.saveDepartment({ id: d.id, panel });
   return panel;
 }
-async function score(city, d, P, work) {
+async function score(city, d, P, work, about) {
+  work = seen(work, about);
   const r = await city.ai.ask({ model: city.agentConf(d.id).model, effort: 'low', maxTokens: 4000, schema: PANEL,
     system: 'You play ' + P.people.length + ' different people, one at a time, honestly. Most people are lukewarm about most things. For each person, in order: their first reaction in one or two short sentences in their own voice, then a score from 1 to 5 for "' + P.question + '" (1 no, 2 probably not, 3 maybe, 4 yes, 5 yes and I would act on it now).',
     prompt: 'THE PEOPLE:\n' + P.people.map((p, i) => (i + 1) + '. ' + p.name + ': ' + p.who).join('\n') + '\n\nWHAT THEY SEE:\n' + String(work).slice(0, 6000) });
@@ -38,7 +39,8 @@ async function score(city, d, P, work) {
   const avg = reactions.reduce((a, x) => a + x.score, 0) / reactions.length, top = reactions.filter(x => x.score >= 4).length;
   return { avg: Math.round(avg * 10) / 10, top, n: reactions.length, pass: avg >= BAR.avg && top / reactions.length >= BAR.top, reactions };
 }
-async function crowd(city, d, P, work) {
+async function crowd(city, d, P, work, about) {
+  work = seen(work, about);
   if (city.jev && city.jev.mode() === 'jev') { const j = await jevCrowd(city, P, work).catch(e => { if (e.code === 'budget') throw e; return null; }); if (j) return j; }
   const r = await city.ai.ask({ model: city.agentConf(d.id).model, effort: 'low', maxTokens: 4000, schema: CROWD,
     system: 'You play each person below in ' + MOODS.length + ' different moods, in this order: ' + MOODS.join('; ') + '. For each person, give ' + MOODS.length + ' honest yes or no answers to "' + P.question + '", one per mood, in that order. Then answer for a typical person who sees it (typical).',
@@ -62,21 +64,23 @@ async function jevCrowd(city, P, work) {
   if (n < seats.length / 2) return null;
   return { n, yes: rows.reduce((t, x) => t + x.yes.filter(Boolean).length, 0), typical: !!(a.base && a.base.noul >= 0.5), rows, by: 'jev' };
 }
+// A reply is judged next to the message it answers: without it each person pictures their own, different request and every reply looks off.
+const seen = (work, about) => about ? 'THE MESSAGE THIS ANSWERS. Each person: you sent this exact message, so judge the reply as its sender would, not as a different request of your own.\n' + String(about).slice(0, 3000) + '\n\nTHE REPLY YOU GET:\n' + work : work;
 // Judge a piece of work. Returns the text to show (rewritten once if the panel did not pass and the rewrite scored higher) and what the judges said.
 // rewrite(text, note) -> the department's own rewrite. A judging problem never blocks the work: it arrives without a verdict.
-async function judge(city, d, text, rewrite) {
+async function judge(city, d, text, rewrite, about) {
   if (!d.judge) return { text, judged: null };
   try {
     const P = await people(city, d);
-    let p = await score(city, d, P, text), trail = [];
+    let p = await score(city, d, P, text, about), trail = [];
     if (!p.pass && rewrite) {
       const low = p.reactions.slice().sort((a, b) => a.score - b.score).slice(0, 3).map(x => x.name + ' (' + x.score + '/5): "' + x.said + '"').join('\n');
       const next = await rewrite(text, 'A test panel of the people this is for scored it ' + p.avg + '/5. The harshest reactions:\n' + low + '\nRewrite it so it wins these people, keeping every fact and rule.');
-      const p2 = next && next.trim() ? await score(city, d, P, next) : null;
+      const p2 = next && next.trim() ? await score(city, d, P, next, about) : null;
       if (p2 && p2.avg > p.avg) { trail.push('Rewritten after the panel: ' + p.avg + ' to ' + p2.avg + ' out of 5.'); text = next; p = p2; }
       else trail.push('A rewrite did not score higher' + (p2 ? ' (' + p2.avg + '/5)' : '') + ', so you see the first version.');
     }
-    const c = await crowd(city, d, P, text).catch(() => null);
+    const c = await crowd(city, d, P, text, about).catch(() => null);
     return { text, judged: { question: P.question, panel: p, crowd: c, moods: MOODS.length, trail, simulated: true } };
   } catch (e) {   // the work is already made: it still reaches you, marked as not judged
     return { text, judged: { error: 'Not judged: ' + String(e.message || e).slice(0, 140) } };

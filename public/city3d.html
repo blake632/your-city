@@ -216,7 +216,7 @@ const DEPTS=[{k:'hall',name:'City Hall',short:'City Hall',col:'#e8bd62',c:2,r:1,
 (()=>{ const used=new Set(['tower','observatory','bank']); (DATA.departments||[]).slice(0,SLOTS.length).forEach((x,i)=>{
   let t=KIND_TYPE[x.kind]||((WORDS.find(([re])=>re.test(x.name))||WORDS.find(([re])=>re.test(x.does||''))||[])[1])||'';
   if(!t||used.has(t)) t=ORDER.find(o=>!used.has(o))||ORDER[i%ORDER.length];
-  used.add(t); DEPTS.push({k:'d'+i,id:x.id,name:x.name,short:shortOf(x.name),col:PAL[i%PAL.length],c:SLOTS[i][0],r:SLOTS[i][1],type:t,sub:x.does||'',kind:x.kind,judge:!!x.judge,go:x.id}); }); })();
+  used.add(t); DEPTS.push({k:'d'+i,id:x.id,name:x.name,short:shortOf(x.name),col:PAL[i%PAL.length],c:SLOTS[i][0],r:SLOTS[i][1],type:t,sub:x.what||x.does||'',kind:x.kind,judge:!!x.judge,go:x.id}); }); })();
 const DK={}; DEPTS.forEach(d=>DK[d.k]=d);
 const FREE=SLOTS.slice(DEPTS.length-3);   // empty lots, waiting for the next department
 const PANEL_HOME=(DEPTS.find(d=>d.type==='studio')||DEPTS.find(d=>d.judge)||{}).k||null;   // the Panel's 8 sit outside here
@@ -1205,7 +1205,7 @@ function stepBuilds(dt){ for(let i=BUILDS.length-1;i>=0;i--){ const b=BUILDS[i];
 ANIM.push((t,dt)=>stepBuilds(dt||0));
 // a new department arriving without a reload (the video, or a building approved while you watch): a building on the next free lot
 function addDept(x){ const i=DEPTS.length-3; if(i>=SLOTS.length) return null; const used=new Set(DEPTS.map(d=>d.type)); const t=KIND_TYPE[x.kind]||((WORDS.find(([re])=>re.test(x.name))||[])[1])||ORDER.find(o=>!used.has(o))||'hq';
-  const d={k:'d'+i,id:x.id||('new'+i),name:x.name,short:shortOf(x.name),col:PAL[i%PAL.length],c:SLOTS[i][0],r:SLOTS[i][1],type:used.has(t)?(ORDER.find(o=>!used.has(o))||t):t,sub:x.does||'',kind:x.kind||'own',go:x.id||'build'};
+  const d={k:'d'+i,id:x.id||('new'+i),name:x.name,short:shortOf(x.name),col:PAL[i%PAL.length],c:SLOTS[i][0],r:SLOTS[i][1],type:used.has(t)?(ORDER.find(o=>!used.has(o))||t):t,sub:x.what||x.does||'',kind:x.kind||'own',go:x.id||'build'};
   const bx=blockX(d.c), bz=blockZ(d.r), bld=BUILDERS[d.type](d); bld.g.position.set(bx,TOP,bz-1.5); scene.add(bld.g); Object.assign(d,{b:bld,bx,bz,key:d.c+','+d.r,anchor:new THREE.Vector3(bx,TOP+bld.h+2,bz-1.5)});
   d.glow=mesh(new THREE.PlaneGeometry(30,30).rotateX(-Math.PI/2),new THREE.MeshBasicMaterial({map:SOFTTEX,color:d.col,transparent:true,opacity:.07,blending:THREE.AdditiveBlending,depthWrite:false}),bx,TOP+.02,bz,scene,false);
   d.ring=mesh(new THREE.PlaneGeometry(1,1).rotateX(-Math.PI/2),new THREE.MeshBasicMaterial({map:RINGTEX,color:d.col,transparent:true,opacity:0,blending:THREE.AdditiveBlending,depthWrite:false}),bx,TOP+.05,bz-1.5,scene,false); d.ring.visible=false;

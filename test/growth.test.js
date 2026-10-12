@@ -181,3 +181,12 @@ test('hosted plans: Starter is the inbox only, Pro opens every department, Ultim
     assert(!city.tier() && city.picks().length === PICKS.length, 'your own copy has everything');
   } finally { delete process.env.CITY_PLAN; }
 });
+
+test('a reply is judged next to the message it answers, so the panel knows what was asked', async () => {
+  const { score } = require('../src/judge'), seen = [];
+  const city = { ai: { ask: async o => { seen.push(o.prompt); return { reactions: [{ name: 'Ann', said: 'ok', score: 4 }] }; } }, agentConf: () => ({ model: 'm' }) };
+  await score(city, { id: 'd' }, { people: [{ name: 'Ann', who: 'a homeowner' }] }, 'Hi Ann, yes.', 'Ann wrote:\nIs Thursday free?');
+  assert(/THE MESSAGE THIS ANSWERS[\s\S]*Is Thursday free\?[\s\S]*THE REPLY YOU GET:\nHi Ann, yes\./.test(seen[0]));
+  await score(city, { id: 'd' }, { people: [{ name: 'Ann', who: 'a homeowner' }] }, 'A post.');
+  assert(!/THE MESSAGE THIS ANSWERS/.test(seen[1]), 'a post is judged on its own');
+});
