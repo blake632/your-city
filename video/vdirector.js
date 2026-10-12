@@ -66,6 +66,44 @@
     W.endHtml = '<h1>Your <em>City</em></h1><h2>First 5 businesses<br>get set up free.</h2><p style="margin:16px 0 0;font:600 14px Inter,sans-serif;color:rgba(240,236,228,.85)">We set it up with you on a call.</p><div class="pill">Tap Sign Up below</div><small>Then $500 per setup. Sample business shown. AI judges are simulated.</small>';
     let seed = 3; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647, KS = C.DEPTS.map(d => d.k);
     W.arcs = []; for (let t = -1.5; t < 4.5; t += .1) { const a = KS[Math.floor(rnd() * KS.length)], b = KS[Math.floor(rnd() * KS.length)]; if (a !== b) W.arcs.push({ t, a, b, dur: 1.5 + rnd() * .6 }); }
+  } else if (window.__vcut === 'diary') {
+    // The Hamlet-style diary (Blake 10/12: "this is going viral. We need to make our marketing follow this"): one idea, a first-person hook,
+    // the agents living in their town, a quiet end card. About 19 seconds.
+    const D = window.__vdept || 'chatbox', RISE = Object.assign({}, CITY, { az: CITY.az - 1.1, el: 1.3, dist: CITY.dist * 2.1, pitch: 1.08 }), A3 = Object.assign({}, S.A1, { az: .58 });
+    let seed = 11; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647, KS = C.DEPTS.map(d => d.k);
+    W.arcs = []; W.msgs = []; W.lit = {};
+    const amb = (a, b) => { for (let t = a; t < b; t += .16) { const x = KS[Math.floor(rnd() * KS.length)], y = KS[Math.floor(rnd() * KS.length)]; if (x !== y) W.arcs.push({ t, a: x, b: y, dur: 1.5 + rnd() * .6 }); } };
+    const msg = (t, a, b, text, head, life) => { W.arcs.push({ t, a, b, dur: 1.6, big: true }); W.msgs.push({ t, a, b, text, head, life: life || 2.2 }); };
+    window.__vdur = 19.5; W.end = 16;
+    W.endHtml = '<h1>Burn<em>off</em></h1><h2>Your own AI city.</h2><div class="pill">Link in bio</div><small>Sample business shown. Agents are AI.</small>';
+    if (D === 'chatbox') {
+      MOVES.push([0, 4.2, RISE, CITY], [11, 19.5, S.A1, A3]);
+      W.tron = { t: 2.4, at: K.M, speed: 150, until: 19 };
+      cap(-1, 2.3, 'I got tired of AI <em>being a chat box.</em>', '');
+      cap(2.4, 4.6, 'So I gave my agents <em>a city.</em>', '');
+      const tx = visit(K.L, 4.8, 3.8, 'Answers every new customer.', ['Every building is a department.', 'Its agents work at their desks.', 'Finished work walks over to me.'], { cut: true, gap: .9, lead: .3 });
+      amb(tx, 19); msg(tx + .4, K.M, K.L, 'New customer: Dana wants a new kitchen.'); msg(tx + 1.6, K.L, 'hall', 'Reply ready. Waiting for my OK.', 'Leads'); msg(tx + 2.8, K.I, 'hall', '3 posts ready for my OK.', 'Instagram');
+      cap(tx + .3, tx + 4.4, 'Now they walk the work <em>across town.</em>', '');
+    } else if (D === 'walk') {
+      MOVES.push([0, 3.6, RISE, CITY], [3.6, 19.5, CITY, A3]);
+      W.lit = null;
+      for (let t = 3, i = 0; t < 4.4; t += .12, i++) W.arcs.push({ t, a: 'web' + (i % 5), b: K.M, dur: 1.3 });
+      cap(-1, 3.4, 'My agents walk every email <em>across town.</em>', 'Watch where each one goes.');
+      msg(4.4, K.M, K.L, 'New customer → Leads'); msg(5.5, K.M, 'hall', 'Receipt → filed', 'Mail Room'); msg(6.6, K.M, 'hall', 'Newsletter → skipped', 'Mail Room');
+      msg(7.7, K.M, 'hall', 'Spam → never answered', 'Mail Room'); msg(8.8, K.M, K.O, 'A question about parking → Open House'); msg(10.4, K.L, 'hall', 'Reply ready. Waiting for my OK.', 'Leads', 2.6);
+      amb(4, 19);
+      cap(12.4, 15.6, 'Nothing leaves <em>without my OK.</em>', '');
+    } else {   // build
+      const BOOK = { name: 'Bookkeeping', does: 'File every invoice and receipt each week, and tell me what is due.' };
+      MOVES.push([0, 3.4, RISE, CITY], [7.2, 8.6, CITY, S.B1], [8.6, 13, S.B1, S.B2], [13, 19.5, S.B2, FIN]);
+      W.lit = null;
+      cap(-1, 3.3, 'My mail room agent <em>asked me for a new building.</em>', '14 invoices came in. Nobody filed them.');
+      W.prop = [3.4, 7.2, 6.3];
+      EVENTS.push([7.4, () => C.addDept(BOOK)]);
+      cap(8.8, 12.6, 'I said yes. <em>It went up that night.</em>', '');
+      amb(12, 19); msg(13.2, K.M, 'hall', '14 invoices filed. 2 are due Friday.', 'Bookkeeping', 2.6);
+      cap(13.2, 15.8, 'Now it files <em>every invoice.</em>', '');
+    }
   } else if (window.__vcut === 'dept') {
     // One department, about 25 seconds, for the Burnoff Instagram: the hook (what you get), a tap into its building and how it works,
     // its work tested and rewritten (or, for the Mail Room, the inbox sorting itself), the line to remember, and the end card.

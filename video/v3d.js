@@ -7,10 +7,10 @@ let chromium; try { ({ chromium } = require('playwright')); } catch (e) { ({ chr
 const { spawn, execFileSync } = require('child_process'), fs = require('fs'), path = require('path'), os = require('os');
 // A Mac draws with its own graphics chip; a server with none draws in software (SwiftShader), about 10x slower.
 const GPU = process.platform === 'darwin', ARGS = GPU ? ['--use-angle=metal', '--ignore-gpu-blocklist'] : ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'];
-const CUTS = ['short', 'endcard', 'dept'], CUT = CUTS.includes(process.argv[2]) ? process.argv[2] : CUTS.includes(process.env.VCUT) ? process.env.VCUT : 'full'; process.env.VCUT = CUT;   // workers inherit it
+const CUTS = ['short', 'endcard', 'dept', 'diary'], CUT = CUTS.includes(process.argv[2]) ? process.argv[2] : CUTS.includes(process.env.VCUT) ? process.env.VCUT : 'full'; process.env.VCUT = CUT;   // workers inherit it
 //   node v3d.js dept leads             one department's 25-second Instagram video (leads, mail, social, reviews, newsletter): vout/dept-<name>.mp4
-if (CUT === 'dept' && process.argv[2] === 'dept') process.env.VDEPT = process.argv[3] || 'leads';
-const FPS = 30, DUR = { full: 104, short: 74.2, endcard: 4.5, dept: 25 }[CUT], N = Math.round(DUR * FPS), DIR = __dirname, OUTDIR = path.join(DIR, 'vout'), W = 405, H = 720, DPR = 2;
+if (['dept', 'diary'].includes(CUT) && process.argv[2] === CUT) process.env.VDEPT = process.argv[3] || (CUT === 'dept' ? 'leads' : 'chatbox');   // node v3d.js diary chatbox|walk|build
+const FPS = 30, DUR = { full: 104, short: 74.2, endcard: 4.5, dept: 25, diary: 19.5 }[CUT], N = Math.round(DUR * FPS), DIR = __dirname, OUTDIR = path.join(DIR, 'vout'), W = 405, H = 720, DPR = 2;
 fs.mkdirSync(OUTDIR, { recursive: true }); fs.mkdirSync(path.join(DIR, 'shots'), { recursive: true });
 const FILES = { '/__v/fonts/': path.join(DIR, 'fonts'), '/__v/assets/': path.join(DIR, 'vassets') };
 
@@ -65,7 +65,7 @@ async function stills(base, times) {
     await Promise.all([...Array(parts).keys()].map(i => { const out = path.join(OUTDIR, 'seg' + i + '.mp4'); segs.push(out);
       return new Promise((res, rej) => { const p = spawn(process.execPath, [__filename, 'worker', s.base, String(cut[i]), String(cut[i + 1]), out], { stdio: 'inherit' }); p.on('close', c => c ? rej(new Error('worker ' + i + ' failed')) : res()); }); }));
     fs.writeFileSync(path.join(OUTDIR, 'list.txt'), segs.map(f => "file '" + f + "'").join('\n'));
-    const final = path.join(OUTDIR, { short: 'your-city-short.mp4', endcard: 'your-city-endcard.mp4', dept: 'dept-' + process.env.VDEPT + '.mp4' }[CUT] || 'your-city.mp4');
+    const final = path.join(OUTDIR, { short: 'your-city-short.mp4', endcard: 'your-city-endcard.mp4', dept: 'dept-' + process.env.VDEPT + '.mp4', diary: 'diary-' + process.env.VDEPT + '.mp4' }[CUT] || 'your-city.mp4');
     execFileSync('ffmpeg', ['-y', '-loglevel', 'error', '-f', 'concat', '-safe', '0', '-i', path.join(OUTDIR, 'list.txt'), '-f', 'lavfi', '-i', 'anullsrc=r=44100:cl=stereo',
       '-c:v', 'copy', '-c:a', 'aac', '-b:a', '128k', '-shortest', '-movflags', '+faststart', final]);
     console.log('WROTE', final);
