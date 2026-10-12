@@ -523,7 +523,8 @@ label.ck{display:flex;gap:10px;align-items:flex-start;margin:14px 0 6px;font-wei
       if (a.auto) ab.appendChild(el('div', { cls: 'box auto on' }, [el('b', { text: '🤖 Autopilot is on' }), el('p', { cls: 'muted', text: 'It approves its own work now, up to 20 a day. Questions, and anything the panel marks weak, still come to you.' }), el('button', { cls: 'chip', text: 'Turn off autopilot', onclick: function () { pilot(false); } })]));
       else ab.appendChild(el('div', { cls: 'box auto' }, [el('b', { text: r.ready ? 'Autopilot: ready when you are' : 'Autopilot: learning how you work' }), el('div', { cls: 'bar' }, [el('i', { style: 'width:' + Math.min(100, Math.round(r.asIs / r.need * 100)) + '%' })]),
         el('p', { cls: 'muted', text: r.ready ? r.asIs + ' of its last ' + r.decided + ' were approved as written.' : r.asIs + ' of its last ' + r.decided + ' approved as written. It unlocks at ' + r.need + ' of ' + r.of + '. Approve, decline or give feedback on its cards to teach it.' }),
-        el('button', { cls: 'btn yes sm', text: 'Turn on autopilot', disabled: !r.ready, onclick: function () { pilot(true); } })]));
+        S.plan && !S.plan.auto ? el('p', { cls: 'muted', text: 'Autopilot comes with the Ultimate plan.' })
+          : el('button', { cls: 'btn yes sm', text: 'Turn on autopilot', disabled: !r.ready, onclick: function () { pilot(true); } })]));
     }
     $('nNeed').textContent = cards.length; $('nNeed').className = cards.length ? '' : 'zero'; $('nDone').textContent = ups.length; $('nDone').className = ups.length ? '' : 'zero';
     $('tabPanel').hidden = !a.judge; if (!a.judge && dtab === 'panel') dtab = 'need';

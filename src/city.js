@@ -26,6 +26,9 @@ const PICKS = [
 // approve its own work. Questions, fixes and new buildings still wait for you, and so does work the panel marked weak. At most 20 a day.
 const AUTO_KINDS = ['lead', 'email', 'post', 'note'], AUTO = { of: 10, need: 8, perDay: 20 };
 const MAX_DEPTS = 10;   // the 3D city has 10 lots around City Hall, the Research desk and the School
+// Hosted plans (CITY_PLAN, set by Burnoff's sign-up): Starter is the inbox (Leads and the Mail room); Pro opens every department;
+// Ultimate adds autopilot. No CITY_PLAN (your own copy of the app) = everything.
+const PLANS = { starter: { name: 'Starter', kinds: ['leads', 'mailroom'], max: 2, auto: false, up: 'Pro' }, pro: { name: 'Pro', max: MAX_DEPTS, auto: false, up: 'Ultimate' }, ultimate: { name: 'Ultimate', max: MAX_DEPTS, auto: true } };
 // The Guide is not a department: it is City Hall, always on.
 const GUIDE = { id: 'guide', name: 'City Hall', about: 'The Guide. Checks your setup and tells you exactly how to fix anything that is not working.' };
 const DEFAULT_SETTINGS = {
@@ -83,6 +86,10 @@ class City {
       facts: Array.isArray(d.facts) ? d.facts.slice(-20) : [], built: d.built || 0, auto: !!d.auto };
   }
   // Build a department, or change one. Changing what it does or who it is for makes a fresh panel next time it is judged.
+  tier() { return PLANS[process.env.CITY_PLAN] || null; }
+  allows(kind) { const P = this.tier(); return !P || !P.kinds || P.kinds.includes(kind); }
+  upgrade(what) { const P = this.tier(); return what + ' is on the ' + P.up + ' plan. To upgrade, email ' + (process.env.HOSTED_HELP || 'hello@burnoff.app') + '.'; }
+  picks() { return PICKS.filter(p => this.allows(p.kind)); }
   saveDepartment(input) {
     const patch = {}; Object.keys(input || {}).forEach(k => { if (input[k] !== undefined && input[k] !== null) patch[k] = input[k]; });   // only what was given changes
     const list = this.departments(), cur = patch.id ? list.find(d => d.id === patch.id) : null;
@@ -94,6 +101,8 @@ class City {
     if (cur && (patch.does !== undefined && patch.does !== cur.does || patch.audience !== undefined && patch.audience !== cur.audience) && !patch.panel) d.panel = null;
     if (cur && cur.auto && patch.does !== undefined && patch.does !== cur.does) d.auto = false;   // a new job has to earn autopilot again
     if (!cur) {
+      if (!this.allows(d.kind)) throw new Error(this.upgrade((PICKS.find(p => p.kind === d.kind) || { name: 'A department of your own' }).name));
+      if (this.tier() && list.length >= this.tier().max && this.tier().up) throw new Error(this.upgrade('More departments'));
       if (list.length >= MAX_DEPTS) throw new Error('A city has room for ' + MAX_DEPTS + ' departments. Remove one first.');
       if (KINDS[d.kind].one && list.some(x => x.kind === d.kind)) throw new Error('You already have a ' + PICKS.find(p => p.kind === d.kind).name + ' department. Open it to change it.');
     }
@@ -121,6 +130,7 @@ class City {
   setAutopilot(a, on) {
     const D = this.department(a); if (!D) throw new Error('No such department.');
     const r = this.readiness(a);
+    if (on && this.tier() && !this.tier().auto) throw new Error(this.upgrade('Autopilot'));
     if (on && !r.ready) throw new Error('Not yet. It needs ' + AUTO.need + ' of its last ' + AUTO.of + ' approved as written. Now: ' + r.asIs + ' of ' + r.decided + '.');
     const d = this.saveDepartment({ id: a, auto: !!on });
     this.update(a, on ? 'Autopilot is on. It approves its own work now. Questions still come to you.' : 'Autopilot is off. Everything waits for your OK again.');
@@ -130,6 +140,7 @@ class City {
   // the panel did not mark it weak, and today's 20 are not used up. Anything else waits for you as usual.
   pilotFor(c) {
     const D = this.department(c.agent);
+    if (this.tier() && !this.tier().auto) return false;
     if (!D || !D.auto || !D.on || c.test || !AUTO_KINDS.includes(c.kind) || !(c.actions || []).includes('approve')) return false;
     if (c.judged && c.judged.panel && c.judged.panel.pass === false) return false;
     const today = new Date(this.now()).toDateString();
@@ -234,7 +245,7 @@ class City {
   // ---- the city improves itself ----
   // A department (or the Research desk) asks for a new building. You approve it, and it is built.
   propose(by, p, why, extra) {
-    if (this.departments().length >= MAX_DEPTS) return null;
+    if (this.departments().length >= MAX_DEPTS || !this.allows('own')) return null;
     if (this.waiting().some(c => c.kind === 'propose' && c.proposal && c.proposal.name.toLowerCase() === String(p.name).toLowerCase())) return null;
     const who = (this.department(by) || { name: by === 'research' ? 'The Research desk' : 'City Hall' }).name;
     const proposal = { name: String(p.name).slice(0, 40), does: String(p.does).slice(0, 1200), audience: String(p.audience || '').slice(0, 200), every: EVERY[p.every] ? Number(p.every) : 10080, judge: true };
@@ -560,7 +571,7 @@ class City {
       .forEach(d => out.push({ key: d.id, agent: d.id, every: d.every, run: () => d.kind === 'social' ? this.social(this.department(d.id)) : this.runOwn(this.department(d.id)) }));
     // the School takes one step every 10 minutes; the Research desk looks for new tools once a week
     if (this.school) out.push({ key: 'school', agent: 'school', every: 10, run: () => this.school.step() });
-    if (this.research && this.departments().some(d => d.on)) out.push({ key: 'research', agent: 'research', every: 10080, run: () => this.research.run() });
+    if (this.research && this.allows('own') && this.departments().some(d => d.on)) out.push({ key: 'research', agent: 'research', every: 10080, run: () => this.research.run() });
     if (this.departments().length) { out.push({ key: 'plan', agent: 'guide', every: 10080, run: () => this.plan() }); out.push({ key: 'star', agent: 'guide', every: 10080, run: () => this.starTip() }); out.push({ key: 'week', agent: 'guide', every: 10080, run: () => this.weekly() }); }
     if (this.departments().filter(d => d.on).length >= 3) out.push({ key: 'election', agent: 'guide', every: 10080, run: () => this.election() });
     return out;
@@ -612,4 +623,4 @@ class City {
   start(everyMs = 60e3) { const go = () => this.tick().catch(e => this.log.error('tick: ' + e.message)); setTimeout(go, 5000); this.timer = setInterval(go, everyMs); }
   stop() { clearInterval(this.timer); }
 }
-module.exports = { City, KINDS, PICKS, GUIDE, EVERY, DEFAULT_SETTINGS, LABELS, SORT_SCHEMA, LEAD_REPLY, AUTO };
+module.exports = { City, KINDS, PICKS, PLANS, GUIDE, EVERY, DEFAULT_SETTINGS, LABELS, SORT_SCHEMA, LEAD_REPLY, AUTO };

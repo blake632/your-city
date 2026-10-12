@@ -158,3 +158,26 @@ test('the weekly election: each department\'s agent votes (never for itself); th
   assert(/Instagram runs City Hall this week \(2 of 3 votes\)\. Reviews was voted out\./.test(city.updates()[0].text));
   assert.strictEqual(L.name, 'Leads');
 });
+
+test('hosted plans: Starter is the inbox only, Pro opens every department, Ultimate adds autopilot', async () => {
+  const store = await Store.open({ memory: true });
+  const city = new City({ store, ai: new AI({ store, env: {}, apiKey: () => 'k' }), google: new Google({ store }), log: { error() {} } });
+  const pick = k => Object.assign({}, PICKS.find(p => p.kind === k));
+  try {
+    process.env.CITY_PLAN = 'starter';
+    assert.deepStrictEqual(city.picks().map(p => p.kind), ['leads', 'mailroom']);
+    const L = city.saveDepartment(pick('leads')); city.saveDepartment(pick('mailroom'));
+    assert.throws(() => city.saveDepartment(pick('social')), /Social media is on the Pro plan\. To upgrade, email hello@burnoff\.app/);
+    assert.throws(() => city.saveDepartment({ kind: 'own', name: 'Ideas', does: 'Ideas' }), /on the Pro plan/);
+    assert.strictEqual(city.propose('guide', { name: 'Ideas', does: 'x' }, 'why'), null, 'no new buildings on Starter');
+    process.env.CITY_PLAN = 'pro';
+    assert.strictEqual(city.picks().length, PICKS.length);
+    city.saveDepartment(pick('social'));
+    city.readiness = () => ({ ready: true });
+    assert.throws(() => city.setAutopilot(L.id, true), /Autopilot is on the Ultimate plan/);
+    process.env.CITY_PLAN = 'ultimate';
+    assert(city.setAutopilot(L.id, true).auto);
+    delete process.env.CITY_PLAN;
+    assert(!city.tier() && city.picks().length === PICKS.length, 'your own copy has everything');
+  } finally { delete process.env.CITY_PLAN; }
+});

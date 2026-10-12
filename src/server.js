@@ -3,7 +3,7 @@
 // browser a 30-day signed cookie. The password is kept only as a salted scrypt hash.
 const http = require('node:http'), crypto = require('node:crypto'), fs = require('node:fs'), path = require('node:path');
 const { MODELS, PROVIDERS } = require('./ai');
-const { City, EVERY, PICKS } = require('./city');
+const { City, EVERY } = require('./city');
 const guide = require('./guide');
 
 const PUBLIC = path.join(__dirname, '..', 'public');
@@ -233,7 +233,7 @@ function cityData(city) {
 function state(city, redirect) {
   const s = city.settings();
   const week = city.results(7);
-  return { results: Object.assign(week, { said: City.said(week) }), hookUrl: String(redirect || '').replace(/\/connect\/google\/callback$/, '') + '/hook/lead/' + city.hookSecret(), settings: s, firstRun: !s.business || !city.departments().length, agents: city.agents(), picks: PICKS, cards: city.waiting(), updates: city.updates().slice(0, 150), checks: guide.checks(city, { redirect }),
+  return { results: Object.assign(week, { said: City.said(week) }), hookUrl: String(redirect || '').replace(/\/connect\/google\/callback$/, '') + '/hook/lead/' + city.hookSecret(), settings: s, firstRun: !s.business || !city.departments().length, agents: city.agents(), picks: city.picks(), plan: city.tier(), cards: city.waiting(), updates: city.updates().slice(0, 150), checks: guide.checks(city, { redirect }),
     social: city.accounts ? city.accounts.state() : {},
     pay: process.env.PAY_URL ? { url: process.env.PAY_URL, title: process.env.PAY_TITLE || 'Keep your city', text: process.env.PAY_TEXT || 'Like what it does? Keep it running.', button: process.env.PAY_BUTTON || 'Keep my city' } : null,
     google: { configured: city.google.configured(), connected: city.google.connected(), email: city.google.email(), mode: city.google.mode() }, redirect,
