@@ -45,7 +45,7 @@ class AI {
     const p = PROVIDERS[provider], s = (a.by || {})[provider] || {};
     const fromVar = (env[p.env] || (provider === 'anthropic' && this.apiKey ? this.apiKey() || '' : '') || '').trim(), saved = String(s.key || '').trim();
     const base = (provider === 'custom' ? String(a.baseUrl || env.AI_BASE_URL || '') : this.bases[provider] || p.base || '').trim().replace(/\/+$/, '');
-    const model = s.model || (provider === 'anthropic' ? DEFAULT_MODEL : '');
+    const model = s.model || (fromVar && !saved && env.AI_MODEL ? String(env.AI_MODEL).trim() : '') || (provider === 'anthropic' ? DEFAULT_MODEL : '');   // AI_MODEL: the model a hosted city starts on
     return { provider, name: p.name, key: saved || fromVar, keyFrom: saved ? 'settings' : fromVar ? 'variable' : '', base, model, keyAt: p.keyAt, billingAt: p.billingAt };
   }
   // What is still missing before the AI can work: '' when ready.

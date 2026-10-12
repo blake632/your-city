@@ -115,3 +115,25 @@ test('A wish is kept, sent to the person who looks after the city, and kept even
   assert.strictEqual(sent[0][2], 'Wish from Ray');
   assert.deepStrictEqual(store.list('wishes').map(w => [w.text, w.sent]), [['Post to LinkedIn for me', true], ['fail', false]]);
 });
+
+test('a city Burnoff hosts: it starts on the AI it was given, help comes from a person, and a plan that ended rests', async () => {
+  const store = await Store.open({ memory: true });
+  const ai = new AI({ store, env: { OPENROUTER_API_KEY: 'sk-or-x', AI_MODEL: 'anthropic/claude-sonnet-5.5' } });
+  assert.deepStrictEqual([ai.conf().provider, ai.conf().model, ai.needs()], ['openrouter', 'anthropic/claude-sonnet-5.5', '']);
+  ai.save({ provider: 'openrouter', key: 'sk-or-mine', model: 'openai/gpt-6' });
+  assert.strictEqual(ai.conf().model, 'openai/gpt-6', 'the owner\'s own pick wins');
+  const city = new City({ store, ai, google: new Google({ store }), log: { error() {} } });
+  const srv = createServer({ city, password: () => 'pw12345678', publicUrl: () => '', log: { error() {} } }), base = await listen(srv);
+  open.push(() => srv.close());
+  Object.assign(process.env, { HOSTED_BY: 'Burnoff', HOSTED_HELP: 'hello@burnoff.app' });
+  try {
+    const login = await (await fetch(base + '/')).text();
+    assert(/Email hello@burnoff\.app/.test(login) && !/Railway/.test(login));
+    process.env.CITY_PAUSED = '1'; process.env.CITY_RESTART = 'https://burnoff.app/#pricing';
+    const r = await fetch(base + '/');
+    assert.strictEqual(r.status, 402);
+    assert(/Burnoff plan has ended/.test(await r.text()));
+    assert.strictEqual((await fetch(base + '/api/state')).status, 402, 'nothing opens');
+    assert.strictEqual((await fetch(base + '/healthz')).status, 200, 'it still answers its health check');
+  } finally { ['HOSTED_BY', 'HOSTED_HELP', 'CITY_PAUSED', 'CITY_RESTART'].forEach(k => delete process.env[k]); srv.close(); }
+});

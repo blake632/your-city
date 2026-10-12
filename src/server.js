@@ -47,6 +47,10 @@ function createServer({ city, password = () => process.env.CITY_PASSWORD, public
       return json(res, 200, { ok: true }, cors);
     }
     if (OPEN[p]) { const [f, type] = OPEN[p]; res.writeHead(200, { 'content-type': type, 'cache-control': p === '/sw.js' ? 'no-cache' : p.startsWith('/vendor/') ? 'public, max-age=31536000, immutable' : 'public, max-age=86400' }); return res.end(fs.readFileSync(path.join(PUBLIC, f))); }
+    // A hosted city whose plan ended (CITY_PAUSED): nothing opens and nothing runs. Its data stays.
+    if (process.env.CITY_PAUSED) { res.writeHead(402, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' });
+      return res.end(shell('Plan ended', '<h1>Your <em>City</em></h1><p>Your ' + esc(process.env.HOSTED_BY || '') + ' plan has ended, so your city is resting. Everything is kept.</p>' +
+        (/^https:\/\//.test(process.env.CITY_RESTART || '') ? '<p><a href="' + esc(process.env.CITY_RESTART) + '">Start it again</a></p>' : '') + (process.env.HOSTED_HELP ? '<p class=muted>Questions: ' + esc(process.env.HOSTED_HELP) + '</p>' : ''))); }
     // ---- sign-in ----
     // First visit: nothing opens until the owner chooses a password. Only the first person to do it becomes the owner.
     if (!hasPassword()) {
@@ -64,7 +68,7 @@ function createServer({ city, password = () => process.env.CITY_PASSWORD, public
       fails = fails.filter(t => t > Date.now() - 10 * 60e3);
       if (fails.length >= 10) return json(res, 429, { error: 'Too many tries. Wait 10 minutes.' });
       const b = await body(req);
-      if (!checkPassword(b.password)) { fails.push(Date.now()); return json(res, 401, { error: envPw() ? 'That password is not right. It is the CITY_PASSWORD variable in Railway.' : 'That password is not right.' }); }
+      if (!checkPassword(b.password)) { fails.push(Date.now()); return json(res, 401, { error: envPw() && !process.env.HOSTED_BY ? 'That password is not right. It is the CITY_PASSWORD variable in Railway.' : 'That password is not right.' }); }
       return json(res, 200, { ok: true }, { 'set-cookie': cookie() });
     }
     if (!signedIn(req)) {
@@ -246,7 +250,7 @@ const shell = (title, inner, script) => '<!doctype html><html lang="en"><head><m
   'button{width:100%;margin-top:12px;padding:15px;border:0;border-radius:12px;background:var(--ink);color:var(--bg);font:600 16px system-ui;cursor:pointer}#m{min-height:1.5em}.muted{font-size:14px;margin-top:28px}</style></head><body><main>' + inner + '</main>' + (script ? '<script>' + script + '</script>' : '') + '</body></html>';
 function loginPage() {
   return shell('Sign in', '<h1>Your <em>City</em></h1><p>Enter your city password.</p><form id=f><input id=pw type=password autocomplete=current-password placeholder="Password" autofocus><button>Open my city</button></form><p id=m></p>' +
-    '<p class=muted>Forgot it, or never chose one? In Railway, click your app, then Variables. Add <code>CITY_PASSWORD</code> with a new password. It takes over in a minute and signs everyone else out.</p>',
+    (process.env.HOSTED_HELP ? '<p class=muted>Forgot it? Email ' + esc(process.env.HOSTED_HELP) + ' and a person resets it for you.</p>' : '<p class=muted>Forgot it, or never chose one? In Railway, click your app, then Variables. Add <code>CITY_PASSWORD</code> with a new password. It takes over in a minute and signs everyone else out.</p>'),
     'document.getElementById("f").onsubmit=async e=>{e.preventDefault();const r=await fetch("/login",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({password:document.getElementById("pw").value})});if(r.ok)return location.reload();document.getElementById("m").textContent=(await r.json().catch(()=>({}))).error||"That did not work.";};');
 }
 // The very first visit: choose the password that opens your city.

@@ -19,7 +19,7 @@ const { createServer } = require('./server');
   const server = createServer({ city });
   const port = Number(process.env.PORT) || 3000;
   server.listen(port, () => console.log('Your city is up on port ' + port + ' (storage: ' + store.kind() + '). Open it in your browser.'));
-  if (process.env.CITY_AGENTS !== 'off') city.start();
+  if (process.env.CITY_AGENTS !== 'off' && !process.env.CITY_PAUSED) city.start();   // a paused hosted city does no work
   const stop = async () => { city.stop(); server.close(); await store.flush(); process.exit(0); };
   process.on('SIGTERM', stop); process.on('SIGINT', stop);
 })().catch(e => { console.error('The city could not start: ' + (e && e.stack || e)); process.exit(1); });
