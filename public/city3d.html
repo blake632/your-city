@@ -959,7 +959,7 @@ SIGNS.forEach(d=>{ const b=document.createElement('button'); b.type='button'; b.
   b.addEventListener('mouseenter',()=>b.classList.add('hot')); b.addEventListener('mouseleave',()=>b.classList.remove('hot'));
   labelsEl.appendChild(b); d.el=b; d.lab={x:0,y:0,w:0,h:0,init:false};
   const ln=document.createElementNS(NS,'line'); leaders.appendChild(ln); const dot=document.createElementNS(NS,'circle'); dot.setAttribute('r','1.8'); leaders.appendChild(dot); d.ln=ln; d.dot=dot; });
-function measure(){ const small=innerWidth<600; SIGNS.forEach(d=>{ d.el.querySelector('span').textContent=small?d.short:d.name; d.lab.w=d.el.offsetWidth; d.lab.h=d.el.offsetHeight; });
+function measure(){ const small=innerWidth<600, M=(DATA.hall||{}).mayor; SIGNS.forEach(d=>{ d.el.querySelector('span').textContent=d.k==='hall'&&M?'City Hall · Mayor '+M.name:small?d.short:d.name; d.lab.w=d.el.offsetWidth; d.lab.h=d.el.offsetHeight; });
   const r=$('hud').hidden?{left:0,top:0,width:0,height:0}:$('hud').getBoundingClientRect(); hudRect={x:r.left-6,y:r.top-6,w:r.width+12,h:r.height+12}; const h=$('hint').getBoundingClientRect(); hintRect={x:h.left,y:h.top-4,w:h.width,h:h.height+8}; }
 let hudRect={x:0,y:0,w:0,h:0}, hintRect={x:0,y:0,w:0,h:0}, VW=innerWidth, VH=innerHeight;
 function ov(a,b){ const x=Math.max(0,Math.min(a.x+a.w,b.x+b.w)-Math.max(a.x,b.x)), y=Math.max(0,Math.min(a.y+a.h,b.y+b.h)-Math.max(a.y,b.y)); return x*y; }

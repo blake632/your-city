@@ -137,3 +137,24 @@ test('a city Burnoff hosts: it starts on the AI it was given, help comes from a 
     assert.strictEqual((await fetch(base + '/healthz')).status, 200, 'it still answers its health check');
   } finally { ['HOSTED_BY', 'HOSTED_HELP', 'CITY_PAUSED', 'CITY_RESTART'].forEach(k => delete process.env[k]); srv.close(); }
 });
+
+test('the weekly election: each department\'s agent votes (never for itself); the most votes runs City Hall, and the old mayor can be voted out', async () => {
+  const A = await fakeAnthropic(b => {
+    const f = b.output_config && b.output_config.format;
+    if (f && f.schema.properties.votes) { const ids = [...b.messages[0].content.matchAll(/- id (\S+):/g)].map(m => m[1]);
+      return { text: { votes: [{ voter: ids[0], vote: ids[1], why: 'Answers every lead fast.' }, { voter: ids[2], vote: ids[1], why: 'Most useful.' }, { voter: ids[1], vote: ids[1], why: 'Me!' }, { voter: 'ghost', vote: ids[2], why: '?' }, { voter: ids[1], vote: ids[2], why: 'Good posts.' }] } }; }
+    return { text: 'ok' };
+  });
+  open.push(A.close);
+  const store = await Store.open({ memory: true });
+  const city = new City({ store, ai: new AI({ store, env: {}, apiKey: () => 'k', baseURL: A.url }), google: new Google({ store }), log: { error() {} } });
+  city.saveSettings({ business: 'Sam\'s Kitchens' }); store.set('departments', []);
+  const [L, I, R] = ['Leads', 'Instagram', 'Reviews'].map(n => city.saveDepartment({ name: n, does: 'Work for ' + n }));
+  assert(city.jobs().some(j => j.key === 'election' && j.every === 10080));
+  store.set('mayor', { id: R.id, name: 'Reviews', votes: 2, of: 3 });
+  assert.strictEqual(await city.election(), 'Instagram won; Reviews was voted out.');
+  const m = store.get('mayor');
+  assert.deepStrictEqual([m.id, m.votes, m.of, m.out], [I.id, 2, 3, 'Reviews'], 'a self-vote and an unknown voter are not counted');
+  assert(/Instagram runs City Hall this week \(2 of 3 votes\)\. Reviews was voted out\./.test(city.updates()[0].text));
+  assert.strictEqual(L.name, 'Leads');
+});

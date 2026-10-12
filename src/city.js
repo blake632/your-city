@@ -295,6 +295,27 @@ class City {
     this.update(D.id, 'Number 1 this week. Shared a tip with the city: ' + String(tip).trim().slice(0, 160));
     return 'Tip shared.';
   }
+  // The weekly election: every department's agent votes for the department that should run City Hall this week (never itself). The most
+  // votes wins; a tie goes to the better grade, then to the mayor already in office. A mayor who loses is voted out. One AI call per week.
+  // It is a real vote by the city's AI agents, and the app says so; it changes no work, only who holds City Hall.
+  async election() {
+    const D = this.departments().filter(d => d.on); if (D.length < 3) return 'An election needs at least 3 departments.';
+    const ranks = this.ranks(), ups = this.updates(), cur = this.store.get('mayor', null), s = this.settings();
+    const grade = id => (ranks.find(x => x.id === id) || {}).score;
+    const r = await this.ai.ask({ model: this.ai.modelFor(''), effort: 'low', maxTokens: 3000, schema: { type: 'object', additionalProperties: false, required: ['votes'], properties: { votes: { type: 'array', items: { type: 'object', additionalProperties: false, required: ['voter', 'vote', 'why'], properties: { voter: { type: 'string' }, vote: { type: 'string' }, why: { type: 'string' } } } } } },
+      system: 'You play each department\'s AI agent in the AI city of ' + (s.business || 'a small business') + '. Each agent casts one vote for the department that should run City Hall this week: the one doing the most useful work for the owner. No agent votes for itself. Use the department ids exactly. One short, plain, friendly reason each.',
+      prompt: (cur ? 'MAYOR NOW: ' + cur.name + '\n' : '') + 'DEPARTMENTS:\n' + D.map(d => '- id ' + d.id + ': ' + d.name + ' (' + (grade(d.id) != null ? 'grade ' + grade(d.id) + '/100' : 'no grade yet') + '). Recent work: ' +
+        (ups.filter(u => u.agent === d.id).slice(0, 3).map(u => String(u.text).slice(0, 90)).join(' | ') || 'none yet')).join('\n') + '\n\nGive one vote per department.' });
+    const ids = new Set(D.map(d => d.id)), seen = new Set(), votes = (r.votes || []).filter(v => ids.has(v.voter) && ids.has(v.vote) && v.voter !== v.vote && !seen.has(v.voter) && seen.add(v.voter));
+    if (!votes.length) return 'No votes came back.';
+    const count = id => votes.filter(v => v.vote === id).length;
+    const win = D.slice().sort((a, b) => count(b.id) - count(a.id) || (grade(b.id) || 0) - (grade(a.id) || 0) || (cur && b.id === cur.id) - (cur && a.id === cur.id))[0];
+    const out = cur && cur.id !== win.id && this.department(cur.id) ? cur.name : '';
+    const m = { id: win.id, name: win.name, votes: count(win.id), of: votes.length, why: String((votes.find(v => v.vote === win.id) || {}).why || '').slice(0, 200), out, at: this.now(), ballots: votes.map(v => ({ voter: v.voter, vote: v.vote, why: String(v.why).slice(0, 160) })) };
+    this.store.set('mayor', m);
+    this.update('guide', 'The departments voted. ' + win.name + ' runs City Hall this week (' + m.votes + ' of ' + m.of + ' votes)' + (out ? '. ' + out + ' was voted out.' : cur && cur.id === win.id ? ', again.' : '.') + (m.why ? ' "' + m.why + '"' : ''));
+    return out ? win.name + ' won; ' + out + ' was voted out.' : win.name + ' won.';
+  }
   tipFor(D) { const t = this.store.get('tip', null); return t && t.dept !== D.id && this.now() - t.at < 14 * 864e5 ? '\n\nA TIP FROM ' + t.name.toUpperCase() + ', NUMBER 1 THIS WEEK (use it if it helps): ' + t.text : ''; }
   factsOf(D) { return ((D.facts || []).length ? '\n\nWHAT THE OWNER TOLD YOU (use these facts):\n' + D.facts.map(f => '- ' + f.q + ' ' + f.a).join('\n') : '') + this.tipFor(D); }
   static ASK = '\n\nIf you cannot do this job well because one fact is missing (an address, a date, a price, a name, a detail only the owner knows) and it is not in the notes, do not guess: reply with only this one line: QUESTION FOR THE OWNER: <one short question>.';
@@ -541,6 +562,7 @@ class City {
     if (this.school) out.push({ key: 'school', agent: 'school', every: 10, run: () => this.school.step() });
     if (this.research && this.departments().some(d => d.on)) out.push({ key: 'research', agent: 'research', every: 10080, run: () => this.research.run() });
     if (this.departments().length) { out.push({ key: 'plan', agent: 'guide', every: 10080, run: () => this.plan() }); out.push({ key: 'star', agent: 'guide', every: 10080, run: () => this.starTip() }); out.push({ key: 'week', agent: 'guide', every: 10080, run: () => this.weekly() }); }
+    if (this.departments().filter(d => d.on).length >= 3) out.push({ key: 'election', agent: 'guide', every: 10080, run: () => this.election() });
     return out;
   }
   async runAgent(agent) {

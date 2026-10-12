@@ -387,7 +387,8 @@ label.ck{display:flex;gap:10px;align-items:flex-start;margin:14px 0 6px;font-wei
     renderResults();
     var cc = $('cityCards'); cc.innerHTML = '';   // plans from the Research desk and City Hall: new buildings waiting for your yes
     S.cards.filter(function (c) { return c.kind === 'propose' && (c.agent === 'research' || c.agent === 'guide'); }).forEach(function (c) { cc.appendChild(el('div', { style: 'margin-top:12px' }, [card(c, function () {})])); });
-    var rk = S.ranks || []; $('ranksBox').hidden = !rk.length; $('ranks').innerHTML = '';
+    var rk = S.ranks || [], M = S.mayor && S.agents.some(function (x) { return x.id === S.mayor.id; }) ? S.mayor : null; $('ranksBox').hidden = !rk.length && !M; $('ranks').innerHTML = '';
+    if (M) $('ranks').appendChild(el('li', {}, [el('b', { text: '🏛 Mayor: ' + M.name }), el('small', { text: M.votes + ' of ' + M.of + ' votes from your departments\' AI agents' + (M.out ? '. ' + M.out + ' was voted out.' : '.') + (M.why ? ' "' + M.why + '"' : '') })]));
     rk.forEach(function (r) { $('ranks').appendChild(el('li', {}, [el('div', { style: 'display:flex;gap:10px;align-items:baseline' }, [el('b', { style: 'font:400 1.3rem var(--serif);color:var(--accent)', text: '#' + r.rank }), el('b', { style: 'flex:1', text: r.name }), el('span', { text: r.score + '/100' })]),
       el('small', { text: (r.prize ? 'Prize: the ' + r.prize.toLowerCase() + ' at the marina. ' : '') + (S.tip && S.tip.dept === r.id ? 'Its tip this week: ' + S.tip.text : '') })])); });
     $('c3box').hidden = use2d; $('city2d').hidden = !use2d;

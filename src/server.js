@@ -218,7 +218,7 @@ function cityData(city) {
   const dist = P ? [1, 2, 3, 4, 5].map(n => P.panel.reactions.filter(r => r.score === n).length) : null;
   const post = cards.find(c => c.kind === 'post');
   return { business: city.settings().business || '',
-    hall: { need: problems, lines: lines('guide') },
+    hall: { need: problems, lines: lines('guide'), mayor: (m => m && city.department(m.id) ? { name: m.name, votes: m.votes, of: m.of, out: m.out || '' } : null)(city.store.get('mayor', null)) },
     research: { need: 0, live: now - last('research') < 15 * 60e3, lines: lines('research') },
     school: { need: cards.filter(c => c.agent === 'school').length, live: now - last('school') < 15 * 60e3, lines: lines('school') },
     departments: agents.filter(a => a.id !== 'guide').map(a => ({ id: a.id, name: a.name, kind: a.kind, does: String(a.does || '').slice(0, 160), need: a.need, live: live(a), on: a.on, judge: !!a.judge,
@@ -239,7 +239,7 @@ function state(city, redirect) {
     google: { configured: city.google.configured(), connected: city.google.connected(), email: city.google.email(), mode: city.google.mode() }, redirect,
     spend: { today: Math.round(city.ai.spentToday() * 100) / 100, cap: city.ai.cap() }, store: city.store.kind(), alerts: s.alerts,
     ai: aiState(city), googleClient: { id: (city.store.get('googleClient') || {}).id || '', secretSet: !!(city.store.get('googleClient') || {}).secret, fromVariable: !!process.env.GOOGLE_CLIENT_ID },
-    models: aiState(city).models, every: EVERY, ranks: city.ranks(), tip: city.store.get('tip', null), school: city.school ? city.school.state().students.slice().reverse().map(st => ({ id: st.id, ref: st.ref, type: st.type, by: st.by, note: st.note, step: st.step, dept: st.dept, scores: st.scores, passed: st.passed, why: st.why, at: st.at })) : [], jev: { mode: city.jev.mode(), keySet: !!city.jev.key(), keyFrom: city.jev.keyFrom(), problem: city.jev.problem() } };
+    models: aiState(city).models, every: EVERY, ranks: city.ranks(), tip: city.store.get('tip', null), mayor: city.store.get('mayor', null), school: city.school ? city.school.state().students.slice().reverse().map(st => ({ id: st.id, ref: st.ref, type: st.type, by: st.by, note: st.note, step: st.step, dept: st.dept, scores: st.scores, passed: st.passed, why: st.why, at: st.at })) : [], jev: { mode: city.jev.mode(), keySet: !!city.jev.key(), keyFrom: city.jev.keyFrom(), problem: city.jev.problem() } };
 }
 const shell = (title, inner, script) => '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>' + esc(title) + '</title>' +
   '<link rel="manifest" href="/manifest.webmanifest"><link rel="icon" href="/icon.svg"><style>:root{--bg:#f6f3ec;--ink:#1a1813;--dim:rgba(26,24,19,.66);--accent:#8a5a2b;--card:#fffdf8;--line:rgba(26,24,19,.14)}' +
