@@ -11,6 +11,7 @@ const OPEN = { '/vendor/three.min.js': ['vendor/three.min.js', 'text/javascript'
 const json = (res, code, obj, h) => { res.writeHead(code, Object.assign({ 'content-type': 'application/json', 'cache-control': 'no-store' }, h || {})); res.end(JSON.stringify(obj)); };
 const body = req => new Promise((ok, bad) => { const ch = []; let n = 0; req.on('data', c => { n += c.length; if (n > 2e6) { bad(new Error('too large')); req.destroy(); } else ch.push(c); }); req.on('end', () => { const raw = Buffer.concat(ch).toString(); try { ok(JSON.parse(raw || '{}') || {}); } catch (e) { ok(Object.fromEntries(new URLSearchParams(raw))); } }); req.on('error', bad); });
 const hash = s => crypto.createHash('sha256').update(String(s)).digest();
+const rawBody = req => new Promise((ok, bad) => { const ch = []; let n = 0; req.on('data', c => { n += c.length; if (n > 5e6) { bad(new Error('too large')); req.destroy(); } else ch.push(c); }); req.on('end', () => ok(Buffer.concat(ch))); req.on('error', bad); });
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
 const scrypt = (pw, salt) => crypto.scryptSync(String(pw), salt, 32).toString('hex');
 
@@ -52,6 +53,14 @@ function createServer({ city, password = () => process.env.CITY_PASSWORD, public
       try { city.webLead(b); } catch (e) { return json(res, 400, { error: e.message }, cors); }
       if (/^https?:\/\//.test(String(b.redirect || ''))) { res.writeHead(303, Object.assign({ location: String(b.redirect) }, cors)); return res.end(); }   // a plain HTML form: back to the owner's thank-you page
       return json(res, 200, { ok: true }, cors);
+    }
+    // Lead emails forwarded to the city's own address: Burnoff's mail relay posts each raw email here. The secret is the only key.
+    if (p.startsWith('/hook/mail/')) {
+      const key = String(process.env.MAIL_HOOK_SECRET || '');
+      if (!key || req.method !== 'POST' || !crypto.timingSafeEqual(hash(p.split('/').pop()), hash(key))) return json(res, 404, { error: 'not found' });
+      const raw = await rawBody(req);
+      city.mailing = Promise.resolve(city.mailing).then(() => city.forwarded(raw)).catch(e => city.problem((city.byKind('leads') || {}).id || 'guide', e));
+      return json(res, 202, { ok: true });
     }
     if (OPEN[p]) { const [f, type] = OPEN[p]; res.writeHead(200, { 'content-type': type, 'cache-control': p === '/sw.js' ? 'no-cache' : p.startsWith('/vendor/') ? 'public, max-age=31536000, immutable' : 'public, max-age=86400' }); return res.end(fs.readFileSync(path.join(PUBLIC, f))); }
     // A hosted city whose plan ended (CITY_PAUSED): nothing opens and nothing runs. Its data stays.
@@ -242,7 +251,7 @@ function cityData(city) {
 function state(city, redirect) {
   const s = city.settings();
   const week = city.results(7);
-  return { recentLeads: city.recentLeads(), results: Object.assign(week, { said: City.said(week) }), hookUrl: String(redirect || '').replace(/\/connect\/google\/callback$/, '') + '/hook/lead/' + city.hookSecret(), settings: s, firstRun: !s.business || !city.departments().length, agents: city.agents(), picks: city.picks(), plan: city.tier(), help: process.env.HOSTED_HELP || '', cards: city.waiting(), updates: city.updates().slice(0, 150), checks: guide.checks(city, { redirect }),
+  return { forwardTo: process.env.LEADS_ADDRESS || '', recentLeads: city.recentLeads(), results: Object.assign(week, { said: City.said(week) }), hookUrl: String(redirect || '').replace(/\/connect\/google\/callback$/, '') + '/hook/lead/' + city.hookSecret(), settings: s, firstRun: !s.business || !city.departments().length, agents: city.agents(), picks: city.picks(), plan: city.tier(), help: process.env.HOSTED_HELP || '', cards: city.waiting(), updates: city.updates().slice(0, 150), checks: guide.checks(city, { redirect }),
     social: city.accounts ? city.accounts.state() : {},
     pay: process.env.PAY_URL ? { url: process.env.PAY_URL, title: process.env.PAY_TITLE || 'Keep your city', text: process.env.PAY_TEXT || 'Like what it does? Keep it running.', button: process.env.PAY_BUTTON || 'Keep my city' } : null,
     google: { configured: city.google.configured(), connected: city.google.connected(), email: city.google.email(), mode: city.google.mode() }, redirect,

@@ -677,6 +677,7 @@ label.ck{display:flex;gap:10px;align-items:flex-start;margin:14px 0 6px;font-wei
         .catch(function (err) { toast(err.message); }).then(function () { b.disabled = false; b.textContent = 'Rewrite it'; }); } })]));
     kids.push(el('div', { cls: 'chips' }, [c.kind !== 'fix' && c.kind !== 'rule' && bodyEl ? el('button', { cls: 'chip', text: '✎ Needs feedback', onclick: function () { fb.hidden = !fb.hidden; if (!fb.hidden) ta.focus(); } }) : null,
       c.gmail ? el('a', { cls: 'chip', href: c.gmail, target: '_blank', rel: 'noopener', text: 'Open in Gmail' }) : null,
+      /^https:\/\//.test(c.link || '') ? el('a', { cls: 'chip strong', href: c.link, target: '_blank', rel: 'noopener', text: 'Confirm it' }) : null,
       bodyEl && (!c.email || c.test) ? el('button', { cls: 'chip', text: 'Copy', onclick: function () { copy(bodyEl.textContent); } }) : null,
       c.kind === 'fix' ? el('button', { cls: 'chip', text: '? Ask the guide', onclick: function () { $('q').value = 'I see "' + c.title + '". What do I do?'; location.hash = 'guide'; } }) : null,
       el('button', { cls: 'chip', text: 'Skip →', onclick: skip })]));
@@ -762,6 +763,12 @@ label.ck{display:flex;gap:10px;align-items:flex-start;margin:14px 0 6px;font-wei
         : x.configured ? [el('a', { cls: 'btn yes sm', href: '/connect/' + n, style: 'display:inline-block;text-decoration:none', text: 'Connect ' + x.name })]
         : [el('span', { cls: 'muted', text: x.name + ': ask the person who set up your city to turn this on.' })])); });
     var g = $('gmail'); g.innerHTML = '';
+    // A hosted city has its own address: forward lead emails to it with one Gmail filter. No password, no Google permission.
+    if (S.forwardTo) g.appendChild(el('div', { style: 'margin-bottom:16px' }, [el('b', { text: 'Easiest: forward your lead emails here' }),
+      el('div', { cls: 'chips', style: 'align-items:center;margin:8px 0' }, [el('code', { text: S.forwardTo }), el('button', { cls: 'chip', text: 'Copy', onclick: function () { copy(S.forwardTo); } })]),
+      stepList(['In Gmail on a computer: Settings (the gear), See all settings, Forwarding and POP/IMAP.', 'Press Add a forwarding address and paste the address above. Gmail sends a check here: it shows up as a card in your city. Tap Confirm it.',
+        'Back in Gmail, open a lead email, press the three dots, then Filter messages like these. Keep From (or the subject your form uses), press Create filter, tick Forward it to, pick your city address, press Create filter.',
+        'Done. Every new lead email comes to your city, and your reply waits here for you. To send with one tap, connect Gmail below too.'], 'margin:0')]));
     if (S.google.connected) g.appendChild(el('div', {}, [el('p', { style: 'margin:0 0 8px', text: '✓ Connected to ' + (S.google.email || 'your Gmail') + (S.google.mode === 'password' ? ' with an app password' : '') + '. The city reads, labels and drafts. It sends only when you press Send.' }),
       el('div', { cls: 'chips' }, [S.google.mode === 'oauth' ? el('a', { cls: 'chip', href: '/connect/google', text: 'Connect again' }) : null, el('button', { cls: 'chip', text: 'Disconnect', onclick: function () { if (confirm('Disconnect Gmail? Departments that read Gmail stop until you connect again.')) api('/api/google/disconnect', {}).then(load); } })])]));
     else {

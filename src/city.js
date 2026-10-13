@@ -48,6 +48,7 @@ const POSTS_SCHEMA = { type: 'object', additionalProperties: false, required: ['
   properties: { platform: { type: 'string' }, text: { type: 'string' }, photo: { type: 'string' } } } } } };
 const ROBOT = /no-?reply|notifications?@|mailer-daemon|postmaster|donotreply|bounce/i;
 const id = () => Date.now().toString(36) + crypto.randomBytes(3).toString('hex');
+const toPlain = p => String(p.text || String(p.html || '').replace(/<(script|style)[\s\S]*?<\/\1>/gi, ' ').replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&')).replace(/[ \t]+\n/g, '\n').trim().slice(0, 12000);
 // "Fill it in from my website" opens only public websites: never this server, the private network the city runs in, or a cloud's
 // metadata address. Every redirect is checked too. ponytail: the name is looked up twice (here and by fetch); a site that changes its
 // address in between could still slip through, so the reader only ever returns page words to the AI, never to the page.
@@ -433,10 +434,7 @@ class City {
       seen.push(mid); this.store.set('seen', seen.slice(-500));
       const from = addressOf(m.from);
       if (from && from === me) { await this.google.label(mid, ['City/Seen']); continue; }
-      const sort = await this.ai.ask({ model: M ? this.agentConf(M.id).model : this.ai.modelFor(''), effort: 'low', maxTokens: 4000, schema: SORT_SCHEMA,
-        system: 'You sort email for ' + (s.business || 'a small business') + '. About it: ' + (s.about || 'not described yet') + '. Fill the JSON exactly.',
-        prompt: 'From: ' + m.from + '\nTo: ' + m.to + '\nSubject: ' + m.subject + '\nDate: ' + m.date + '\n\n' + m.text.slice(0, 6000) +
-          '\n\nKinds:\n- lead: someone who may become a customer asking about the services, prices or availability, including a website form or marketplace notification about such a person.\n- needs_reply: a real person who expects an answer (not a new customer).\n- fyi: worth knowing, no answer needed.\n- receipt: bills, receipts, orders, shipping.\n- newsletter: newsletters, marketing, automatic notices.\n- spam: scams, cold sales pitches, junk.\nsummary: one short line on what it is.\nlead: for a lead, the customer\'s own name, email, phone and what they want as the email states them; empty strings when not stated or not a lead.' });
+      const sort = await this.sortMail(m, M, s);
       let kind = sort.kind, pulled = false;
       if (M && (kind === 'newsletter' || kind === 'spam') && !ROBOT.test(m.from) && await this.jevReal(m) >= 0.5) { kind = 'needs_reply'; pulled = true; }   // Jev audits the quiet lane
       if (kind === 'lead' && !L) kind = 'needs_reply';
@@ -450,11 +448,18 @@ class City {
     }
     return sorted ? 'Looked at ' + sorted + ' new email' + (sorted > 1 ? 's' : '') + (drafted ? ', drafted ' + drafted + ' repl' + (drafted > 1 ? 'ies' : 'y') : '') : 'No new email.';
   }
+  // One email sorted by the AI: its kind, a one-line summary, and for a lead the customer's own details.
+  sortMail(m, M, s) {
+    return this.ai.ask({ model: M ? this.agentConf(M.id).model : this.ai.modelFor(''), effort: 'low', maxTokens: 4000, schema: SORT_SCHEMA,
+      system: 'You sort email for ' + (s.business || 'a small business') + '. About it: ' + (s.about || 'not described yet') + '. Fill the JSON exactly.',
+      prompt: 'From: ' + m.from + '\nTo: ' + m.to + '\nSubject: ' + m.subject + '\nDate: ' + m.date + '\n\n' + m.text.slice(0, 6000) +
+        '\n\nKinds:\n- lead: someone who may become a customer asking about the services, prices or availability, including a website form or marketplace notification about such a person.\n- needs_reply: a real person who expects an answer (not a new customer).\n- fyi: worth knowing, no answer needed.\n- receipt: bills, receipts, orders, shipping.\n- newsletter: newsletters, marketing, automatic notices.\n- spam: scams, cold sales pitches, junk.\nsummary: one short line on what it is.\nlead: for a lead, the customer\'s own name, email, phone and what they want as the email states them; empty strings when not stated or not a lead.' });
+  }
   async leadReply(D, m, sort) {
     const L = sort.lead || {}, sender = addressOf(m.replyTo || m.from), robotFrom = ROBOT.test(m.from);
     const email = (/^[^@\s]+@[^@\s]+\.[a-z]{2,}$/i.test(L.email || '') ? L.email : robotFrom && !m.replyTo ? '' : sender).toLowerCase();
-    const lead = { name: L.name || nameOf(m.from), email, phone: L.phone || '', wants: L.wants || sort.summary, source: m.subject, came: ago(this.now() - (Date.parse(m.date) || this.now())), at: Date.parse(m.date) || this.now() };
-    const gmail = 'https://mail.google.com/mail/u/0/#all/' + m.threadId;
+    const lead = { name: L.name || nameOf(m.from), email, phone: L.phone || '', wants: L.wants || sort.summary, source: m.subject, came: ago(this.now() - Math.min(this.now(), Date.parse(m.date) || this.now())), at: Math.min(this.now(), Date.parse(m.date) || this.now()) };   // a sender's clock ahead of ours never makes a negative reply time
+    const gmail = m.threadId ? 'https://mail.google.com/mail/u/0/#all/' + m.threadId : m.messageId ? 'https://mail.google.com/mail/u/0/#search/rfc822msgid:' + encodeURIComponent(String(m.messageId).replace(/^<|>$/g, '')) : '';
     if (!email) { this.addCard({ agent: D.id, kind: 'lead', title: 'New lead, no email address: ' + (lead.name || m.subject), lead, gmail, body: 'The city could not find their email address. Open it in Gmail and reply by hand, or call them.', actions: ['got_it'] }); return false; }
     const sent = this.store.get('leadsSent', {}), dup = this.store.get('leadsDrafted', {});
     if (sent[email] || (dup[email] && this.now() - dup[email] < 30 * 864e5)) { this.update(D.id, 'Skipped a repeat from ' + email + ': a reply was already drafted or sent.'); return false; }
@@ -501,6 +506,30 @@ class City {
   }
   // A lead from your website form, an ad's lead form or Zapier, sent to your city's lead link. The link carries a secret; at most 30 an hour.
   hookSecret() { return this.store.get('hookSecret') || this.store.set('hookSecret', crypto.randomBytes(12).toString('hex')); }
+  // Lead emails forwarded to the city's own address (10/13). It needs no Gmail permission: a Gmail filter forwards your lead emails,
+  // Burnoff's mail relay posts each one here (/hook/mail/<MAIL_HOOK_SECRET>), the AI sorts it and Leads writes the reply. Gmail's
+  // "confirm forwarding" email becomes a card with its link. Each email once; at most 60 an hour.
+  async forwarded(raw) {
+    const p = await (this.parseMail || (x => require('mailparser').simpleParser(x)))(raw);
+    const from = (p.from && p.from.text) || '', text = toPlain(p);
+    if (/forwarding-noreply@google\.com/i.test(from)) {
+      const link = (text.match(/https:\/\/(?:mail-settings|mail|isolated\.mail)\.google\.com\/[^\s<>"]+/) || [])[0] || '', code = (text.match(/confirmation code:?\s*(\d{6,})/i) || [])[1] || '';
+      this.addCard({ agent: (this.byKind('leads') || {}).id || 'guide', kind: 'note', title: 'Confirm: let Gmail forward your lead emails to your city', link,
+        body: 'Gmail asks before it forwards anything.' + (link ? ' Tap Confirm it, then press Confirm on Google\'s page.' : '') + (code ? '\n\nOr in Gmail: Settings, Forwarding, type this code: ' + code : ''), actions: ['got_it'] });
+      return 'confirm';
+    }
+    const D = this.byKind('leads'); if (!D) return 'no leads department';
+    const mid = String(p.messageId || ''), seen = this.store.get('fwdSeen', []), hits = this.store.get('fwdHits', []).filter(t => t > this.now() - 36e5);
+    if (mid && seen.includes(mid)) return 'seen';
+    if (hits.length >= 60) return 'too many';
+    this.store.set('fwdHits', hits.concat([this.now()])); if (mid) this.store.set('fwdSeen', seen.concat([mid]).slice(-500));
+    const list = x => (x && x.text) || '', m = { id: mid, threadId: '', from, to: list(p.to), replyTo: list(p.replyTo), subject: p.subject || '', date: p.date ? new Date(p.date).toUTCString() : '',
+      messageId: mid, references: Array.isArray(p.references) ? p.references.join(' ') : p.references || '', text };
+    if (this.blockedBy(D.id) && this.blockedBy(D.id) !== 'Gmail') { this.addCard({ agent: D.id, kind: 'lead', title: 'New email: ' + (m.subject || from), body: text.slice(0, 2000), note: 'Your city could not read it yet: it is waiting for ' + this.blockedBy(D.id) + '.', actions: ['got_it'] }); return 'waiting'; }
+    const sort = await this.sortMail(m, this.byKind('mailroom'), this.settings());
+    if (sort.kind !== 'lead') { this.update(D.id, 'A forwarded email from ' + (nameOf(from) || from) + ' was not a new customer (' + (sort.summary || sort.kind) + '), so no reply was written.'); return sort.kind; }
+    return await this.leadReply(D, m, sort) ? 'drafted' : 'skipped';
+  }
   webLead(f) {
     const D = this.byKind('leads'); if (!D) throw new Error('This city has no Leads department turned on.');
     const hits = this.store.get('hookHits', []).filter(t => t > this.now() - 36e5);
