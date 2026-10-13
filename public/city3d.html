@@ -137,6 +137,11 @@ button.chip{ cursor:pointer; border-color:var(--edge); } button.chip:hover,butto
 body.town #hint{ bottom:58px; }
 .mom{ position:absolute; left:0; top:0; max-width:220px; width:max-content; padding:7px 11px 8px; border-radius:12px; background:rgba(20,16,6,.94); border:1px solid rgba(240,207,134,.5); border-top:2px solid var(--k,#f0cf86);
   color:#fbf3dc; font:600 12px/1.35 var(--sans); pointer-events:none; will-change:transform; box-shadow:0 0 22px -6px var(--k,#f0cf86); }
+.say{ position:absolute; left:0; top:0; width:max-content; max-width:180px; padding:6px 10px 7px; border-radius:12px; background:rgba(9,12,21,.92); border:1px solid rgba(255,255,255,.1); border-top:2px solid var(--c,#f0cf86);
+  color:#f6f3ec; font:500 12px/1.3 var(--sans); box-shadow:0 8px 20px rgba(0,0,0,.45); pointer-events:none; will-change:transform; transition:opacity .35s; }
+.say b{ display:block; max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font:600 9px/1.25 var(--sans); letter-spacing:.09em; text-transform:uppercase; color:var(--c,#f0cf86); margin-bottom:2px; }
+.say.off{ opacity:0; }
+#says{ position:absolute; inset:0; pointer-events:none; z-index:3; overflow:hidden; }
 .plab{ position:absolute; left:0; top:0; padding:4px 9px; border-radius:999px; background:rgba(8,10,18,.72); border:1px solid rgba(255,255,255,.12); color:#e6e3dc; font:600 10px/1 var(--sans); letter-spacing:.14em; text-transform:uppercase; pointer-events:none; white-space:nowrap; will-change:transform; }
 @media (max-width:560px){
   #top{ right:10px; top:10px; gap:6px; } .chip{ padding:7px 10px; font-size:10.5px; } #news{ right:8px; left:8px; top:8px; bottom:8px; width:auto; }
@@ -147,6 +152,7 @@ body.town #hint{ bottom:58px; }
   #hud{ left:14px; top:12px; gap:9px; } .mark{ width:34px; height:34px; font-size:14px; } #hud h1{ font-size:25px; } .kick{ font-size:8.5px; letter-spacing:.2em; }
   .pill{ margin-top:5px; font-size:8px; }
   .sign{ font-size:10px; padding:5px 8px 5px 7px; gap:5px; } .sign.ceo{ font-size:10.5px; padding:5px 9px 5px 8px; } .sign i{ width:6px; height:6px; }
+  .say{ max-width:140px; padding:5px 8px 6px; font-size:11px; }
   .bub{ max-width:150px; padding:6px 8px 7px; } .bub .txt{ font-size:11px; } .bub .who{ font-size:8.5px; }
   #inside{ padding:12px 14px 22px; gap:12px; } .it h2{ font-size:21px; } #back{ padding:10px 12px 10px 10px; font-size:10.5px; }
   #hint{ font-size:10px; bottom:10px; }
@@ -159,6 +165,7 @@ body.town #hint{ bottom:58px; }
   <svg id="leaders" aria-hidden="true"></svg>
   <div id="labels"></div>
   <div id="bubbles" aria-live="polite"></div>
+  <div id="says" aria-hidden="true"></div>
   <div id="tag" hidden></div>
   <header id="hud">
     <div class="mark" id="mark"></div>
@@ -285,10 +292,11 @@ const CREW={hall:[['Guide','present'],['Chief of Staff','type'],['Operations','r
 // Town life (CITY_DATA.life): the real people of the town. A department's crew is its life people, in the server's order, so the
 // first adult is the one who speaks for it everywhere (the same name the app's cards use). Without life, the old made-up crew.
 const LIFE0=DATA.life&&Array.isArray(DATA.life.people)?DATA.life:null;
-const DEPT_OF_ID={}; DEPTS.forEach(d=>{ if(d.id) DEPT_OF_ID[d.id]=d; });
+const CIVIC=['hall','research','school'], DEPT_OF_ID={}; DEPTS.forEach(d=>{ if(d.id) DEPT_OF_ID[d.id]=d; }); CIVIC.forEach(k=>DEPT_OF_ID[k]=DK[k]);   // City Hall, Research and the School have life people too
 function lifePerson(p,d,i,act){ const L=p.look||{}; return {id:p.id,n:String(p.name||'Someone'),role:String(p.role||''),d:d?d.k:'',skin:L.skin||'#e3b08a',hair:L.hair||'#2a1b14',hs:L.hs||'short',top:L.top||'#3d5a80',pants:L.pants||'#26262c',glasses:L.glasses?1:0,beard:L.beard?1:0,act:act||'stand',say:[],i,life:p}; }
 const PEOPLE=[]; DEPTS.forEach(d=>{ let list=CREW[d.k]||CREW[d.kind]||[[d.short+' specialist','type'],['Head of '+d.short,'review']];
-  if(LIFE0&&d.id){ const crew=LIFE0.people.filter(p=>p&&p.dept===d.id&&p.kind==='adult'), acts=list.map(a=>a[1]).filter(a=>a!=='review'); let k=0;
+  const crew=LIFE0&&(d.id||CIVIC.includes(d.k))?LIFE0.people.filter(p=>p&&p.dept===(d.id||d.k)&&p.kind==='adult'):null;
+  if(crew&&(d.id||crew.length)){ const acts=list.map(a=>a[1]).filter(a=>a!=='review'); let k=0;   // no made-up names when town life is there
     crew.forEach((p,i)=>PEOPLE.push(lifePerson(p,d,i,/^Head of/.test(p.role)?'review':(acts[k++]||'type')))); return; }
   if(d.k===PANEL_HOME&&list.length<4) list=[['Researcher','read'],[d.short+' writer','type'],['Editor','edit'],['Head of '+d.short,'review']];
   list.forEach(([role,act],i)=>{ const p=person(d,i,role,act); p.i=i; PEOPLE.push(p); }); });
@@ -420,11 +428,14 @@ for(let c=GC0;c<=GC1;c++) for(let r=0;r<=GR1;r++){ if(inPark(blockX(c),blockZ(r)
 
 // ================= the town plan: where the park's paths, the gazebo, the pond and the homes sit =================
 const GAZ={x:PARK.x-24,z:PARK.z+15}, POND={x:PARK.x+25,z:PARK.z-13,rx:10,rz:6.5}, RING=11;
+// where town events and holidays happen: the soccer field, the holiday tree (and the Thanksgiving table), the beach bonfire, the café's party table
+const FIELD={x:PARK.x+27,z:PARK.z+15,w:24,d:12}, XTREE={x:PARK.x-22,z:PARK.z-16}, FIRE={x:-186,z:-74}, BDAY={x:blockX(TOWN.cafe[0]),z:blockZ(TOWN.cafe[1])+2};
 const onPath=(x,z,m)=>Math.abs(x-PARK.x)<m||Math.abs(z-PARK.z)<m||Math.abs(Math.hypot(x-PARK.x,z-PARK.z)-RING)<m||Math.abs(Math.min(x-PARK.x0,PARK.x1-x,z-PARK.z0,PARK.z1-z)-5)<m;
 const TOWN_LAMPS=[], TOWN_TREES=[];
 (()=>{ for(let z=PARK.z0+8;z<PARK.z1-4;z+=13) TOWN_LAMPS.push([PARK.x+2.6,z]); for(let x=PARK.x0+8;x<PARK.x1-4;x+=16) if(Math.abs(x-PARK.x)>12) TOWN_LAMPS.push([x,PARK.z-2.6]);
   for(let n=0,t=0;n<(SMALL?30:52)&&t<900;t++){ const x=rr(PARK.x0+2,PARK.x1-2), z=rr(PARK.z0+2,PARK.z1-2);
     if(onPath(x,z,2.6)||Math.hypot(x-GAZ.x,z-GAZ.z)<9||Math.hypot((x-POND.x)/(POND.rx+3),(z-POND.z)/(POND.rz+3))<1||Math.hypot(x-PARK.x,z-PARK.z)<RING+3) continue; TOWN_TREES.push([x,z,rr(.9,1.35)]); n++; }
+  for(let i=TOWN_TREES.length-1;i>=0;i--){ const [x,z]=TOWN_TREES[i]; if((Math.abs(x-FIELD.x)<FIELD.w/2+3&&Math.abs(z-FIELD.z)<FIELD.d/2+4)||Math.hypot(x-XTREE.x,z-XTREE.z)<11) TOWN_TREES.splice(i,1); }   // keep the field and the holiday lawn clear
   for(let x=BEACH.x0+6;x<BEACH.x1;x+=14) TOWN_LAMPS.push([x,-58]); })();
 // 14 homes on one street: the near row faces the street, the far row faces back across it
 const HOMES=[]; HOMEBLK.forEach(([c,r],bi)=>[-1,1].forEach(side=>{ const k=bi*2+(side>0?1:0); if(k>13) return; const face=r===4?1:-1;
@@ -801,7 +812,7 @@ const GAZEBO={};
   const lp=[]; for(let i=0;i<36;i++){ const a=i/36*TAU; lp.push(Math.sin(a)*5.4,4.55,Math.cos(a)*5.4); } GAZEBO.lights=lights(lp,0xffd89a,1.1,g); GAZEBO.g=g;
   // where people stand: around the fountain in pairs, on the lawns, at the pond, and the ranger by the gazebo
   const S=[]; for(let k=0;k<6;k++){ const a=k/6*TAU+Math.PI/6; [-.12,.12].forEach(o=>{ const x=PARK.x+Math.sin(a+o)*(RING+.4), z=PARK.z+Math.cos(a+o)*(RING+.4); S.push(spotAt(x,z,faceTo(x,z,PARK.x,PARK.z)+(o>0?-.5:.5),k%2?'talk':'stand')); }); }
-  [[GAZ.x+10,GAZ.z-6],[GAZ.x-8,GAZ.z-9],[POND.x-4,POND.z+10],[POND.x+6,POND.z+10],[PARK.x+30,PARK.z+14],[PARK.x-34,PARK.z-12]].forEach(([x,z])=>{ S.push(spotAt(x-.75,z,Math.PI/2,'talk'),spotAt(x+.75,z,-Math.PI/2,'talk')); });
+  [[GAZ.x+10,GAZ.z-6],[GAZ.x-8,GAZ.z-9],[POND.x-4,POND.z+10],[POND.x+6,POND.z+10],[PARK.x+27,PARK.z+5.2],[PARK.x-36,PARK.z-4]].forEach(([x,z])=>{ S.push(spotAt(x-.75,z,Math.PI/2,'talk'),spotAt(x+.75,z,-Math.PI/2,'talk')); });
   PLACE_SPOTS.park=S; PLACE_SPOTS['park:staff']=[spotAt(GAZ.x+6.5,GAZ.z-5,-2.4,'stand')];
   PLACE_SPOTS.gazebo=[spotAt(GAZ.x-1,GAZ.z,Math.PI/2,'talk'),spotAt(GAZ.x+1,GAZ.z,-Math.PI/2,'talk')];
 })();
@@ -831,7 +842,7 @@ const WIN_DARK=new THREE.MeshLambertMaterial({color:'#1d2430'}), WIN_LIT=new THR
   const sign=textPlane('Café',5,1.5,{color:'#ffe2ad',glow:'#e8bd62',font:'italic 600 80px Georgia,serif'}); sign.position.set(0,6.1,-2.9); g.add(sign);
   const parts=[], T=[[-6.5,2],[0,2],[6.5,2],[-6.5,8],[0,8],[6.5,8]], S=[];
   T.forEach(([x,z],i)=>{ parts.push(P(CYL(.12,.16,1.9,6),'#2a2b31',x,.95,z),P(CYL(1,1,.12,16),'#e9e2d2',x,1.95,z),P(CYL(.6,.7,.08,10),'#2a2b31',x,.04,z),P(CYL(.06,.06,4.2,5),'#d8d2c4',x,2.1,z),P(new THREE.ConeGeometry(2.4,.9,10),i%2?'#efe6d2':'#b8924a',x,4.4,z));
-    S.push(spotAt(bx+x-1.6,bz+z,Math.PI/2,'talk'),spotAt(bx+x+1.6,bz+z,-Math.PI/2,'talk')); });
+    if(i!==1) S.push(spotAt(bx+x-1.6,bz+z,Math.PI/2,'talk'),spotAt(bx+x+1.6,bz+z,-Math.PI/2,'talk')); });   // table 1 is the party table (BDAY)
   [[-9.5,-1.5],[9.5,-1.5],[-9.5,11],[9.5,11]].forEach(([x,z])=>parts.push(P(CYL(.08,.1,5.2,5),'#3d414b',x,2.6,z)));
   g.add(new THREE.Mesh(merge(parts),VCOL));
   const lp=[]; swag([-9.5,5,-1.5],[9.5,5,11],18,.8,lp); swag([9.5,5,-1.5],[-9.5,5,11],18,.8,lp); swag([-9.5,5,-1.5],[9.5,5,-1.5],14,.6,lp); lights(lp,0xffd89a,.9,g);
@@ -889,6 +900,152 @@ const WIN_DARK=new THREE.MeshLambertMaterial({color:'#1d2430'}), WIN_LIT=new THR
 // where to fly for each place, and its name over it
 const PLACE_AT={town:null,park:[PARK.x,PARK.z,95,'Park'],homes:[blockX(-1.5),blockZ(4.5),100,'Homes'],cafe:[blockX(2),blockZ(3)+2,55,'Café'],gym:[blockX(3),blockZ(3)+2,55,'Gym'],
   school:[blockX(4),blockZ(4.5),80,'School'],lake:[(BEACH.x0+BEACH.x1)/2,-80,95,'Beach'],streets:[0,20,110,'Downtown'],hall:[DK.hall.bx,DK.hall.bz+6,60,'City Hall']};
+// ================= town events, pets and holidays =================
+// life.events: a won job throws a party at the gazebo (party lights, fireworks over the park, everyone cheering); the Saturday bonfire
+// on the beach (a ring around the fire); kids' soccer on the park's little field (they run after the ball); a birthday at the café's
+// party table (balloons and a cake). Each is drawn only while it is on. Cheap on purpose: a few merged meshes, points and pooled fireworks.
+let EVBY={}, EVON={};
+const ringSpots=(cx,cz,rings,pose,alt)=>{ const S=[]; rings.forEach(([r,n],ri)=>{ for(let i=0;i<n;i++){ const a=(i+ri*.5)/n*TAU, x=cx+Math.sin(a)*r, z=cz+Math.cos(a)*r; S.push(spotAt(x,z,faceTo(x,z,cx,cz),alt&&i%3===1?alt:pose)); } }); return S; };
+PLACE_SPOTS['ev:win']=ringSpots(GAZ.x,GAZ.z,[[7,18],[8.8,22]],'cheer','wave');
+PLACE_SPOTS['ev:bonfire']=ringSpots(FIRE.x,FIRE.z,[[4.2,11],[5.9,15]],'stand','talk');
+PLACE_SPOTS['ev:birthday']=ringSpots(BDAY.x,BDAY.z,[[2.5,8],[3.8,10]],'talk','cheer');
+PLACE_SPOTS['ev:soccer']=Array.from({length:12},(_,i)=>spotAt(FIELD.x-8+(i%4)*5.3,FIELD.z-3+Math.floor(i/4)*3,0,'stand'));
+PLACE_SPOTS['ev:soccer:side']=[-1,1].flatMap(sd=>Array.from({length:12},(_,i)=>spotAt(FIELD.x-10+i*1.8,FIELD.z+sd*(FIELD.d/2+2.2),sd<0?0:Math.PI,i%4===1?'cheer':'stand')));
+PLACE_SPOTS['park:feast']=[-1,1].flatMap(sd=>Array.from({length:9},(_,i)=>spotAt(XTREE.x-8+i*2,XTREE.z+sd*2.5,sd<0?0:Math.PI,'talk')));
+{ const L=PLACE_SPOTS.lake, out=[], far=s=>!s||Math.hypot(s.x-FIRE.x,s.z-FIRE.z)>8; for(let i=0;i<L.length;i+=2) if(far(L[i])&&far(L[i+1])) out.push(L[i],L[i+1]); PLACE_SPOTS.lake=out.filter(Boolean); }   // nobody stands in the fire
+const EVG={}, PARTYCOL=['#ff5aa5','#ffd23f','#3cb4ff','#3ed69b','#ff7a59','#c9a0ff'];
+function colorPoints(pts,pal,size,parent,night){ const c=new THREE.Color(), cols=[]; for(let i=0;i<pts.length/3;i++){ c.set(pal[i%pal.length]); cols.push(c.r,c.g,c.b); }
+  const g=new THREE.BufferGeometry(); g.setAttribute('position',new THREE.Float32BufferAttribute(pts,3)); g.setAttribute('color',new THREE.Float32BufferAttribute(cols,3));
+  const m=new THREE.PointsMaterial({map:SOFTTEX,size,vertexColors:true,transparent:true,depthWrite:false,blending:THREE.AdditiveBlending}); if(night) NIGHT.push({m,night:1,day:.35}); parent.add(new THREE.Points(g,m)); return m; }
+// the party: strings of coloured lights from the gazebo out to six poles, pulsing
+EVG.win=(()=>{ const g=addTo(new THREE.Group()), parts=[], pts=[]; g.position.set(GAZ.x,TOP,GAZ.z);
+  for(let i=0;i<6;i++){ const a=i/6*TAU+Math.PI/6, b=a+TAU/6, px=Math.sin(a)*11.5, pz=Math.cos(a)*11.5; parts.push(P(CYL(.08,.1,5.4,5),'#3d414b',px,2.7,pz));
+    swag([Math.sin(a)*5.6,4.7,Math.cos(a)*5.6],[px,5.3,pz],9,.45,pts); swag([px,5.3,pz],[Math.sin(b)*11.5,5.3,Math.cos(b)*11.5],12,.9,pts); }
+  g.add(new THREE.Mesh(merge(parts),VCOL)); const m=colorPoints(pts,PARTYCOL,1.3,g);
+  g.userData.tick=t=>{ m.size=1.05+.55*Math.abs(Math.sin(t*2.6)); }; return g; })();
+// the bonfire: a ring of stones, logs, three flickering flames, a warm glow on the sand and sparks going up
+EVG.bonfire=(()=>{ const g=addTo(new THREE.Group()), parts=[]; g.position.set(FIRE.x,.06,FIRE.z);
+  for(let i=0;i<9;i++){ const a=i/9*TAU; parts.push(P(SPH(.34,6,4),'#6a655c',Math.sin(a)*1.35,.1,Math.cos(a)*1.35,0,0,0,1,.6,1)); }
+  for(let i=0;i<3;i++) parts.push(P(CYL(.15,.17,2.1,6),'#4a2f1d',0,.22+i*.12,0,0,i*Math.PI/3,Math.PI/2));
+  g.add(new THREE.Mesh(merge(parts),VCOL));
+  const fl=[['#ff6a1a',.95,2.6,.8],['#ffa53a',.65,1.9,.85],['#ffe48a',.36,1.2,.9]].map(([c,r,h,o],i)=>{ const m=mesh(new THREE.ConeGeometry(r,h,7).translate(0,h/2,0),glow(c,o),i?.12*(i-1.5):0,.3,0,g,false); return m; });
+  const pool=mesh(new THREE.PlaneGeometry(18,18).rotateX(-Math.PI/2),new THREE.MeshBasicMaterial({map:SOFTTEX,color:'#ff7a2a',transparent:true,opacity:.55,blending:THREE.AdditiveBlending,depthWrite:false}),0,.03,0,g,false);
+  const halo=new THREE.Sprite(new THREE.SpriteMaterial({map:SOFTTEX,color:0xff9a40,transparent:true,blending:THREE.AdditiveBlending,depthWrite:false,opacity:.7})); halo.scale.set(9,9,1); halo.position.y=1.6; g.add(halo);
+  const N=36, sp=new Float32Array(N*3), sv=Array.from({length:N},()=>({y:rnd()*7,v:rr(1.4,3),a:rnd()*TAU})), sg=new THREE.BufferGeometry(); sg.setAttribute('position',new THREE.BufferAttribute(sp,3));
+  const spk=new THREE.Points(sg,new THREE.PointsMaterial({map:SOFTTEX,color:0xffb050,size:.45,transparent:true,depthWrite:false,blending:THREE.AdditiveBlending})); spk.frustumCulled=false; g.add(spk);
+  g.userData.tick=(t,dt)=>{ fl.forEach((m,i)=>{ m.scale.set(1+Math.sin(t*9+i*2)*.08,.85+Math.abs(Math.sin(t*(6+i*1.7)+i))*.3,1+Math.cos(t*8+i)*.08); }); pool.material.opacity=.48+Math.sin(t*7)*.07; halo.material.opacity=.6+Math.sin(t*5.3)*.1;
+    sv.forEach((s,i)=>{ s.y+=s.v*dt; if(s.y>7.5){ s.y=.8; s.a=rnd()*TAU; } const r=.25+s.y*.12; sp[i*3]=Math.cos(s.a+s.y*.7)*r; sp[i*3+1]=s.y; sp[i*3+2]=Math.sin(s.a+s.y*.7)*r; }); sg.attributes.position.needsUpdate=true; };
+  return g; })();
+// the birthday: a two-layer cake with candles on the café's party table, and balloons
+EVG.birthday=(()=>{ const g=addTo(new THREE.Group()); g.position.set(BDAY.x,TOP,BDAY.z);
+  g.add(new THREE.Mesh(merge([P(CYL(.55,.58,.34,18),'#f6efe4',0,2.18,0),P(CYL(.59,.59,.07,18),'#ff8ab8',0,2.04,0),P(CYL(.4,.42,.26,16),'#ffd6e6',0,2.48,0),P(CYL(.43,.43,.05,16),'#ff5aa5',0,2.37,0)]
+    .concat([-.15,0,.15].map((x,i)=>P(CYL(.025,.025,.24,5),['#3cb4ff','#ffd23f','#3ed69b'][i],x,2.73,i===1?.08:-.05)))),VCOL));
+  lights([-.15,2.9,-.05,0,2.9,.08,.15,2.9,-.05],0xffc46a,.55,g);
+  const bg=new THREE.Group(), bp=[], str=[]; g.add(bg);
+  for(let i=0;i<6;i++){ const a=i/6*TAU+.3, x=Math.sin(a)*3.2, z=Math.cos(a)*3.2, y=5+(i%3)*.45, c=PARTYCOL[i]; bp.push(P(SPH(.45,10,8),c,x,y,z,0,0,0,1,1.2,1),P(new THREE.ConeGeometry(.09,.14,5),c,x,y-.58,z,Math.PI)); str.push(x,y-.62,z,Math.sin(a)*2.1,1.05,Math.cos(a)*2.1); }
+  bg.add(new THREE.Mesh(merge(bp),new THREE.MeshLambertMaterial({vertexColors:true,emissive:'#3a3a3a'})));
+  const sgeo=new THREE.BufferGeometry(); sgeo.setAttribute('position',new THREE.Float32BufferAttribute(str,3)); bg.add(new THREE.LineSegments(sgeo,new THREE.LineBasicMaterial({color:'#e8e1d2',transparent:true,opacity:.55})));
+  g.userData.tick=t=>{ bg.position.y=Math.sin(t*1.3)*.15; bg.rotation.y=Math.sin(t*.4)*.05; }; return g; })();
+Object.values(EVG).forEach(g=>g.visible=false);
+// the soccer field: lines on the lawn and two small goals (always there); the ball only while kids play
+(()=>{ const {x,z,w,d}=FIELD, Y=GROUNDY+.02, parts=[], L=(cx,cz,lw,ld)=>parts.push(P(BOX(lw,.03,ld),'#dfe8e4',cx,Y,cz));
+  L(x,z-d/2,w,.16); L(x,z+d/2,w,.16); L(x-w/2,z,.16,d); L(x+w/2,z,.16,d); L(x,z,.16,d); parts.push(P(new THREE.RingGeometry(1.9,2.06,28).rotateX(-Math.PI/2),'#dfe8e4',x,Y+.01,z));
+  [-1,1].forEach(sd=>{ const gx=x+sd*w/2; L(gx-sd*1.5,z,.12,5.4); L(gx-sd*.75,z-2.7,1.5,.12); L(gx-sd*.75,z+2.7,1.5,.12);
+    [-1.6,1.6].forEach(o=>parts.push(P(BOX(.12,1.7,.12),'#f4f1ea',gx,TOP+.85,z+o),P(BOX(.08,1.5,.08),'#c9ced8',gx+sd*1.1,TOP+.75,z+o)));
+    parts.push(P(BOX(.12,.12,3.32),'#f4f1ea',gx,TOP+1.7,z),P(BOX(.08,.08,3.2),'#c9ced8',gx+sd*1.1,TOP+1.5,z));
+    for(let k=-1;k<=1;k++) parts.push(P(BOX(.04,1.5,.04),'#c9ced8',gx+sd*1.1,TOP+.75,z+k*.8)); });
+  scene.add(new THREE.Mesh(merge(parts),VCOL)); })();
+const BALL=mesh(SPH(.3,10,8),lam('#f4f1ea',{emissive:'#3a3a3a'}),FIELD.x,TOP+.3,FIELD.z,scene,false); BALL.visible=false;
+const ballAt=(t,o)=>{ o.x=FIELD.x+Math.sin(t*.53)*8.5+Math.sin(t*1.7)*2; o.z=FIELD.z+Math.sin(t*.81+1)*3.6+Math.cos(t*2.1)*.8; return o; }, _ba={x:0,z:0};
+// fireworks: a small pool of shells (one draw each), over the park for a win and over the lake on New Year's and the Fourth of July
+const FW={shells:[],next:{}}, FWN=72, FWCOL=['#ff5aa5','#ffd23f','#3cb4ff','#3ed69b','#ff7a59','#c9a0ff','#ffffff'];
+const FWZ={park:{k:'park',x:GAZ.x+6,z:GAZ.z-6,s:18,h:32,v:11,size:7},lake:{k:'lake',x:0,z:-170,s:130,h:62,v:18,size:8}};
+function launch(zn){ let s=FW.shells.find(q=>!q.on); if(!s){ if(FW.shells.length>=(SMALL?5:8)) return;
+    const pos=new Float32Array(FWN*3), g=new THREE.BufferGeometry(); g.setAttribute('position',new THREE.BufferAttribute(pos,3));
+    const p=new THREE.Points(g,new THREE.PointsMaterial({map:SOFTTEX,size:2,sizeAttenuation:false,transparent:true,depthWrite:false,blending:THREE.AdditiveBlending,fog:false})); p.frustumCulled=false; scene.add(p); s={p,pos,vel:new Float32Array(FWN*3)}; FW.shells.push(s); }
+  Object.assign(s,{on:true,t:0,rise:rr(.7,1.1),x:zn.x+rr(-zn.s,zn.s),z:zn.z+rr(-zn.s*.5,zn.s*.5),h:zn.h+rr(-8,10),size:zn.size}); s.p.material.color.set(pick(FWCOL)).multiplyScalar(1.8);   // brighter than white on purpose: they add up
+  for(let i=0;i<FWN;i++){ const u=rnd()*2-1, a=rnd()*TAU, r=Math.sqrt(1-u*u), v=rr(.85,1)*zn.v; s.vel[i*3]=Math.cos(a)*r*v; s.vel[i*3+1]=u*v; s.vel[i*3+2]=Math.sin(a)*r*v; } s.p.visible=true; }
+function stepFireworks(dt){ if(REDUCED) return; const zones=[]; if(EVON.win) zones.push(FWZ.park); if((HOL.kind==='newyear'||HOL.kind==='fireworks')&&dayM<.5) zones.push(FWZ.lake);
+  zones.forEach(z=>{ FW.next[z.k]=(FW.next[z.k]||0)-dt; if(FW.next[z.k]<=0){ FW.next[z.k]=rr(.45,1.1); launch(z); } });
+  FW.shells.forEach(s=>{ if(!s.on) return; s.t+=dt; const a=s.pos, m=s.p.material;
+    if(s.t<s.rise){ const y=lerp(TOP+2,s.h,ease(s.t/s.rise)); for(let i=0;i<FWN;i++){ a[i*3]=s.x; a[i*3+1]=y-(i%6)*.35; a[i*3+2]=s.z; } m.size=4; m.opacity=.35; }
+    else { const u=s.t-s.rise, k=(1-Math.exp(-1.7*u))/1.7, dy=-2.4*u*u; for(let i=0;i<FWN;i++){ a[i*3]=s.x+s.vel[i*3]*k; a[i*3+1]=s.h+s.vel[i*3+1]*k+dy; a[i*3+2]=s.z+s.vel[i*3+2]*k; }
+      m.size=s.size*(1-u*.25); m.opacity=Math.max(0,1-Math.pow(u/2.1,2)); if(u>2.1){ s.on=false; s.p.visible=false; } }
+    s.p.geometry.attributes.position.needsUpdate=true; }); }
+// pets: a dog trots next to its owner (the evening walk), a cat sits on the porch of its owner's home. Two draws a dog, one a cat.
+const PETS=new Map(), DOGCOL=['#c8a06a','#3a2a20','#e8dcc4','#8a5a3a','#1d1a1a','#d9b36c'], CATCOL=['#2a2a2e','#e39459','#d8d2c4','#7a6a5a','#f1eee8'];
+function makeDog(p){ const c=DOGCOL[fnv(p.pet.name+p.id)%DOGCOL.length], dk='#'+new THREE.Color(c).multiplyScalar(.6).getHexString(), g=new THREE.Group();
+  const body=new THREE.Mesh(merge([P(BOX(.46,.4,.95),c,0,.62,0),P(BOX(.4,.38,.42),c,0,.95,.58),P(BOX(.24,.18,.26),dk,0,.86,.86),P(BOX(.1,.07,.06),'#141414',0,.92,1),
+    P(BOX(.1,.22,.12),dk,-.17,1.18,.5,0,0,.3),P(BOX(.1,.22,.12),dk,.17,1.18,.5,0,0,-.3),P(BOX(.06,.06,.03),'#141414',-.1,1.02,.8),P(BOX(.06,.06,.03),'#141414',.1,1.02,.8),P(BOX(.44,.08,.12),'#c94a3a',0,.86,.38)]
+    .concat([[-.15,.32],[.15,.32],[-.15,-.32],[.15,-.32]].map(([x,z])=>P(BOX(.13,.44,.13),c,x,.22,z)))),VCOL);
+  const tail=new THREE.Group(); tail.position.set(0,.76,-.47); tail.add(new THREE.Mesh(BOX(.08,.08,.42).translate(0,0,-.2).rotateX(-.7),lam(c))); g.add(body,tail); g.scale.setScalar(1.15); scene.add(g);
+  return {kind:'dog',name:p.pet.name,g,body,tail,t:rnd()*9,init:false}; }
+function makeCat(p){ const c=CATCOL[fnv(p.pet.name+p.id)%CATCOL.length], g=new THREE.Group();
+  g.add(new THREE.Mesh(merge([P(SPH(.34,10,8),c,0,.36,0,0,0,0,1,1.15,1.15),P(SPH(.25,10,8),c,0,.86,.1),P(new THREE.ConeGeometry(.09,.18,4),c,-.13,1.1,.1),P(new THREE.ConeGeometry(.09,.18,4),c,.13,1.1,.1),
+    P(SPH(.045,6,4),'#c8e86a',-.09,.9,.32),P(SPH(.045,6,4),'#c8e86a',.09,.9,.32),P(CYL(.05,.05,.55,5),c,.3,.06,-.12,Math.PI/2,.5,0)].concat([-.12,.12].map(x=>P(BOX(.09,.3,.1),c,x,.15,.24)))),VCOL));
+  g.scale.setScalar(1.3); scene.add(g); return {kind:'cat',name:p.pet.name,g,t:rnd()*9}; }
+function syncPets(ppl){ const want=new Map(); ppl.forEach(p=>{ if(p.pet&&(p.pet.kind==='dog'||p.pet.kind==='cat')&&want.size<16) want.set(p.id,p); });
+  PETS.forEach((pt,id)=>{ const p=want.get(id); if(!p||p.pet.kind!==pt.kind||p.pet.name!==pt.name){ scene.remove(pt.g); const i=pickables.indexOf(pt.body); if(i>-1) pickables.splice(i,1); PETS.delete(id); } });
+  want.forEach((p,id)=>{ let pt=PETS.get(id); if(!pt){ pt=p.pet.kind==='dog'?makeDog(p):makeCat(p); PETS.set(id,pt); } pt.p=p;
+    if(pt.body){ const ch=LIFECH.get(id); pt.body.userData.ch=ch; const i=pickables.indexOf(pt.body); if(ch&&i<0) pickables.push(pt.body); else if(!ch&&i>-1) pickables.splice(i,1); } }); }
+function stepPets(dt){ PETS.forEach((pt,id)=>{ const g=pt.g; pt.t+=dt;
+  if(pt.kind==='cat'){ const h=HOMES[homeOf(pt.p)]; if(!h) return; g.position.set(h.door.x+1.05,TOP,h.z+h.face*5.1); g.rotation.y=(h.face>0?0:Math.PI)+Math.sin(pt.t*.35)*.5*Math.max(0,Math.sin(pt.t*.13)); return; }
+  const ch=LIFECH.get(id), on=!!ch&&ch.root.visible&&!ch.away&&!ch.dying; g.visible=on; if(!on){ pt.init=false; return; }
+  const r=ch.root, a=r.rotation.y, sd=fnv(id)%2?1:-1, tx=r.position.x+Math.cos(a)*1.25*sd-Math.sin(a)*.5, tz=r.position.z-Math.sin(a)*1.25*sd-Math.cos(a)*.5;
+  let dx=tx-g.position.x, dz=tz-g.position.z, d=Math.hypot(dx,dz), mv=0;
+  if(!pt.init||dt===0||d>40){ g.position.set(tx,TOP,tz); g.rotation.y=a; pt.init=true; d=0; }
+  if(d>.08){ const sp=Math.min(d,Math.max(ch.path?(ch.speed||3.4)*1.2:2.6,d*2.5)*dt); g.position.x+=dx/d*sp; g.position.z+=dz/d*sp; mv=sp/Math.max(dt,1e-4);
+    if(d>.3){ let dh=Math.atan2(dx,dz)-g.rotation.y; dh=Math.atan2(Math.sin(dh),Math.cos(dh)); g.rotation.y+=dh*Math.min(1,dt*10); } }
+  else { let dh=a-g.rotation.y; dh=Math.atan2(Math.sin(dh),Math.cos(dh)); g.rotation.y+=dh*Math.min(1,dt*3); }
+  const trot=mv>.6; pt.body.position.y=trot?Math.abs(Math.sin(pt.t*13))*.09:0; pt.body.rotation.x=trot?Math.sin(pt.t*13)*.05:0; pt.tail.rotation.y=Math.sin(pt.t*(trot?16:9))*.6; }); }
+// holidays (life.holiday): the town dresses for the day. Built the first time it is needed, then just shown or hidden.
+const HOL={kind:'',g:{}};
+const HOLB={
+  pumpkins:()=>{ const g=addTo(new THREE.Group()), geo=merge([P(SPH(.5,10,7),'#e8741c',0,.4,0,0,0,0,1,.78,1),P(CYL(.06,.08,.24,5),'#3a5a20',0,.78,0),P(BOX(.11,.1,.04),'#ffd25a',-.17,.47,.46),P(BOX(.11,.1,.04),'#ffd25a',.17,.47,.46),P(BOX(.3,.06,.04),'#ffd25a',0,.3,.46)]);
+    const im=new THREE.InstancedMesh(geo,new THREE.MeshLambertMaterial({vertexColors:true,emissive:'#3a1a04'}),HOMES.length*2), m4=new THREE.Matrix4(), q=new THREE.Quaternion(), e=new THREE.Euler(), pts=[]; let i=0;
+    HOMES.forEach(h=>[-2,2].forEach(o=>{ const x=h.door.x+o, z=h.z+h.face*5.4, sc=o<0?1.25:.95; m4.compose(new THREE.Vector3(x,TOP,z),q.setFromEuler(e.set(0,h.face>0?0:Math.PI,0)),new THREE.Vector3(sc,sc,sc)); im.setMatrixAt(i++,m4); pts.push(x,TOP+.45*sc,z+h.face*.55*sc); }));
+    g.add(im); lights(pts,0xff9a2a,1.5,g); return g; },
+  lights:()=>{ const g=addTo(new THREE.Group()), pts=[];
+    HOMES.forEach(h=>{ const f=h.face>0?1:-1, segs=h.style===0?[[-4.8,4.6,0,8,4.56,0],[0,8,4.8,4.6,4.56,0]]:h.style===1?[[-4.9,3.85,4.9,3.85,4.25,.22],[-4.7,7.05,1.5,7.05,2.75,.18]]:[[-5.2,3.42,5.2,3.42,6.25,.22]];
+      segs.forEach(([x0,y0,x1,y1,z,sag])=>{ const s=[]; swag([x0,y0,z],[x1,y1,z],14,sag,s); for(let k=0;k<s.length;k+=3) pts.push(h.x+f*s[k],TOP+s[k+1],h.z+f*s[k+2]); }); });
+    colorPoints(pts,['#ff4a4a','#3ed69b','#ffd23f','#3cb4ff','#fff1d6'],.95,g,true); return g; },
+  tree:()=>{ const g=addTo(new THREE.Group()), pts=[]; g.position.set(XTREE.x,TOP,XTREE.z);
+    g.add(new THREE.Mesh(merge([P(CYL(.6,.8,2.4,8),'#4a2f1d',0,1.2,0),P(new THREE.ConeGeometry(6,6,10),'#1d4a2c',0,4.8,0),P(new THREE.ConeGeometry(4.7,5,10),'#22543a',0,8.2,0),P(new THREE.ConeGeometry(3.3,4.2,10),'#1d4a2c',0,11.2,0),P(new THREE.ConeGeometry(2,3.2,10),'#22543a',0,13.8,0)]),VCOL));
+    const star=mesh(new THREE.OctahedronGeometry(.9,0),basic('#ffe08a'),0,15.9,0,g,false); const halo=new THREE.Sprite(new THREE.SpriteMaterial({map:SOFTTEX,color:0xffd88a,transparent:true,blending:THREE.AdditiveBlending,depthWrite:false})); halo.scale.set(5,5,1); halo.position.y=15.9; g.add(halo);
+    for(let i=0;i<110;i++){ const f=i/110, y=2.4+f*12.6, r=(1-f)*5.6+.5, a=f*TAU*6; pts.push(Math.sin(a)*r,y,Math.cos(a)*r); } colorPoints(pts,['#ff4a4a','#ffd23f','#3cb4ff','#fff1d6','#3ed69b'],.9,g,true);
+    g.userData.tick=t=>{ star.rotation.y=t*.8; }; return g; },
+  gifts:()=>{ const g=addTo(new THREE.Group()), parts=[]; g.position.set(XTREE.x,TOP,XTREE.z);
+    [[3.4,1.2,'#c94a3a'],[-3,2.2,'#3cb4ff'],[1,-3.6,'#3ed69b'],[-2.2,-3,'#ffd23f'],[3.6,-1.4,'#c9a0ff'],[-3.8,-.4,'#f4f1ea'],[.6,3.8,'#ff5aa5']].forEach(([x,z,c],i)=>{ const s=.7+(i%3)*.25;
+      parts.push(P(BOX(s,s,s),c,x,s/2,z,0,i*.5,0),P(BOX(s+.02,s+.02,.14),'#f0cf86',x,s/2,z,0,i*.5,0),P(BOX(.14,s+.02,s+.02),'#f0cf86',x,s/2,z,0,i*.5,0)); });
+    g.add(new THREE.Mesh(merge(parts),VCOL)); return g; },
+  feast:()=>{ const g=addTo(new THREE.Group()), parts=[P(BOX(18,.18,2.2),'#7a5638',0,1.1,0),P(BOX(18.2,.04,2.4),'#efe6d2',0,1.21,0)]; g.position.set(XTREE.x,TOP,XTREE.z);
+    [-8.5,0,8.5].forEach(x=>[-.8,.8].forEach(z=>parts.push(P(BOX(.18,1,.18),'#4a3424',x,.55,z))));
+    [-1,1].forEach(s=>parts.push(P(BOX(18,.14,.6),'#6b4a33',0,.62,s*1.75),P(BOX(.14,.6,.5),'#4a3424',-8,.3,s*1.75),P(BOX(.14,.6,.5),'#4a3424',8,.3,s*1.75)));
+    for(let i=0;i<9;i++) [-.6,.6].forEach(z=>parts.push(P(CYL(.32,.3,.04,12),'#f4f1ea',-8+i*2,1.25,z)));
+    parts.push(P(CYL(1,1,.06,16),'#d8d2c4',0,1.25,0),P(SPH(.75,10,8),'#9a5a2a',0,1.7,0,0,0,0,1.25,.8,1));
+    [[-4,'#d07a2a'],[4,'#d07a2a'],[-6.5,'#a3e05e'],[6.5,'#e8bd62'],[-2,'#c94a3a'],[2,'#f0e0a0']].forEach(([x,c])=>parts.push(P(CYL(.42,.36,.22,12),c,x,1.35,0)));
+    g.add(new THREE.Mesh(merge(parts),VCOL)); lights([-7,1.7,0,-3,1.7,0,3,1.7,0,7,1.7,0],0xffc46a,.9,g); return g; },
+  hearts:()=>{ const g=addTo(new THREE.Group()), bx=blockX(TOWN.cafe[0]), bz=blockZ(TOWN.cafe[1]), pts=[];
+    [[-6.5,2],[0,2],[6.5,2],[-6.5,8],[0,8],[6.5,8],[0,-2.6]].forEach(([x,z],i)=>pts.push(bx+x,TOP+(i===6?8.8:5.4+(i%2)*.5),bz+z));
+    const geo=new THREE.BufferGeometry(); geo.setAttribute('position',new THREE.Float32BufferAttribute(pts,3)); g.add(new THREE.Points(geo,new THREE.PointsMaterial({map:HEART,size:3,transparent:true,depthWrite:false})));
+    g.userData.tick=t=>{ g.position.y=Math.sin(t*1.4)*.25; }; return g; } };
+// kids dress up on Halloween: a ghost, a witch's hat or a pumpkin
+function costume(ch){ const L=ch.L, want=HOL.kind==='halloween'&&!!L&&L.p.kind==='kid'; if(!!ch.costume===want) return;
+  if(ch.costume){ ch.costume.parent.remove(ch.costume); ch.costume=null; return; }
+  const k=fnv(L.p.id)%3; let m;
+  if(k===0){ m=new THREE.Mesh(merge([P(CYL(.52,.7,1.6,12),'#f4f1ea',0,1.12,0),P(SPH(.53,12,8),'#f4f1ea',0,2.02,0),P(BOX(.1,.16,.04),'#141414',-.15,2.1,.5),P(BOX(.1,.16,.04),'#141414',.15,2.1,.5)]),VCOL); ch.hips.add(m); }
+  else if(k===1){ m=new THREE.Mesh(merge([P(CYL(.62,.62,.05,14),'#1d1a24',0,.78,0),P(new THREE.ConeGeometry(.36,1,12),'#1d1a24',0,1.3,-.04,-.15),P(CYL(.37,.37,.1,12),'#a78bfa',0,.86,0)]),VCOL); ch.head.add(m); }
+  else { m=new THREE.Mesh(merge([P(SPH(.58,12,8),'#e8741c',0,1.14,0,0,0,0,1,.86,1),P(BOX(.12,.12,.04),'#2a1608',-.18,1.22,.55),P(BOX(.12,.12,.04),'#2a1608',.18,1.22,.55),P(BOX(.32,.07,.04),'#2a1608',0,1.02,.55)]),VCOL); ch.hips.add(m); }
+  ch.costume=m; }
+function dressTown(){ const h=LIFE&&typeof LIFE.holiday==='string'?LIFE.holiday:''; if(h===HOL.kind) return; const was=HOL.kind; HOL.kind=h;
+  const want={halloween:['pumpkins'],lights:['lights','tree'],christmas:['lights','tree','gifts'],thanksgiving:['feast'],valentines:['hearts']}[h]||[];
+  Object.keys(HOLB).forEach(k=>{ if(want.includes(k)&&!HOL.g[k]) HOL.g[k]=HOLB[k](); if(HOL.g[k]) HOL.g[k].visible=want.includes(k); });
+  LIFECH.forEach(costume); dayM=-1; if(h==='thanksgiving'||was==='thanksgiving') syncLife(false); requestRender(); }
+function evSync(){ EVBY={}; EVON={}; (LIFE&&Array.isArray(LIFE.events)?LIFE.events:[]).forEach(e=>{ if(e&&e.id&&e.kind){ EVBY[e.id]=e; EVON[e.kind]=true; } });
+  Object.keys(EVG).forEach(k=>{ EVG[k].visible=!!EVON[k]; }); BALL.visible=!!EVON.soccer; }
+function stepEvents(dt){ Object.keys(EVG).forEach(k=>{ const g=EVG[k], on=!!EVON[k]||T<(g.userData.flash||0); if(g.visible!==on) g.visible=on; if(on&&g.userData.tick) g.userData.tick(T,dt); });
+  if(BALL.visible){ ballAt(T,_ba); BALL.position.set(_ba.x,TOP+.3+Math.abs(Math.sin(T*4))*.3,_ba.z); BALL.rotation.x+=dt*5; }
+  Object.values(HOL.g).forEach(g=>{ if(g.visible&&g.userData.tick) g.userData.tick(T,dt); }); stepFireworks(dt); }
 
 // ================= cars =================
 const CARCOL=['#0e0f12','#ece9e2','#a0a6b0','#1d2b4a','#5a1a24','#2f3a33','#6b6f78','#c9b48a','#0e0f12','#ece9e2'];
@@ -1007,9 +1164,11 @@ let LIFE=LIFE0, lifeSync=0, walking=0, whoCh=null;
 const deptOfLife=p=>p&&p.dept?DEPT_OF_ID[p.dept]||null:null, sigOf=p=>p?p.kind+'|'+(p.dept||''):'';
 const homeOf=p=>((p&&p.home|0)%14+14)%14;
 function keyOf(p){ const o=OVR[p.id]; if(o&&o.until>T) return o.key;
+  const e=p.event&&EVBY[p.event]; if(e&&e.place===p.place){ const k=e.kind==='soccer'?(p.kind==='kid'?'ev:soccer':'ev:soccer:side'):'ev:'+e.kind; if(PLACE_SPOTS[k]) return k; }   // at a town event
   const pl=p.place; if(pl==='home') return 'home:'+homeOf(p);
   if(pl==='work'){ const d=deptOfLife(p); return d?'work:'+d.k:'streets'; }
   if(ROLE_SPOT[p.role]===pl) return pl+':staff';
+  if(pl==='park'&&HOL.kind==='thanksgiving') return 'park:feast';
   return PLACE_SPOTS[pl]?pl:'streets'; }
 function spotsOf(key){ if(PLACE_SPOTS[key]) return PLACE_SPOTS[key];
   if(key.indexOf('work:')===0&&DK[key.slice(5)]){ const d=DK[key.slice(5)], n=Math.max(3,PEOPLE.filter(p=>p.d===d.k).length), cx=d.bx+(d.r===0?5.2:d.k===PANEL_HOME?5.8:2.5), cz=d.bz+8.3;
@@ -1023,11 +1182,20 @@ function assignAll(ppl){ const groups={}, out={}; ppl.forEach(p=>{ const k=keyOf
       while(t<pairs&&(used.has(2*j)||used.has(2*j+1))){ j=(j+1)%pairs; t++; } if(t<pairs){ put(p,2*j); put(q,2*j+1); } });
     g.forEach(p=>{ if(out[p.id]) return; let i=fnv(p.id)%n, t=0; while(t<n&&used.has(i)){ i=(i+1)%n; t++; } put(p,i,t>=n?1+fnv(p.id)%3:0); }); });
   return out; }
-function lifeChar(p){ const d=deptOfLife(p), q=PEOPLE.find(x=>x.id===p.id)||lifePerson(p,d,0,'stand'), kid=p.kind==='kid', col=d?d.col:'#cbbd9f';
+function lifeChar(p,pop){ const d=deptOfLife(p), q=PK[p.id]||lifePerson(p,d,0,'stand'), kid=p.kind==='kid', col=d?d.col:'#cbbd9f';
   const ch=makeChar(q,col,CS*(kid?KIDSCALE:1),q); addDisc(ch,col); ch.L={p,d,dk:d?d.k:'',sig:sigOf(p),key:'',pose:'stand',rot:0,idle:rr(2,8)}; ch.root.position.set(0,TOP,0);
-  scene.add(ch.root); cityChars[p.id]=ch; cityList.push(ch); LIFECH.set(p.id,ch); return ch; }
-function dropChar(id){ const ch=LIFECH.get(id); if(!ch) return; scene.remove(ch.root); LIFECH.delete(id); delete cityChars[id];
-  const i=cityList.indexOf(ch); if(i>-1) cityList.splice(i,1); for(let k=pickables.length-1;k>=0;k--) if(pickables[k].userData.ch===ch) pickables.splice(k,1); if(whoCh===ch) closeWho(); }
+  ch.base=CS*(kid?KIDSCALE:1); ch.pop=1; if(pop&&!REDUCED){ ch.pop=0; ch.root.scale.setScalar(.001); }   // someone new pops in
+  scene.add(ch.root); cityChars[p.id]=ch; cityList.push(ch); LIFECH.set(p.id,ch); costume(ch); return ch; }
+const DYING=[];   // people who left town shrink away
+function dropChar(id,fade){ const ch=LIFECH.get(id); if(!ch) return; LIFECH.delete(id); delete cityChars[id];
+  const i=cityList.indexOf(ch); if(i>-1) cityList.splice(i,1); for(let k=pickables.length-1;k>=0;k--) if(pickables[k].userData.ch===ch) pickables.splice(k,1); if(whoCh===ch) closeWho();
+  if(fade&&!REDUCED&&ch.root.visible){ ch.dying=true; ch.pop=1; DYING.push(ch); } else scene.remove(ch.root); }
+// the department rosters follow town life: a kid who grows up joins a department, someone who leaves is gone; their building's inside is rebuilt next visit
+function roster(ppl,byId){ const changed=new Set(), add=(p,d)=>{ const x=lifePerson(p,d,PEOPLE.filter(y=>y.d===d.k).length,'type'); PEOPLE.push(x); PK[p.id]=x; changed.add(d.k); };
+  ppl.forEach(p=>{ const d=p.kind==='adult'?deptOfLife(p):null, q=PK[p.id];
+    if(d&&!q) add(p,d); else if(q&&q.life&&(!d||q.d!==d.k)){ PEOPLE.splice(PEOPLE.indexOf(q),1); delete PK[p.id]; changed.add(q.d); if(d) add(p,d); } });
+  PEOPLE.filter(q=>q.life&&!byId[q.id]).forEach(q=>{ PEOPLE.splice(PEOPLE.indexOf(q),1); delete PK[q.id]; changed.add(q.d); });
+  changed.forEach(k=>{ const I=INT[k]; if(I&&active!==k){ scene.remove(I.g); I.bubbleEls.forEach(e=>e.remove()); I.bubbles.forEach(b=>{ if(b.ln) b.ln.remove(); }); delete INT[k]; } }); if(changed.size) sayLines(); }
 function vis(ch){ ch.root.visible=!ch.away&&!(ch.inHide&&(!ch.L||ch.L.key==='work:'+active)); }
 function settle(ch){ const L=ch.L; ch.path=null; ch.root.position.set(L.tx,TOP,L.tz); ch.root.rotation.y=L.rot; ch.pose=L.pose; ch.away=L.key.indexOf('home:')===0; vis(ch); }
 // a walk on the sidewalks: out to the nearest street, along it, down the nearest cross street, and in
@@ -1047,22 +1215,29 @@ function lifeGo(ch){ const L=ch.L, p=L.p; if(ch.busy){ L.pending=true; return; }
   else { path=walkRoute(from,to); const len=pathLen(path); v=len>120?Math.min(7.5,len/32):3.4; }
   ch.path=path; ch.seg=0; ch.speed=v; ch.pose='walk'; L.walkSync=lifeSync; walking++; vis(ch); }
 function syncLife(first){ if(!LIFE||!Array.isArray(LIFE.people)) return; lifeSync++;
-  const ppl=LIFE.people.filter(p=>p&&p.id), byId={}; ppl.forEach(p=>byId[p.id]=p);
-  [...LIFECH.keys()].forEach(id=>{ if(!byId[id]||LIFECH.get(id).L.sig!==sigOf(byId[id])) dropChar(id); });
+  const ppl=LIFE.people.filter(p=>p&&p.id), byId={}, carry={}; ppl.forEach(p=>byId[p.id]=p); evSync();
+  [...LIFECH.keys()].forEach(id=>{ const ch=LIFECH.get(id); if(!byId[id]) dropChar(id,!first);
+    else if(ch.L.sig!==sigOf(byId[id])){ carry[id]={x:ch.root.position.x,z:ch.root.position.z,away:ch.away}; dropChar(id,false); } });   // grown up: the same person, a new look and a new job
+  if(!first) roster(ppl,byId);
   const A=assignAll(ppl);
-  ppl.forEach(p=>{ let ch=LIFECH.get(p.id); const born=!ch; if(born) ch=lifeChar(p); const L=ch.L, a=A[p.id]; L.p=p;
+  ppl.forEach(p=>{ let ch=LIFECH.get(p.id); const born=!ch, c=carry[p.id]; if(born) ch=lifeChar(p,!first&&!c); const L=ch.L, a=A[p.id]; L.p=p;
     const ang=fnv(p.id)%628/100, tx=a.s.x+(a.ring?Math.cos(ang)*a.ring*1.1:0), tz=a.s.z+(a.ring?Math.sin(ang)*a.ring*1.1:0);
     const moved=L.key!==a.key||Math.abs((L.tx||0)-tx)+Math.abs((L.tz||0)-tz)>.5; L.key=a.key; L.tx=tx; L.tz=tz; L.rot=a.s.rot; L.pose=a.s.pose;
-    if(first||born) settle(ch); else if(moved) lifeGo(ch); });
-  paintHomes(); }
+    if(c&&!first){ ch.root.position.set(c.x,TOP,c.z); ch.away=c.away; lifeGo(ch); }   // walks from where they were to where they now belong
+    else if(first||born) settle(ch); else if(moved) lifeGo(ch); });
+  syncPets(ppl); paintHomes(); }
 function paintHomes(){ const lit=new Set(); LIFECH.forEach(ch=>{ if(ch.away&&ch.L.key.indexOf('home:')===0) lit.add(+ch.L.key.slice(5)); }); HOMES.forEach(h=>{ if(h.win) h.win.material=lit.has(h.k)?WIN_LIT:WIN_DARK; }); }
 const _lp=new THREE.Vector3();
 function stepLife(dt){ let n=0, home=false;
-  LIFECH.forEach(ch=>{ const L=ch.L; if(ch.busy) return;
+  for(let i=DYING.length-1;i>=0;i--){ const c=DYING[i]; c.pop-=dt*3; if(c.pop<=0){ scene.remove(c.root); DYING.splice(i,1); } else c.root.scale.setScalar(c.base*c.pop); }
+  LIFECH.forEach(ch=>{ const L=ch.L; if(ch.pop<1){ ch.pop=Math.min(1,ch.pop+dt*2.2); const k=ch.pop-1; ch.root.scale.setScalar(ch.base*Math.max(.001,1+2.70158*k*k*k+1.70158*k*k)); }
+    if(ch.busy) return;
     if(ch.path){ n++; const r=ch.root, tgt=ch.path[ch.seg+1]; if(!tgt){ settle(ch); return; }
       const dx=tgt.x-r.position.x, dz=tgt.z-r.position.z, dist=Math.hypot(dx,dz), sp=ch.speed*dt, want=Math.atan2(dx,dz); let dh=want-r.rotation.y; dh=Math.atan2(Math.sin(dh),Math.cos(dh)); r.rotation.y+=dh*Math.min(1,dt*9);
       if(dist<=sp){ r.position.x=tgt.x; r.position.z=tgt.z; ch.seg++; if(ch.seg>=ch.path.length-1){ settle(ch); if(ch.away) home=true; } } else { r.position.x+=dx/dist*sp; r.position.z+=dz/dist*sp; }
       return; }
+    if(L.key==='ev:soccer'&&!ch.away){ ballAt(T,_ba); const h=fnv(L.p.id), ph=h%628/100, rad=.9+(h>>>3)%5*.4, r=ch.root, dx=_ba.x+Math.cos(ph+T*.5)*rad-r.position.x, dz=_ba.z+Math.sin(ph+T*.5)*rad-r.position.z, d=Math.hypot(dx,dz);   // kids run after the ball
+      if(d>.35){ const sp=Math.min(d,4.6*dt); r.position.x+=dx/d*sp; r.position.z+=dz/d*sp; let dh=Math.atan2(dx,dz)-r.rotation.y; dh=Math.atan2(Math.sin(dh),Math.cos(dh)); r.rotation.y+=dh*Math.min(1,dt*8); ch.pose='walk'; } else ch.pose='hop'; return; }
     if(L.poseUntil&&T>L.poseUntil){ L.poseUntil=0; ch.pose=L.pose; ch.root.rotation.y=L.rot; }
     if(L.key==='streets'&&!ch.away&&!REDUCED&&(L.idle-=dt)<0){ L.idle=rr(5,12); const S=PLACE_SPOTS.streets, s=S[Math.floor(rnd()*S.length)]; if(Math.hypot(s.x-L.tx,s.z-L.tz)<70&&walking<CAP_WALK){ L.tx=s.x; L.tz=s.z; L.rot=s.rot; lifeGo(ch); } } });
   walking=n; if(home) paintHomes();
@@ -1430,9 +1605,10 @@ function frame(now){ const raw=Math.max(0,(now-last)/1000)||.016, dt=Math.min(.0
   applyCam(cam); sky.position.copy(camera.position);
   { const md=GLITDIR, tt=(camera.position.z+300)/-md.z; glit.position.set(camera.position.x+md.x*tt,-0.3,-300); glit.rotation.y=Math.atan2(md.x,md.z); }
   // world
-  if(wdt>0){ ANIM.forEach(f=>f(T,wdt)); updateCars(wdt); walkers.forEach(w=>stepWalker(w,wdt)); stepLife(wdt); stepFX(wdt); const cp=camera.position, far2=POSE_FAR*POSE_FAR;
+  if(wdt>0){ ANIM.forEach(f=>f(T,wdt)); updateCars(wdt); walkers.forEach(w=>stepWalker(w,wdt)); stepLife(wdt); stepFX(wdt); stepEvents(wdt); const cp=camera.position, far2=POSE_FAR*POSE_FAR;
     cityList.forEach(ch=>{ if(!ch.root.visible) return; const q=ch.root.position, dx=q.x-cp.x, dz=q.z-cp.z; if(dx*dx+dz*dz+cp.y*cp.y>far2&&ch.posed===ch.pose) return; pose(ch,wdt); ch.posed=ch.pose; }); updateFlights(wdt);
     ledAcc+=wdt; if(ledAcc>LED_IV){ ledAcc=0; drawLED(T); } }
+  stepPets(wdt);
   if(active&&INT[active]) updateInterior(INT[active],wdt);
   // interior lighting warmth
   const inside=mode==='inside'&&!trans?1:trans?(trans.dir>0?ease(clamp(trans.t,0,1)):1-ease(clamp(trans.t,0,1))):0;
@@ -1441,7 +1617,7 @@ function frame(now){ const raw=Math.max(0,(now-last)/1000)||.016, dt=Math.min(.0
   if(whoCh&&!trans&&mode==='city'){ goal.px=whoCh.root.position.x; goal.pz=whoCh.root.position.z; }
   const pl=mode==='city'&&!trans; if(pl!==frame.pl){ frame.pl=pl; $('places').hidden=!pl; $('top').style.opacity=pl?1:0; $('top').style.pointerEvents=pl?'':'none'; if(!pl){ closeWho(); closeNews(); } }
   if(!SKIP) renderer.render(scene,camera); if(!REDUCED&&!VIDEO) adapt(raw);
-  layoutLabels(dt,!labelsSeen); labelsSeen=true; layoutBubbles(dt); updateTag(); layoutMarks(); layoutFx();
+  layoutLabels(dt,!labelsSeen); labelsSeen=true; layoutBubbles(dt); layoutSays(dt); updateTag(); layoutMarks(); layoutFx();
   if(VIDEO) return;
   if(!REDUCED||trans||needRender){ needRender=false; if(!REDUCED){ if(onScreen&&!document.hidden) requestAnimationFrame(frame); else sleeping=true; } else if(trans) requestAnimationFrame(frame); else rafPending=false; }
 }
@@ -1462,7 +1638,7 @@ const fxEl=document.createElement('div'); fxEl.style.cssText='position:absolute;
 const FX=[];   // html tags pinned to a 3D point: {el, at(): Vector3, show()}
 function pin(el,at,show){ fxEl.appendChild(el); const f={el,at,show:show||(()=>true)}; FX.push(f); return f; }
 function layoutFx(){ FX.forEach(f=>{ const on=mode==='city'&&!trans&&f.show(); if(!on){ f.el.style.display='none'; return; } const p=projectXY(f.at()); if(p.z>1){ f.el.style.display='none'; return; } f.el.style.display='';
-  f.el.style.transform=`translate3d(${(p.x-f.el.offsetWidth/2).toFixed(1)}px,${(p.y-f.el.offsetHeight).toFixed(1)}px,0)`; }); }
+  const w=f.el.offsetWidth; f.el.style.transform=`translate3d(${clamp(p.x-w/2,6,Math.max(6,VW-w-6)).toFixed(1)}px,${(p.y-f.el.offsetHeight).toFixed(1)}px,0)`; }); }   // kept on screen on a phone
 // prize boats at the marina: a yacht, a speedboat and a sailboat, in the winners' colours
 function prizeBoat(kind,col){ const g=new THREE.Group(), gold='#f0cf86';
   if(kind==='Yacht'){ g.add(new THREE.Mesh(merge([P(BOX(4.4,1.6,13),'#f4f1ea',0,.6,0),P(new THREE.ConeGeometry(2.2,3.6,4),'#f4f1ea',0,.6,8.2,Math.PI/2,Math.PI/4,0,1,1,.75),P(BOX(3.6,1.5,6),'#e9e6df',0,2.1,-1),P(BOX(3.62,.5,5),'#14202e',0,2.3,-.8),P(BOX(2.6,1.2,3.2),'#f4f1ea',0,3.5,-1.6),P(BOX(4.5,.25,13.1),col,0,1.25,0),P(BOX(4.46,.12,13.05),gold,0,1.5,0)]),VCOL));
@@ -1572,10 +1748,11 @@ const partOf=h=>h<5?'Night':h<12?'Morning':h<17?'Afternoon':h<21?'Evening':'Nigh
 function paintClock(){ const h=hourNow(), el=$('clock'); if(h==null){ el.hidden=true; return; } el.hidden=false; const hr=Math.floor(h), mi=HOUR_Q?0:Math.floor((h-hr)*60);
   el.querySelector('span').textContent=((hr+11)%12+1)+':'+String(mi).padStart(2,'0')+' '+(hr<12?'AM':'PM')+' · '+partOf(h); }
 // ---------- town news: a button with what is new, a list you can tap, and a little moment where it happened ----------
-const KCOL={wedding:'#f0cf86',baby:'#ff8ab8',dating:'#ff5a9a',friends:'#3cb4ff',hang:'#a6acba',school:'#a3e05e',grew:'#3ed69b'};
+const KCOL={wedding:'#f0cf86',baby:'#ff8ab8',dating:'#ff5a9a',friends:'#3cb4ff',hang:'#a6acba',school:'#a3e05e',grew:'#3ed69b',pet:'#e39459',birthday:'#ff5aa5',bonfire:'#ff7a2a',soccer:'#7cf5ff',holiday:'#ff9a3c',win:'#ffd23f',opened:'#e8bd62'};
 const TO={cafe:'the café',park:'the park',gym:'the gym',lake:'the lake',school:'school',streets:'downtown',hall:'City Hall',gazebo:'the gazebo'};
 const PLACE_WORD={work:'At work',cafe:'At the café',park:'In the park',gym:'At the gym',lake:'By the lake',school:'At school',home:'At home',streets:'Downtown',hall:'At City Hall'};
-function placeWord(key){ const k=String(key||'').split(':')[0]; return k==='home'?'home':k==='work'?'work':TO[k]||'town'; }
+const EVWORD={win:'the party',bonfire:'the bonfire',soccer:'soccer',birthday:'the birthday party'};
+function placeWord(key){ const [k,e]=String(key||'').split(':'); return k==='ev'?EVWORD[e]||'town':k==='home'?'home':k==='work'?'work':TO[k]||'town'; }
 const lifeP=id=>LIFE&&Array.isArray(LIFE.people)?LIFE.people.find(p=>p&&p.id===id)||null:null, firstName=n=>String(n||'').split(' ')[0];
 let newsSeen=0, newsTop=null, tickT=0; try{ newsSeen=+localStorage.getItem('town:seen')||0; }catch(e){}
 const newsList=()=>DATA.life&&Array.isArray(DATA.life.news)?DATA.life.news.filter(n=>n&&n.text):[];
@@ -1613,6 +1790,8 @@ function stepFX(dt){ for(let i=FXP.length-1;i>=0;i--){ const f=FXP[i]; f.t+=dt; 
   if(GAZEBO.lights) GAZEBO.lights.material.size=1.1+(T<(GAZEBO.flash||0)?.9*Math.abs(Math.sin(T*5)):0); }
 function momentAt(n,who){ const p=who[0]&&who[0].L.p||lifeP((n.who||[])[0]);
   if(n.kind==='wedding') return {x:GAZ.x,z:GAZ.z,dist:50};
+  if(n.kind==='win') return {x:GAZ.x,z:GAZ.z,dist:75}; if(n.kind==='birthday') return {x:BDAY.x,z:BDAY.z,dist:40}; if(n.kind==='bonfire') return {x:FIRE.x,z:FIRE.z,dist:50}; if(n.kind==='soccer') return {x:FIELD.x,z:FIELD.z,dist:55};
+  if(n.kind==='holiday'&&(HOL.kind==='newyear'||HOL.kind==='fireworks')) return {x:FWZ.lake.x,z:-40,dist:150};
   if(n.kind==='baby'||n.place==='home'){ const h=p&&HOMES[homeOf(p)]; return h?{x:h.x,z:h.z+h.face*4,dist:55,h}:null; }
   if(n.place==='work'||n.kind==='grew'){ const d=deptOfLife(p); if(d) return {x:d.bx,z:d.bz+7,dist:70}; }
   if(who[0]&&!who[0].away) return {x:who[0].L.tx,z:who[0].L.tz,dist:46};
@@ -1625,7 +1804,12 @@ function moment(n,auto){ if(!n) return; let who=(n.who||[]).map(id=>LIFECH.get(i
   else if(k==='baby'&&at.h) burst(at.h.x,TOP+at.h.top+2,at.h.z,'hearts',8,7);
   else if(k==='dating'&&who[0]) burst(who[0].L.tx,TOP+5.5,who[0].L.tz,'hearts',3,6);
   else if(k==='friends'||k==='hang') who.forEach(ch=>{ if(!ch.path&&!ch.away){ ch.pose=k==='friends'?'wave':'talk'; ch.L.poseUntil=T+6; } });
-  else if(k==='school'||k==='grew') burst(at.x,TOP+6,at.z,'confetti',SMALL?50:90,5);
+  else if(k==='school'||k==='grew'||k==='opened') burst(at.x,TOP+6,at.z,'confetti',SMALL?50:90,5);
+  else if(k==='win'){ EVG.win.userData.flash=T+12; burst(GAZ.x,TOP+7,GAZ.z,'confetti',SMALL?90:180,7); for(let i=0;i<4;i++) setTimeout(()=>launch(FWZ.park),i*500); LIFECH.forEach(ch=>{ if(/^(park|ev:win)/.test(ch.L.key)&&!ch.path&&!ch.away){ ch.pose='cheer'; ch.L.poseUntil=T+8; } }); }
+  else if(k==='birthday'){ EVG.birthday.userData.flash=T+12; burst(BDAY.x,TOP+3.5,BDAY.z,'confetti',SMALL?50:90,5); }
+  else if(k==='pet'&&at.h) burst(at.h.x,TOP+at.h.top+2,at.h.z,'hearts',4,6);
+  else if(k==='bonfire') burst(FIRE.x,1.5,FIRE.z,'sparks',40,3);
+  else if(k==='holiday'&&(HOL.kind==='newyear'||HOL.kind==='fireworks')) for(let i=0;i<5;i++) setTimeout(()=>launch(FWZ.lake),i*450);
   if(k==='friends') burst(at.x,TOP+5,at.z,'sparks',30,3);
   const el=document.createElement('div'); el.className='mom'; el.style.setProperty('--k',KCOL[k]||'#f0cf86'); el.textContent=n.text; const until=T+8, y=k==='baby'&&at.h?TOP+at.h.top+6:TOP+9;
   const f=pin(el,()=>new THREE.Vector3(at.x,y,at.z),()=>T<until); setTimeout(()=>{ el.remove(); const i=FX.indexOf(f); if(i>-1) FX.splice(i,1); },9000); requestRender(); }
@@ -1635,13 +1819,15 @@ function fillRows(rows){ const ul=$('whoList'); ul.textContent=''; rows.forEach(
 function openWho(ch){ const p=ch.L.p, d=deptOfLife(p), all=LIFE&&Array.isArray(LIFE.people)?LIFE.people:[]; closeNews(); hideMeet(); whoCh=ch;
   $('who').style.setProperty('--c',d?d.col:'#e8bd62'); $('whoK').textContent=p.kind==='kid'?'Kid in town':d?d.name:'Lives in town'; $('whoName').textContent=p.name;
   const partner=p.partner&&lifeP(p.partner), kids=all.filter(k=>(k.parents||[]).includes(p.id)), par=(p.parents||[]).map(lifeP).filter(Boolean), mates=all.filter(x=>x.id!==p.id&&homeOf(x)===homeOf(p));
-  fillRows([['Job',p.kind==='kid'?'Kid':p.role],['Now',ch.path?'Walking to '+placeWord(ch.L.key):p.doing],['Married to',partner&&partner.name],[kids.length>1?'Kids':'Kid',kids.map(k=>firstName(k.name)).join(' and ')],
+  const ev=p.event&&EVBY[p.event], evName=ev?(ev.kind==='birthday'&&ev.who[0]===p.id?'Their birthday party at the café':{win:'The party in the park',bonfire:'The beach bonfire',soccer:'Kids’ soccer in the park',birthday:'A birthday party at the café'}[ev.kind]||'')+(ev.who.length>1?', with '+(ev.who.length-1)+' more':''):'';
+  fillRows([['Job',p.kind==='kid'?'Kid':p.role],['Now',ch.path?'Walking to '+placeWord(ch.L.key):p.doing],['Event',evName],['Pet',p.pet&&p.pet.name?p.pet.name+', a '+(p.pet.kind==='cat'?'cat':'dog'):''],['Married to',partner&&partner.name],[kids.length>1?'Kids':'Kid',kids.map(k=>firstName(k.name)).join(' and ')],
     ['Parents',par.map(x=>firstName(x.name)).join(' and ')],['Home','Number '+(homeOf(p)+1)+(mates.length?', with '+mates.map(x=>mates.some(y=>y!==x&&firstName(y.name)===firstName(x.name))||firstName(x.name)===firstName(p.name)?x.name:firstName(x.name)).join(', '):'')]]);
   const go=$('whoGo'); go.hidden=!d; if(d){ go.textContent='Visit '+d.short; go.onclick=()=>{ closeWho(); enter(d.k); }; }
   $('who').hidden=false; $('places').style.opacity=0; flyTo(ch.root.position.x,ch.root.position.z,SMALL?44:38); }
 function openHome(k){ const h=HOMES[k]; if(!h) return; closeNews(); hideMeet(); whoCh=null; $('who').style.setProperty('--c','#e8bd62'); $('whoK').textContent='Home'; $('whoName').textContent='Number '+(k+1);
   const ppl=LIFE&&Array.isArray(LIFE.people)?LIFE.people.filter(p=>p&&homeOf(p)===k):[], inN=ppl.filter(p=>p.place==='home').length;
-  fillRows(ppl.length?[['Lives here',ppl.map(p=>p.name+(p.kind==='kid'?' (kid)':'')).join(', ')],['Home now',inN?inN+' of '+ppl.length:'Nobody']]:[['Lives here','Nobody yet']]);
+  const pets=ppl.filter(p=>p.pet&&p.pet.name).map(p=>p.pet.name+' ('+(p.pet.kind==='cat'?'cat':'dog')+')').join(', ');
+  fillRows(ppl.length?[['Lives here',ppl.map(p=>p.name+(p.kind==='kid'?' (kid)':'')).join(', ')],['Pets',pets],['Home now',inN?inN+' of '+ppl.length:'Nobody']]:[['Lives here','Nobody yet']]);
   $('whoGo').hidden=true; $('who').hidden=false; $('places').style.opacity=0; flyTo(h.x,h.z+h.face*5,SMALL?58:48); }
 function closeWho(){ whoCh=null; $('who').hidden=true; $('places').style.opacity=''; }
 $('whoX').addEventListener('click',closeWho);
@@ -1651,7 +1837,25 @@ $('whoX').addEventListener('click',closeWho);
   document.body.classList.add('town');
   ['park','homes','cafe','gym','school','lake'].forEach(k=>{ const P0=PLACE_AT[k], el=document.createElement('div'); el.className='plab'; el.textContent=P0[3]; const v=new THREE.Vector3(P0[0],TOP+(k==='school'?20:k==='lake'?6:12),P0[1]);
     pin(el,()=>v,()=>cam.dist<300&&Math.hypot(cam.px-v.x,cam.pz-v.z)<cam.dist*1.1); }); })();
-function townRefresh(){ if(DATA.life&&Array.isArray(DATA.life.people)&&DATA.life!==LIFE){ LIFE=DATA.life; syncLife(false); } paintNews(); paintClock(); }
+function townRefresh(){ if(DATA.life&&Array.isArray(DATA.life.people)&&DATA.life!==LIFE){ LIFE=DATA.life; syncLife(false); } dressTown(); paintNews(); paintClock(); }
+// ---------- what people say: small bubbles over a few people near the camera (4 at most), changing every few seconds ----------
+const SAYS={list:[],at:0,last:new Set(),shown:false};
+(()=>{ const box=$('says'); for(let i=0;i<4;i++){ const el=document.createElement('div'), b=document.createElement('b'), t=document.createElement('span'); el.className='say off'; el.append(b,t); box.appendChild(el); SAYS.list.push({el,b,t,ch:null,x:0,y:0,w:0,h:0,init:false}); } })();
+function pickSays(){ SAYS.at=performance.now(); const cp=camera.position, lim=SMALL?170:230, max=VW<600?3:4, c=[];
+  LIFECH.forEach(ch=>{ const p=ch.L.p; if(!p.say||ch.path||ch.away||ch.dying||!ch.root.visible) return; const q=ch.root.position, d=Math.hypot(q.x-cp.x,q.y-cp.y,q.z-cp.z); if(d>lim) return;
+    const s=projectXY(headPos(ch,_hv)); if(s.z>1||s.x<16||s.x>VW-16||s.y<70||s.y>VH-60) return; c.push({ch,s:d+(SAYS.last.has(ch)?lim:0)-(ch===whoCh?1e4:0)}); });
+  c.sort((a,b)=>a.s-b.s); const pick=c.slice(0,max).map(x=>x.ch); SAYS.last=new Set(pick);
+  SAYS.list.forEach((s,i)=>{ const ch=pick[i]||null; if(ch!==s.ch){ s.ch=ch; s.init=false; s.w=0; if(ch){ const p=ch.L.p, d=deptOfLife(p); s.el.style.setProperty('--c',d?d.col:'#f0cf86'); s.b.textContent=firstName(p.name); s.t.textContent=p.say; } } s.el.classList.toggle('off',!ch); }); }
+function layoutSays(dt){ const show=mode==='city'&&!trans&&!CLEAN&&LIFECH.size>0;
+  if(!show){ if(SAYS.shown){ SAYS.shown=false; SAYS.list.forEach(s=>{ s.ch=null; s.el.classList.add('off'); }); } return; }
+  const age=performance.now()-SAYS.at; if(!SAYS.shown||age>5200||(age>1500&&!SAYS.list.some(s=>s.ch))){ SAYS.shown=true; pickSays(); }
+  const items=[]; SAYS.list.forEach(s=>{ const ch=s.ch; if(!ch) return; if(LIFECH.get(ch.L.p.id)!==ch||ch.path||ch.away||!ch.root.visible){ s.ch=null; s.el.classList.add('off'); return; }
+    if(!s.w){ s.w=s.el.offsetWidth; s.h=s.el.offsetHeight; } const q=projectXY(headPos(ch,_hv)); if(q.z>1||q.x<0||q.x>VW||q.y<0||q.y>VH){ s.ch=null; s.el.classList.add('off'); return; } s.el.classList.remove('off'); items.push({s,ax:q.x,ay:q.y,w:s.w,h:s.h}); });
+  if(!items.length) return; const ob=[hudRect].concat(layoutLabels.ob||[]); SIGNS.forEach(d=>{ if(d.vis) ob.push({x:d.lab.x,y:d.lab.y,w:d.lab.w,h:d.lab.h}); });
+  place(items,ob,6); const k=Math.min(1,dt*8), kept=[];
+  items.forEach(it=>{ const s=it.s; if(!s.init){ s.x=it.tx; s.y=it.ty; s.init=true; } else { s.x+=(it.tx-s.x)*k; s.y+=(it.ty-s.y)*k; }
+    const r={x:s.x,y:s.y,w:it.w,h:it.h}; if(kept.some(q=>ov(q,r)>0)){ s.ch=null; s.el.classList.add('off'); return; }   // never two bubbles on top of each other
+    kept.push(r); s.el.style.transform=`translate3d(${s.x.toFixed(1)}px,${s.y.toFixed(1)}px,0)`; }); }
 async function pull(){ if(VIDEO||document.hidden) return; try{ const r=await fetch('/api/city3d',{credentials:'same-origin'}); if(!r.ok) return; const j=await r.json();
   const sig=JSON.stringify([j.business,(j.departments||[]).map(x=>[x.id,x.name,x.kind,!!x.judge])]); if(sig!==SIG){ location.reload(); return; } DATA=j; refresh(); }catch(e){} }
 addEventListener('message',e=>{ if(e.origin===location.origin&&e.data&&e.data.type==='refresh') pull(); });
@@ -1667,7 +1871,7 @@ let vNow=performance.now();
 function step(dt,norender){ SKIP=!!norender; vNow+=dt*1000; last=vNow-dt*1000; frame(vNow); SKIP=false; }   // norender: move the world on without drawing it
 function look(k,o){ const d=k==='city'?null:DK[k]; o=o||{}; const s=d?{az:o.az!=null?o.az:cam.az,el:o.el!=null?o.el:.42,dist:o.dist||70,pitch:o.pitch!=null?o.pitch:.36,px:d.bx,py:o.py!=null?o.py:(d.b.h*.45),pz:d.bz}:Object.assign(cityState(),o);
   Object.assign(goal,s); if(o.snap) Object.assign(cam,s); }
-window.__city={life:l=>{ if(l){ DATA.life=l; LIFE=l; syncLife(false); paintNews(); } return LIFE; },get walking(){ return walking; },info:()=>Object.assign({},renderer.info.render),syncLife,LIFECH,moment,openWho,openHome,openNews,flyTo,build,addDept,judgeCrowd,crowdQuotes,clearCrowd,STAR,PRIZES,enter,exit,cam,goal,cityChars,camera,projectXY,headPos,perf,hit,showTag,step,look,refresh,DK,DEPTS,cityState,get mode(){ return mode; },get trans(){ return trans; }};
+window.__city={life:l=>{ if(l){ DATA.life=l; LIFE=l; syncLife(false); dressTown(); paintNews(); } return LIFE; },town:()=>({events:Object.keys(EVON),holiday:HOL.kind,pets:[...PETS.values()].map(p=>p.kind+' '+p.name+(p.g.visible?'':' (hidden)')),says:SAYS.list.filter(s=>s.ch).map(s=>s.b.textContent+': '+s.t.textContent),people:LIFECH.size,dying:DYING.length,fireworks:FW.shells.filter(s=>s.on).length}),get walking(){ return walking; },info:()=>Object.assign({},renderer.info.render),syncLife,LIFECH,moment,openWho,openHome,openNews,flyTo,build,addDept,judgeCrowd,crowdQuotes,clearCrowd,STAR,PRIZES,enter,exit,cam,goal,cityChars,camera,projectXY,headPos,perf,hit,showTag,step,look,refresh,DK,DEPTS,cityState,get mode(){ return mode; },get trans(){ return trans; }};
 })();
 </script>
 </body>

@@ -35,7 +35,11 @@ test('the 3D city page, its data and three.js', async () => {
     assert(['newsBtn', 'who', 'places', 'clock'].every(id => html.includes('id="' + id + '"')), 'town news, who is who, the places and the clock');
     const src = html.slice(html.lastIndexOf('<script>') + 8, html.lastIndexOf('</script>'));
     assert.doesNotThrow(() => new (require('node:vm').Script)(src), 'the page script parses');
-    assert(/crew\[0\]/.test(src) && /LIFE0\.people\.filter\(p=>p&&p\.dept===d\.id&&p\.kind==='adult'\)/.test(src), 'the first adult in town life speaks for the department');
+    assert(/crew\[0\]/.test(src) && src.includes("LIFE0.people.filter(p=>p&&p.dept===(d.id||d.k)&&p.kind==='adult')"), 'the first adult in town life speaks for the department, City Hall, Research and the School too');
+    assert(['hall', 'research', 'school'].every(k => data.life.people.some(p => p.dept === k && p.kind === 'adult')) && src.includes("CIVIC.forEach(k=>DEPT_OF_ID[k]=DK[k])"), 'the civic buildings have life people, not made-up names');
+    // events, pets, holidays and what people say: drawn from life (events, pet, holiday, say); a kid who grows up joins the roster on the next poll
+    assert(html.includes('id="says"') && ['EVG.win', 'EVG.bonfire', 'EVG.birthday', 'ballAt(', 'makeDog(', 'makeCat(', 'dressTown()', 'function roster(', 'function layoutSays('].every(k => src.includes(k)), 'events, pets, holidays, bubbles and rosters');
+    assert(/max=VW<600\?3:4/.test(src) && /for\(let i=0;i<4;i\+\+\)\{ const el=document\.createElement\('div'\)/.test(src), 'at most 4 speech bubbles (3 on a phone)');
     const live = await (await fetch(base + '/api/city3d', { headers: H })).json();
     assert.deepStrictEqual([live.business, live.departments.length, typeof live.hall.need], ['Sam\'s Kitchens </script><b>', 2, 'number']);
   } finally { srv.close(); }
