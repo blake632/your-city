@@ -494,7 +494,7 @@ label.ck{display:flex;gap:10px;align-items:flex-start;margin:14px 0 6px;font-wei
       var r = a.readiness;
       if (a.auto) ab.appendChild(el('div', { cls: 'box auto on' }, [el('b', { text: '🤖 Autopilot is on' }), el('p', { cls: 'muted', text: 'It approves its own work now, up to 20 a day. Questions, and anything the panel marks weak, still come to you.' }), el('button', { cls: 'chip', text: 'Turn off autopilot', onclick: function () { pilot(false); } })]));
       else ab.appendChild(el('div', { cls: 'box auto' }, [el('b', { text: r.ready ? 'Autopilot: ready when you are' : 'Autopilot: getting ready' }), el('div', { cls: 'bar' }, [el('i', { style: 'width:' + Math.min(100, Math.round(r.asIs / r.need * 100)) + '%' })]),
-        el('p', { cls: 'muted', text: r.ready ? r.asIs + ' of its last ' + r.decided + ' were approved as written.' : r.asIs + ' of its last ' + r.decided + ' approved as written. It unlocks at ' + r.need + ' of ' + r.of + '. Approve, decline or give feedback on its cards to teach it.' }),
+        el('p', { cls: 'muted', text: r.ready ? r.asIs + ' of its last ' + r.decided + ' were approved as written.' : (r.decided ? r.asIs + ' of its last ' + r.decided + ' approved as written. ' : 'Nothing decided yet. ') + 'It unlocks when ' + r.need + ' of its last ' + r.of + ' are approved as written.' }),
         S.plan && !S.plan.auto ? el('p', { cls: 'muted', text: 'Autopilot comes with the Ultimate plan.' })
           : el('button', { cls: 'btn yes sm', text: 'Turn on autopilot', disabled: !r.ready, onclick: function () { pilot(true); } })]));
     }
@@ -681,7 +681,7 @@ label.ck{display:flex;gap:10px;align-items:flex-start;margin:14px 0 6px;font-wei
       'When 8 of its last 10 are approved as written, it is ready: open it and tap Turn on autopilot.', 'Turn autopilot off any time. Changing what a department does turns it off too, so it learns the new job first.'], 'margin:12px 0'));
     DEPTS().filter(function (a) { return a.review !== false && a.readiness; }).forEach(function (a) { var r = a.readiness;
       tr.appendChild(el('div', { cls: 'check ' + (a.auto || r.ready ? 'good' : '') }, [el('span', { cls: 'ok', text: a.auto ? '🤖' : r.ready ? '✓' : String(r.asIs) }), el('div', { cls: 't' }, [el('a', { href: '#' + a.id, text: a.name }),
-        el('div', { cls: 'muted', style: 'font-size:14px', text: a.auto ? 'On autopilot.' : r.ready ? 'Ready for autopilot.' : r.asIs + ' of its last ' + r.decided + ' approved as written. Needs ' + r.need + ' of ' + r.of + '.' })])])); });
+        el('div', { cls: 'muted', style: 'font-size:14px', text: a.auto ? 'On autopilot.' : r.ready ? 'Ready for autopilot.' : (r.decided ? r.asIs + ' of its last ' + r.decided + ' approved as written. ' : '') + 'Needs ' + r.need + ' of ' + r.of + '.' })])])); });
     var fixes = S.cards.filter(function (c) { return c.kind === 'fix'; });
     fixes.forEach(function (c) { box.appendChild(el('div', { cls: 'check bad' }, [el('span', { cls: 'ok', text: '!' }), el('div', { cls: 't' }, [el('b', { text: c.title }), el('span', { cls: 'muted', text: c.about || '' }), stepList(c.steps, 'margin-top:8px'),
       el('button', { cls: 'chip', text: 'Got it', onclick: function () { api('/api/decide', { id: c.id, decision: 'got_it' }).then(load).catch(function (e) { toast(e.message); }); } })])])); });

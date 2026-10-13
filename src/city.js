@@ -28,7 +28,8 @@ const PICKS = [
 // approve its own work. Questions, fixes and new buildings still wait for you, and so does work the panel marked weak. At most 20 a day.
 const AUTO_KINDS = ['lead', 'email', 'post', 'note'], AUTO = { of: 10, need: 8, perDay: 20 };
 // What a department does, in plain words for the owner: a ready-made one's own line, else the start of its job.
-const plainOf = d => (PICKS.find(p => p.kind === d.kind && (d.kind !== 'own' || p.name === d.name)) || {}).what || String(d.does || '').slice(0, 160);
+const plainOf = d => d.kind === 'leads' && process.env.LEADS_ADDRESS ? 'Answers the lead emails you forward here, and writes your first reply.'   // hosted: leads come by forwarding, no Gmail reading
+  : (PICKS.find(p => p.kind === d.kind && (d.kind !== 'own' || p.name === d.name)) || {}).what || String(d.does || '').slice(0, 160);
 const MAX_DEPTS = 10;   // the 3D city has 10 lots around City Hall, the Research desk and the School
 // Hosted plans (CITY_PLAN, set by Burnoff's sign-up): Starter is the inbox (Leads and the Mail room); Pro opens every department;
 // Ultimate adds autopilot. No CITY_PLAN (your own copy of the app) = everything.
