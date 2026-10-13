@@ -27,7 +27,7 @@ const SAY = { cafe: ['Coffee first.', 'The usual, please.', 'This muffin is huge
   lake: ['What a sunset.', 'The water is calm today.'], gym: ['One more set.', 'Leg day.'], school: ['Time for class.', 'Recess!'], streets: ['Mail’s here!', 'Beautiful day.'],
   work: { leads: ['Watching for new customers.', 'Writing replies in your voice.'], mailroom: ['Sorting the mail.', 'Keeping the inbox tidy.'], social: ['Planning this week’s posts.', 'Writing a caption.'], own: ['On it.', 'Back to work.'],
     hall: ['Checking the city’s setup.', 'Planning the day.'], research: ['Reading about new tools.'], school: ['Grading practice work.'] },
-  win: ['We did it!', 'Cheers to the team!', 'Best day ever.', 'Look at those fireworks!', 'Drinks are on Leads!', 'What a week.'],
+  win: ['We did it!', 'Cheers to the team!', 'Best day ever.', 'Look at those fireworks!', 'First round is on me!', 'What a week.'],
   bonfire: ['Pass the marshmallows.', 'Look at the stars.', 'Who brought the guitar?', 'This fire is perfect.', 'Best part of the week.', 'More wood!'],
   soccer: ['Go, go, go!', 'Nice kick!', 'Pass it!', 'Goal!', 'Great save!'], birthday: ['Happy birthday!', 'Make a wish!', 'Save me a slice.', 'Speech, speech!'],
   halloween: ['Trick or treat!', 'Cool costume!', 'Boo!', 'Got any candy?'], lights: ['The lights look amazing.', 'So cozy.', 'Look at that tree!'], fireworks: ['Wow, look at that!', 'Ooh, a red one!'] };
