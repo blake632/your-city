@@ -96,9 +96,10 @@ class Google {
   async updateDraft(draftId, m) { if (this.app.on()) return this.app.updateDraft(draftId, m); await this.call('PUT', '/gmail/v1/users/me/drafts/' + encodeURIComponent(draftId), { id: draftId, message: draftMessage(m) }); }
   async sendDraft(draftId) {
     if (this.app.on()) return this.app.sendDraft(draftId);
+    const cur = await this.call('GET', '/gmail/v1/users/me/drafts/' + encodeURIComponent(draftId) + '?format=full').catch(() => null);   // as it goes out, so the city learns from your edits
     const r = await this.call('POST', '/gmail/v1/users/me/drafts/send', { id: draftId });
     if (!r) throw new CityError('draft_gone', 'That draft is no longer in Gmail (it was sent or deleted there).');
-    return r;
+    return Object.assign({}, r, { text: cur && cur.message ? readMessage(cur.message).text : '' });
   }
 }
 // A Gmail message as the agents read it: who, what, the plain text (the HTML version stripped when there is no plain one).

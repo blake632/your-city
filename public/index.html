@@ -86,6 +86,7 @@ label.ck{display:flex;gap:10px;align-items:flex-start;margin:14px 0 6px;font-wei
 .people{list-style:none;margin:0;padding:0}.people li{padding:10px 0;border-bottom:1px solid var(--line)}.people li:last-child{border-bottom:0}
 .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(90px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--on-ink);padding:12px 18px;border-radius:12px;z-index:40;max-width:calc(100% - 32px);font-size:15px}
 .res{margin:0 0 14px;padding:14px 16px}.res .k{font:600 11px/1.4 var(--sans);letter-spacing:.12em;text-transform:uppercase;color:var(--accent)}
+.res .won-row{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px;padding:8px 0;border-top:1px solid var(--line);font-size:14px}.res .won-row>span:first-child{min-width:0;overflow-wrap:anywhere;flex:1 1 160px}.res .won{color:var(--good,#2f7a46)}.res .won-act{display:flex;gap:6px;align-items:center}.res .won-act input{width:9em;font-size:16px;padding:6px 8px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:inherit}.res .won-act [hidden]{display:none}
 .res .nums{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin:8px 0 4px}.res .nums div{background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:10px 12px}
 .res .nums b{display:block;font:400 1.7rem/1.1 var(--serif);font-variant-numeric:tabular-nums}.res .nums span{font-size:13px;color:var(--dim)}
 .auto{margin:4px 0 12px;padding:12px 16px}.auto b{display:block;margin-bottom:6px}.auto p{margin:6px 0 10px;font-size:14px}.auto.on{border-color:var(--good,#2e7d4f)}
@@ -420,14 +421,30 @@ label.ck{display:flex;gap:10px;align-items:flex-start;margin:14px 0 6px;font-wei
   // What the city did for you this week, in numbers you can check, and one tap to share it.
   function renderResults() {
     var R = S.results || {}, box = $('results'); box.innerHTML = '';
-    var any = R.leads || R.emails || R.posts || R.notes; box.hidden = S.firstRun && !any;
+    var any = R.leads || R.emails || R.posts || R.notes || R.won || (S.recentLeads || []).length; box.hidden = S.firstRun && !any;
     if (box.hidden) return;
     box.appendChild(el('div', { cls: 'k', text: 'Your city this week' }));
     if (!any) { box.appendChild(el('p', { cls: 'muted', style: 'margin:6px 0 0;font-size:14px', text: 'Your results show here once your first replies go out.' })); return; }
     var hrs = R.minutes < 90 ? R.minutes + ' min' : Math.round(R.minutes / 60) + ' hours', stat = function (n, t) { return el('div', {}, [el('b', { text: String(n) }), el('span', { text: t })]); };
-    box.appendChild(el('div', { cls: 'nums' }, [R.leads ? stat(R.leads, 'leads answered') : null, R.replyMin != null ? stat(R.replyMin < 90 ? R.replyMin + ' min' : Math.round(R.replyMin / 60) + ' h', 'typical reply time') : null,
+    box.appendChild(el('div', { cls: 'nums' }, [R.won ? stat(R.won, R.won === 1 ? 'job won' : 'jobs won') : null, R.wonValue ? stat('$' + Number(R.wonValue).toLocaleString('en-US'), 'in jobs won') : null, R.leads ? stat(R.leads, 'leads answered') : null, R.replyMin != null ? stat(R.replyMin < 90 ? R.replyMin + ' min' : Math.round(R.replyMin / 60) + ' h', 'typical reply time') : null,
       R.emails ? stat(R.emails, 'emails sent') : null, R.posts ? stat(R.posts, 'posts written') : null, stat('~' + hrs, 'of your time back')]));
     box.appendChild(el('p', { cls: 'muted', style: 'margin:6px 0 0;font-size:13px', text: 'Time back is a rough count: 10 min a lead reply, 5 an email, 15 a post or piece of work you kept.' }));
+    // The money report: the leads you answered, and one tap when one becomes a job. You type what it was worth, or leave it blank.
+    var RL = S.recentLeads || [];
+    if (RL.length) {
+      box.appendChild(el('div', { cls: 'k', style: 'margin-top:14px', text: 'Leads you answered' }));
+      RL.forEach(function (l) {
+        var row = el('div', { cls: 'won-row' }, [el('span', { text: l.name + (l.wants ? ' · ' + l.wants : '') })]);
+        if (l.won) row.appendChild(el('b', { cls: 'won', text: 'Won' + (l.won.amount ? ' $' + Number(l.won.amount).toLocaleString('en-US') : '') }));
+        else {
+          var amt = el('input', { type: 'text', inputmode: 'numeric', placeholder: '$ worth (optional)', 'aria-label': 'What the job was worth', hidden: '' });
+          var save = el('button', { cls: 'chip strong', hidden: '', text: 'Save', onclick: function () { save.disabled = true; api('/api/won', { id: l.id, amount: amt.value }).then(function () { toast('Nice. Marked won.'); return load(); }).catch(function (e) { save.disabled = false; toast(e.message); }); } });
+          var tap = el('button', { cls: 'chip', text: 'Won the job', onclick: function () { tap.hidden = true; amt.hidden = false; save.hidden = false; amt.focus(); } });
+          row.appendChild(el('span', { cls: 'won-act' }, [tap, amt, save]));
+        }
+        box.appendChild(row);
+      });
+    }
     var text = R.said + '\nhttps://burnoff.app';
     box.appendChild(el('div', { cls: 'chips' }, [el('button', { cls: 'chip strong', text: '↗ Share my week', onclick: function () { if (navigator.share) navigator.share({ text: text }).catch(function () {}); else copy(text); } })]));
   }
@@ -644,7 +661,7 @@ label.ck{display:flex;gap:10px;align-items:flex-start;margin:14px 0 6px;font-wei
     if (c.steps) { if (c.about) kids.push(el('p', { cls: 'muted', text: c.about })); kids.push(stepList(c.steps)); }
     var buttons = el('div', { cls: 'big' });
     var go = function (decision, b) { b.disabled = true; api('/api/decide', { id: c.id, decision: decision }).then(function (r) { toast(r.said || (decision === 'decline' ? 'Declined.' : 'Done.')); return load(); }).catch(function (e) { b.disabled = false; toast(e.message); load(); }); };
-    var yes = c.test ? 'Looks good' : c.kind === 'propose' ? 'Build it' : c.kind === 'fix' ? 'Got it' : c.email ? 'Send the email' : c.kind === 'post' ? 'Use it' : 'Keep it', no = c.email ? 'Don\'t send' : c.kind === 'propose' ? 'Not now' : 'Dismiss';
+    var yes = c.test ? 'Looks good' : c.kind === 'rule' ? 'Make it a rule' : c.kind === 'propose' ? 'Build it' : c.kind === 'fix' ? 'Got it' : c.email ? 'Send the email' : c.kind === 'post' ? 'Use it' : 'Keep it', no = c.email ? 'Don\'t send' : c.kind === 'rule' ? 'No, never' : c.kind === 'propose' ? 'Not now' : 'Dismiss';
     if ((c.actions || []).indexOf('answer') > -1) {   // a department asks you something it needs
       var ans = el('textarea', { rows: 3, placeholder: 'Your answer. It is kept for next time too.' }); kids.push(ans);
       var bs = el('button', { cls: 'btn yes', text: 'Send answer', onclick: function () { bs.disabled = true; api('/api/answer', { id: c.id, answer: ans.value }).then(function (r) { toast(r.said); return load(); }).catch(function (e) { bs.disabled = false; toast(e.message); }); } });
@@ -658,7 +675,7 @@ label.ck{display:flex;gap:10px;align-items:flex-start;margin:14px 0 6px;font-wei
     fb.appendChild(ta); fb.appendChild(el('div', { cls: 'chips' }, [el('button', { cls: 'btn yes sm', text: 'Rewrite it', onclick: function (e) { var b = e.target; b.disabled = true; b.textContent = 'Rewriting…';
       api('/api/feedback', { id: c.id, note: ta.value }).then(function (r) { toast('Rewritten. Look it over.'); bodyEl.textContent = r.card.email ? r.card.email.body : r.card.body; fb.hidden = true; ta.value = ''; return load(); })
         .catch(function (err) { toast(err.message); }).then(function () { b.disabled = false; b.textContent = 'Rewrite it'; }); } })]));
-    kids.push(el('div', { cls: 'chips' }, [c.kind !== 'fix' && bodyEl ? el('button', { cls: 'chip', text: '✎ Needs feedback', onclick: function () { fb.hidden = !fb.hidden; if (!fb.hidden) ta.focus(); } }) : null,
+    kids.push(el('div', { cls: 'chips' }, [c.kind !== 'fix' && c.kind !== 'rule' && bodyEl ? el('button', { cls: 'chip', text: '✎ Needs feedback', onclick: function () { fb.hidden = !fb.hidden; if (!fb.hidden) ta.focus(); } }) : null,
       c.gmail ? el('a', { cls: 'chip', href: c.gmail, target: '_blank', rel: 'noopener', text: 'Open in Gmail' }) : null,
       bodyEl && (!c.email || c.test) ? el('button', { cls: 'chip', text: 'Copy', onclick: function () { copy(bodyEl.textContent); } }) : null,
       c.kind === 'fix' ? el('button', { cls: 'chip', text: '? Ask the guide', onclick: function () { $('q').value = 'I see "' + c.title + '". What do I do?'; location.hash = 'guide'; } }) : null,

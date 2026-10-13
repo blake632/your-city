@@ -159,6 +159,7 @@ function createServer({ city, password = () => process.env.CITY_PASSWORD, public
       if (p === '/api/research' && req.method === 'POST') { if (!city.research) throw new Error('The Research desk is not open in this city.'); return json(res, 200, { ok: true, said: await city.research.run() }); }
       if (p === '/api/askcity' && req.method === 'POST') { const b = await body(req); return json(res, 200, await city.askCity(b.text)); }
       if (p === '/api/wish' && req.method === 'POST') { const b = await body(req); return json(res, 200, await city.wish(b.text)); }
+      if (p === '/api/won' && req.method === 'POST') { const b = await body(req); return json(res, 200, { ok: true, won: city.markWon(String(b.id || ''), b.undo ? null : b.amount) }); }
       if (p === '/api/testlead' && req.method === 'POST') return json(res, 200, await city.testLead());
       if (p === '/api/site' && req.method === 'POST') { const b = await body(req); return json(res, 200, { ok: true, found: await city.readSite(b.url) }); }
       if (p === '/api/run' && req.method === 'POST') { const b = await body(req); return json(res, 200, { ok: true, said: await city.runAgent(String(b.agent || '')) }); }
@@ -241,7 +242,7 @@ function cityData(city) {
 function state(city, redirect) {
   const s = city.settings();
   const week = city.results(7);
-  return { results: Object.assign(week, { said: City.said(week) }), hookUrl: String(redirect || '').replace(/\/connect\/google\/callback$/, '') + '/hook/lead/' + city.hookSecret(), settings: s, firstRun: !s.business || !city.departments().length, agents: city.agents(), picks: city.picks(), plan: city.tier(), help: process.env.HOSTED_HELP || '', cards: city.waiting(), updates: city.updates().slice(0, 150), checks: guide.checks(city, { redirect }),
+  return { recentLeads: city.recentLeads(), results: Object.assign(week, { said: City.said(week) }), hookUrl: String(redirect || '').replace(/\/connect\/google\/callback$/, '') + '/hook/lead/' + city.hookSecret(), settings: s, firstRun: !s.business || !city.departments().length, agents: city.agents(), picks: city.picks(), plan: city.tier(), help: process.env.HOSTED_HELP || '', cards: city.waiting(), updates: city.updates().slice(0, 150), checks: guide.checks(city, { redirect }),
     social: city.accounts ? city.accounts.state() : {},
     pay: process.env.PAY_URL ? { url: process.env.PAY_URL, title: process.env.PAY_TITLE || 'Keep your city', text: process.env.PAY_TEXT || 'Like what it does? Keep it running.', button: process.env.PAY_BUTTON || 'Keep my city' } : null,
     google: { configured: city.google.configured(), connected: city.google.connected(), email: city.google.email(), mode: city.google.mode() }, redirect,

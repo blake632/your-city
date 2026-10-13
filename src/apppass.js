@@ -98,7 +98,7 @@ class AppPassword {
       if (!to.length) throw new CityError('draft_gone', 'That draft has no one to send to.');
       try { await this.smtp(Object.assign({ auth: this.auth() }, SMTP)).sendMail({ envelope: { from: this.email(), to }, raw: m.source }); } catch (e) { throw explain(e); }
       await c.messageDelete(uid, { uid: true });
-      return { id: String(draftId) };
+      return { id: String(draftId), text: String(p.text || '') };   // as it went out, so the city learns from your edits
     });
   }
 }

@@ -8,6 +8,7 @@ const { judge } = require('./judge');
 const { Jev } = require('./jev');
 const { playbooksFor } = require('./school');
 const { addressOf, nameOf } = require('./google');
+const { Learn } = require('./learn');
 
 const EVERY = { 10: 'every 10 minutes', 60: 'every hour', 1440: 'every day', 10080: 'every week' };
 const LEAD_REPLY = 'Thank them for reaching out. Ask the one question that matters most for their request (for example: when they want to start, or where the job is). If the signature has a phone number, offer a quick call. Under 80 words.';
@@ -79,7 +80,7 @@ class City {
   constructor({ store, ai, google, push = null, jev = null, now = () => Date.now(), log = console, wishTo = () => process.env.WISH_URL || '', post = (u, o) => fetch(u, o) }) {
     Object.assign(this, { store, ai, google, push, now, log, wishTo, post });
     this.jev = jev || new Jev({ ai, store });
-    this.running = new Set(); this.deciding = new Set(); this.timer = null;
+    this.running = new Set(); this.deciding = new Set(); this.timer = null; this.learn = new Learn(this); this.learning = Promise.resolve();
   }
   // ---- settings and agents ----
   settings() { return Object.assign({}, DEFAULT_SETTINGS, this.store.get('settings', {})); }
@@ -228,10 +229,16 @@ class City {
         this.update(d.id, 'The ' + d.name + ' department is built. It works ' + EVERY[d.every] + '.');
         return { ok: true, status: 'done', said: 'Building ' + d.name + ' now.', department: d.id };
       }
+      if (c.kind === 'rule' && decision !== 'got_it') {   // "Make it a rule?": yes puts it in the department's writing, no is final
+        this.learn.set(c.agent, c.rule, decision === 'approve'); Object.assign(c, { status: decision === 'approve' ? 'approved' : 'declined', decidedAt: this.now() }); this.store.put('cards', c.id, c);
+        const D = this.department(c.agent), t = decision === 'approve' ? (D ? D.name : 'It') + ' writes this way from now on: ' + c.rule : 'OK, ' + (D ? D.name : 'it') + ' will not ask about that again.';
+        this.update(c.agent, t); return { ok: true, status: c.status, said: t };
+      }
       if (decision === 'approve' && c.test) said = 'That was a test lead, so nothing was sent. A real lead works the same way: one tap and it goes.';
       else if (decision === 'approve' && c.email && c.email.draftId) {
-        await this.google.sendDraft(c.email.draftId);
+        const sent = await this.google.sendDraft(c.email.draftId);
         status = 'sent'; said = 'Sent your reply to ' + (c.email.to || 'them') + '.';
+        if (sent && sent.text && !c.auto) { const before = c.email.body; this.learning = this.learning.then(() => this.learn.fromEdit(c.agent, before, sent.text)).catch(e => this.log.error('learn: ' + e.message)); }   // what you changed in Gmail teaches, after the send
         if (c.kind === 'lead' && c.lead && c.lead.email) { const fu = this.store.get('leadsSent', {}); fu[c.lead.email] = this.now(); this.store.set('leadsSent', fu); }
       } else if (decision === 'approve' && c.kind === 'post') {
         const D = this.department(c.agent), nets = this.accounts ? this.accounts.targets(c.title + ' ' + (D ? D.name : '')) : [];
@@ -259,6 +266,7 @@ class City {
     else if (c.email) c.email.body = text;
     else c.body = text;
     c.notes = (c.notes || []).concat([{ ts: this.now(), note }]); this.store.put('cards', c.id, c);
+    if (!c.test) this.learning = this.learning.then(() => this.learn.fromNote(c.agent, current, note)).catch(e => this.log.error('learn: ' + e.message));   // your note teaches too
     this.update(c.agent, 'Rewrote "' + c.title + '" from your note.');
     return c;
   }
@@ -462,7 +470,7 @@ class City {
       this.addCard({ agent: D.id, kind: 'lead', title: 'Not a customer: ' + (lead.name || email || lead.phone) + ', ' + what, lead, gmail, body: 'Jev read it as ' + what + ' (' + Math.round(not.confidence * 100) + '% sure), so no reply was written. If Jev is wrong, reply by hand.', jev: { mode: this.jev.mode(), kind: not.choice, sure: not.confidence }, actions: ['got_it'] });
       return false; }
     const first = await this.ai.ask({ model: this.agentConf(D.id).model, effort: 'medium', maxTokens: 8000,
-      system: this.voice(email ? s : Object.assign({}, s, { signature: '' })) + ' You write the first reply to a new customer. Follow the owner\'s reply guide exactly.' + playbooksFor(this.store, D.id),
+      system: this.voice(email ? s : Object.assign({}, s, { signature: '' })) + ' You write the first reply to a new customer. Follow the owner\'s reply guide exactly.' + playbooksFor(this.store, D.id) + this.learn.rulesFor(D.id),
       prompt: 'REPLY GUIDE:\n' + D.does + this.factsOf(D) + '\n\nTHE CUSTOMER\nName: ' + (lead.name || '(unknown)') + (email ? '\nEmail: ' + email : '') + (lead.phone ? '\nPhone: ' + lead.phone : '') + '\nWhat they want: ' + lead.wants + '\nCame in: ' + lead.came +
         '\n\nTHEIR MESSAGE:\n' + String(text).slice(0, 4000) + (email ? '\n\nWrite only the email body, from the greeting to the signature.' : '\n\nThey left only a phone number. Write a short text message (under 300 characters) from the owner, with no signature block.') });
     const { text: body, judged } = await this.judged(D, first, (lead.name || 'A customer') + ' wrote:\n' + String(text).slice(0, 3000)), who = lead.name || email || lead.phone;
@@ -517,16 +525,35 @@ class City {
     const posts = done.filter(c => c.kind === 'post' && c.status === 'approved'), notes = done.filter(c => c.kind === 'note' && c.status === 'done');
     const waits = leads.filter(c => c.lead && c.lead.at).map(c => c.decidedAt - c.lead.at).sort((a, b) => a - b);
     const minutes = leads.length * MINUTES.lead + emails.length * MINUTES.email + posts.length * MINUTES.post + notes.length * MINUTES.note;
-    return { days, leads: leads.length, emails: emails.length, posts: posts.length, notes: notes.length, replyMin: waits.length ? Math.max(1, Math.round(waits[Math.floor((waits.length - 1) / 2)] / 6e4)) : null, minutes };
+    const won = this.store.list('cards').filter(c => c.won && c.won.at >= from), wonValue = won.reduce((a, c) => a + (Number(c.won.amount) || 0), 0);
+    return { days, won: won.length, wonValue, leads: leads.length, emails: emails.length, posts: posts.length, notes: notes.length, replyMin: waits.length ? Math.max(1, Math.round(waits[Math.floor((waits.length - 1) / 2)] / 6e4)) : null, minutes };
   }
   static said(r) {
     const n = (x, one, many) => x + ' ' + (x === 1 ? one : many), parts = [];
+    if (r.won) parts.push('won ' + n(r.won, 'job', 'jobs'));
     if (r.leads) parts.push('answered ' + n(r.leads, 'lead', 'leads') + (r.replyMin != null ? ' (typical reply in ' + (r.replyMin < 90 ? r.replyMin + ' min' : Math.round(r.replyMin / 60) + ' hours') + ')' : ''));
     if (r.emails) parts.push(n(r.emails, 'email', 'emails') + ' sent');
     if (r.posts) parts.push(n(r.posts, 'post', 'posts') + ' written');
     if (r.notes) parts.push(n(r.notes, 'piece', 'pieces') + ' of work kept');
     if (!parts.length) return '';
     return 'My AI office ' + parts.join(', ') + ' this week. About ' + (r.minutes < 90 ? r.minutes + ' minutes' : Math.round(r.minutes / 60) + ' hours') + ' of my time back.';
+  }
+  // The money report (10/13): the leads you answered lately, and the ones that became a job. You tap Won the job (and type what it was
+  // worth, if you like); nothing is guessed. Only a lead whose reply went out can be marked.
+  recentLeads(days = 30) {
+    const from = this.now() - days * 864e5;
+    return this.store.list('cards').filter(c => c.kind === 'lead' && c.status === 'sent' && !c.test && (c.decidedAt || 0) >= from).sort((a, b) => b.decidedAt - a.decidedAt).slice(0, 10)
+      .map(c => ({ id: c.id, name: (c.lead && (c.lead.name || c.lead.email)) || c.title, wants: (c.lead && c.lead.wants) || '', at: c.decidedAt, won: c.won || null }));
+  }
+  markWon(cardId, amount) {
+    const c = this.store.doc('cards', cardId);
+    if (!c || c.kind !== 'lead' || c.status !== 'sent') throw new Error('Only a lead you answered can be marked won.');
+    const v = Math.round(Number(String(amount == null ? '' : amount).replace(/[$,\s]/g, '')) || 0);
+    if (amount === null) delete c.won; else c.won = { at: this.now(), amount: v > 0 ? v : null };
+    this.store.put('cards', c.id, c);
+    const who = (c.lead && (c.lead.name || c.lead.email)) || 'that lead';
+    this.update('guide', c.won ? 'Won the job: ' + who + (c.won.amount ? ' ($' + c.won.amount.toLocaleString('en-US') + ')' : '') + '.' : 'Unmarked ' + who + '.');
+    return c.won;
   }
   // Monday morning: last week in one line, in Updates and on your phone.
   weekly() {
@@ -556,7 +583,7 @@ class City {
   }
   async mailReply(D, m, sort, pulled) {
     const s = this.settings(), to = addressOf(m.replyTo || m.from);
-    const first = await this.ai.ask({ model: this.agentConf(D.id).model, effort: 'medium', maxTokens: 8000, system: this.voice(s) + ' You write the owner\'s reply to this email. Answer what they asked, briefly. The owner\'s note for replies: ' + D.does + playbooksFor(this.store, D.id),
+    const first = await this.ai.ask({ model: this.agentConf(D.id).model, effort: 'medium', maxTokens: 8000, system: this.voice(s) + ' You write the owner\'s reply to this email. Answer what they asked, briefly. The owner\'s note for replies: ' + D.does + playbooksFor(this.store, D.id) + this.learn.rulesFor(D.id),
       prompt: 'From: ' + m.from + '\nSubject: ' + m.subject + '\n\n' + m.text.slice(0, 6000) + '\n\nWrite only the reply body, from the greeting to the signature.' });
     const { text: body, judged } = await this.judged(D, first, 'Subject: ' + m.subject + '\n\n' + m.text.slice(0, 3000));
     const msg = { to, subject: /^re:/i.test(m.subject) ? m.subject : 'Re: ' + m.subject, body, threadId: m.threadId, inReplyTo: m.messageId, references: m.references };
@@ -569,7 +596,7 @@ class City {
     const s = this.settings();
     const effort = await this.jevEffort(D.does);
     const r = await this.ai.ask({ model: this.agentConf(D.id).model, effort, maxTokens: 12000, schema: POSTS_SCHEMA,
-      system: this.voice(Object.assign({}, s, { signature: '' })) + ' You write social media posts.' + playbooksFor(this.store, D.id),
+      system: this.voice(Object.assign({}, s, { signature: '' })) + ' You write social media posts.' + playbooksFor(this.store, D.id) + this.learn.rulesFor(D.id),
       prompt: 'Today is ' + new Date(this.now()).toDateString() + '.\n\nWHAT THE OWNER WANTS:\n' + D.does + this.factsOf(D) + '\n\nEach post: the platform, the post text with a few fitting hashtags, and the kind of real photo the owner should use. Never describe a photo as if it already exists.' });
     const posts = (r.posts || []).slice(0, 5);
     for (const p of posts.slice().reverse()) {   // the first post shows first
@@ -580,7 +607,7 @@ class City {
   }
   async runOwn(D) {
     const s = this.settings(), effort = await this.jevEffort(D.does);
-    const write = extra => this.ai.ask({ model: this.agentConf(D.id).model, effort, maxTokens: 12000, system: this.voice(Object.assign({}, s, { signature: '' })) + ' You are the owner\'s department "' + D.name + '". Be short and useful.' + playbooksFor(this.store, D.id),
+    const write = extra => this.ai.ask({ model: this.agentConf(D.id).model, effort, maxTokens: 12000, system: this.voice(Object.assign({}, s, { signature: '' })) + ' You are the owner\'s department "' + D.name + '". Be short and useful.' + playbooksFor(this.store, D.id) + this.learn.rulesFor(D.id),
       prompt: 'Today is ' + new Date(this.now()).toDateString() + '.\n\nWHAT THIS DEPARTMENT DOES:\n' + D.does + (D.audience ? '\n\nWHO THE WORK IS FOR: ' + D.audience : '') + this.factsOf(D) + City.ASK + (extra || '') });
     let first = await write();
     const q = this.askedIn(first);
