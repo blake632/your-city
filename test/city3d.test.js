@@ -40,6 +40,17 @@ test('the 3D city page, its data and three.js', async () => {
     // events, pets, holidays and what people say: drawn from life (events, pet, holiday, say); a kid who grows up joins the roster on the next poll
     assert(html.includes('id="says"') && ['EVG.win', 'EVG.bonfire', 'EVG.birthday', 'ballAt(', 'makeDog(', 'makeCat(', 'dressTown()', 'function roster(', 'function layoutSays('].every(k => src.includes(k)), 'events, pets, holidays, bubbles and rosters');
     assert(/max=VW<600\?3:4/.test(src) && /for\(let i=0;i<4;i\+\+\)\{ const el=document\.createElement\('div'\)/.test(src), 'at most 4 speech bubbles (3 on a phone)');
+    // the rainy night: local fonts only, one skinned mesh per person, rain off with reduced motion, hoverboards, flying cars
+    assert(!/fonts\.googleapis|fonts\.gstatic/.test(html), 'no outside fonts');
+    assert(['new THREE.SkinnedMesh(', 'const RAIN=REDUCED?null:', 'function setRide(', 'const SPIN=[]', 'function paintStatus('].every(k => src.includes(k)), 'people, rain, rides, spinners and the status bar');
+    // the sample town: ?demo=1 never polls the app or messages a parent, and its data is served without signing in
+    assert(src.includes("fetch('demo-data.json')") && src.includes('if(!DEMO) setInterval(pull,20000)') && src.includes('const EMBED=!DEMO&&'), 'demo mode runs with no server');
+    const demo = await (await fetch(base + '/demo-data.json')).json();
+    assert.deepStrictEqual(demo, require('../scripts/demo-data').make(), 'public/demo-data.json is what scripts/demo-data.js makes (run it again after changing town life)');
+    const ppl = demo.life.people;
+    assert.deepStrictEqual([demo.business, demo.departments.map(d => d.kind), demo.demo.frames.length], ["Sam's Kitchens", ['leads', 'mailroom', 'social'], 24]);
+    assert(ppl.length >= 20 && ppl.length <= 30 && ppl.some(p => p.kind === 'kid') && ppl.some(p => p.partner) && ppl.some(p => p.pet), 'about 25 people with couples, kids and pets');
+    assert(['friends', 'dating', 'wedding', 'win', 'bonfire'].every(k => demo.demo.moments.some(m => m.kind === k)), 'the scripted moments');
     const live = await (await fetch(base + '/api/city3d', { headers: H })).json();
     assert.deepStrictEqual([live.business, live.departments.length, typeof live.hall.need], ['Sam\'s Kitchens </script><b>', 2, 'number']);
   } finally { srv.close(); }

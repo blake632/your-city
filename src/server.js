@@ -7,7 +7,7 @@ const { City, EVERY } = require('./city');
 const guide = require('./guide');
 
 const PUBLIC = path.join(__dirname, '..', 'public');
-const OPEN = { '/vendor/three.min.js': ['vendor/three.min.js', 'text/javascript'], '/sw.js': ['sw.js', 'text/javascript'], '/manifest.webmanifest': ['manifest.webmanifest', 'application/manifest+json'], '/icon.svg': ['icon.svg', 'image/svg+xml'], '/icon-512.png': ['icon-512.png', 'image/png'], '/apple-touch-icon.png': ['apple-touch-icon.png', 'image/png'] };
+const OPEN = { '/vendor/three.min.js': ['vendor/three.min.js', 'text/javascript'], '/demo-data.json': ['demo-data.json', 'application/json'], '/sw.js': ['sw.js', 'text/javascript'], '/manifest.webmanifest': ['manifest.webmanifest', 'application/manifest+json'], '/icon.svg': ['icon.svg', 'image/svg+xml'], '/icon-512.png': ['icon-512.png', 'image/png'], '/apple-touch-icon.png': ['apple-touch-icon.png', 'image/png'] };
 const json = (res, code, obj, h) => { res.writeHead(code, Object.assign({ 'content-type': 'application/json', 'cache-control': 'no-store' }, h || {})); res.end(JSON.stringify(obj)); };
 const body = req => new Promise((ok, bad) => { const ch = []; let n = 0; req.on('data', c => { n += c.length; if (n > 2e6) { bad(new Error('too large')); req.destroy(); } else ch.push(c); }); req.on('end', () => { const raw = Buffer.concat(ch).toString(); try { ok(JSON.parse(raw || '{}') || {}); } catch (e) { ok(Object.fromEntries(new URLSearchParams(raw))); } }); req.on('error', bad); });
 const hash = s => crypto.createHash('sha256').update(String(s)).digest();
