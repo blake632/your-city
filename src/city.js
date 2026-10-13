@@ -628,6 +628,7 @@ class City {
     this.store.put('cards', c.id, c);
     const who = (c.lead && (c.lead.name || c.lead.email)) || 'that lead';
     this.update('guide', c.won ? 'Won the job: ' + who + (c.won.amount ? ' ($' + c.won.amount.toLocaleString('en-US') + ')' : '') + '.' : 'Unmarked ' + who + '.');
+    if (c.won && this.life) { const D = this.department(c.agent); try { this.life.celebrate(c.agent, (D ? D.name : 'Your team') + ' won a new job! Party in the park tonight.'); } catch (e) {} }   // the town celebrates your wins (never the dollars)
     return c.won;
   }
   // Monday morning: last week in one line, in Updates and on your phone.
