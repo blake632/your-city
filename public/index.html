@@ -373,7 +373,7 @@ label.ck{display:flex;gap:10px;align-items:flex-start;margin:14px 0 6px;font-wei
       var first = DEPTS().filter(function (d) { return d.kind === 'social' || d.kind === 'own'; }).slice(0, 2), leads = DEPTS().some(function (d) { return d.kind === 'leads'; });
       var chain = Promise.resolve(); if (mem.get('setupRan')) first = [], leads = false; mem.set('setupRan', '1'); first.forEach(function (d) { chain = chain.then(function () { return api('/api/run', { agent: d.id }).catch(function () {}); }); });
       if (leads) chain = chain.then(function () { return api('/api/testlead', {}).catch(function () {}); });
-      chain.then(function () { said.textContent = 'Its first work is waiting for you. Approve what you like, decline what you don’t. It learns from every tap.'; });
+      chain.then(function () { said.textContent = 'Its first work is waiting for you. Approve what you like, decline what you don’t. Every tap counts toward autopilot.'; });
       if (S.pay && S.pay.url) box.appendChild(el('div', { cls: 'box', style: 'padding:16px;margin:8px 0 0' }, [el('b', { text: S.pay.title }), el('p', { cls: 'muted', style: 'margin:4px 0 0', text: S.pay.text }),
         el('div', { cls: 'chips' }, [el('a', { cls: 'btn yes sm', href: S.pay.url, target: '_blank', rel: 'noopener', style: 'text-decoration:none', text: S.pay.button })])]));
       box.appendChild(el('div', { cls: 'chips', style: 'margin-top:18px' }, [el('button', { cls: 'btn yes', text: 'Open my city', onclick: done })]));
@@ -529,7 +529,7 @@ label.ck{display:flex;gap:10px;align-items:flex-start;margin:14px 0 6px;font-wei
     if (a.review !== false && a.readiness) {
       var r = a.readiness;
       if (a.auto) ab.appendChild(el('div', { cls: 'box auto on' }, [el('b', { text: '🤖 Autopilot is on' }), el('p', { cls: 'muted', text: 'It approves its own work now, up to 20 a day. Questions, and anything the panel marks weak, still come to you.' }), el('button', { cls: 'chip', text: 'Turn off autopilot', onclick: function () { pilot(false); } })]));
-      else ab.appendChild(el('div', { cls: 'box auto' }, [el('b', { text: r.ready ? 'Autopilot: ready when you are' : 'Autopilot: learning how you work' }), el('div', { cls: 'bar' }, [el('i', { style: 'width:' + Math.min(100, Math.round(r.asIs / r.need * 100)) + '%' })]),
+      else ab.appendChild(el('div', { cls: 'box auto' }, [el('b', { text: r.ready ? 'Autopilot: ready when you are' : 'Autopilot: getting ready' }), el('div', { cls: 'bar' }, [el('i', { style: 'width:' + Math.min(100, Math.round(r.asIs / r.need * 100)) + '%' })]),
         el('p', { cls: 'muted', text: r.ready ? r.asIs + ' of its last ' + r.decided + ' were approved as written.' : r.asIs + ' of its last ' + r.decided + ' approved as written. It unlocks at ' + r.need + ' of ' + r.of + '. Approve, decline or give feedback on its cards to teach it.' }),
         S.plan && !S.plan.auto ? el('p', { cls: 'muted', text: 'Autopilot comes with the Ultimate plan.' })
           : el('button', { cls: 'btn yes sm', text: 'Turn on autopilot', disabled: !r.ready, onclick: function () { pilot(true); } })]));

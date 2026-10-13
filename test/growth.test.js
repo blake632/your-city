@@ -97,6 +97,8 @@ test('fill in my details from my website: the page text only, never its scripts'
   const t = await setup();
   const site = http.createServer((req, res) => { res.writeHead(200, { 'content-type': 'text/html' }); res.end('<html><script>var stealMe=1</script><h1>Sam&#39;s Kitchens</h1><p>Kitchens built in Austin since 2004. Call 512 555 0199 for a visit any weekday.</p></html>'); });
   const url = await listen(site); open.push(() => site.close());
+  await assert.rejects(t.city.readSite(url), /not a public website/, 'never this server or the private network it runs in');
+  t.city.publicSite = async () => true;   // the test site runs on this computer
   const f = await t.city.readSite(url);
   assert.deepStrictEqual(f, { business: 'Sam\'s Kitchens', about: 'Kitchen remodels in Austin since 2004.', voice: 'Warm and plain.' });
   await assert.rejects(t.city.readSite('http://127.0.0.1:1'), /Could not open/);

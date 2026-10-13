@@ -26,6 +26,8 @@ const FIXES = {
   cut_off: { title: 'An AI answer was cut off', steps: () => ['Nothing to do. The city tries again on its next run.'] },
   budget: { title: 'Today\'s AI budget is used up', steps: c => ['Agents pause until tomorrow so you never spend more than you chose ($' + c.cap.toFixed(2) + ' a day).', 'To keep going today, raise Daily AI budget in Settings.'] },
   no_database: { title: 'Your city forgets everything on each restart', steps: () => ['Right now it saves to a file, and Railway wipes that file every time it redeploys.', 'In Railway, open your project and click Create (or + New), then Database, then PostgreSQL.', RAILWAY_VARS, 'Click New Variable. Name: DATABASE_URL. Value: ${{Postgres.DATABASE_URL}} (type it exactly, with the dollar sign and braces).', 'Railway restarts the city. Your settings start fresh once, then stay.'] },
+  no_lock: { title: 'Lock your saved passwords', steps: () => ['Your Gmail password and AI keys are saved in your database without a lock. Add one so a copy of the database is useless on its own.', 'In Railway, click your app, then Variables, then New Variable.', 'Name: CITY_SECRET_KEY. Value: any long random text (40 or more letters and numbers). Keep a copy somewhere safe.', 'Press Add. Your city restarts in a minute and locks everything it has saved.', 'Never change or delete it later: the city could not open what it locked, and you would connect Gmail and your AI again.'] },
+  secret_lost: { title: 'Connect Gmail and your AI again', steps: () => ['Your city could not open a saved password: the CITY_SECRET_KEY variable changed or is gone.', 'Put the old value back in Railway, Variables, if you still have it.', 'Or connect Gmail and your AI again in Settings. They are saved with the new lock.'] },
   no_address: { title: 'Your city has no web address', steps: () => ['In Railway, click your app, then Settings.', 'Under Networking, click Generate Domain.', 'Open that address. That is your city.'] },
   gmail_connect: { title: 'Let your city read your Gmail (about 2 minutes)', steps: () => [
     'Go to myaccount.google.com/apppasswords and sign in with the Gmail account the city should read. If Google asks, turn on 2-Step Verification first.',
@@ -75,6 +77,7 @@ function checks(city, { redirect }) {
   add('ai', !need && !aiErr, 'Your AI: ' + ac.name + ', model ' + ac.model, aiErr ? aiErr.code : need === 'your AI model' ? 'no_ai_model' : need === 'your AI service address' ? 'no_ai_address' : 'no_ai_key');
   const onRailway = !!process.env.RAILWAY_ENVIRONMENT || !!process.env.RAILWAY_PROJECT_ID;
   add('db', city.store.kind() === 'postgres' || !onRailway, city.store.kind() === 'postgres' ? 'Database is connected' : 'Saving to data/city.json on this computer', 'no_database');
+  if (city.store.kind() !== 'memory') add('lock', city.store.locks() && !city.store.locked.length, 'Saved passwords are locked', city.store.locked.length ? 'secret_lost' : 'no_lock');
   add('departments', city.departments().length > 0, 'Your city has ' + city.departments().length + ' department' + (city.departments().length === 1 ? '' : 's'), 'no_departments');
   const mail = !!(city.byKind('leads') || city.byKind('mailroom'));
   if (mail) {

@@ -8,6 +8,7 @@ A small Node.js app, drawn as a city: departments the owner names and describes 
 - The one exception is autopilot, which the owner turns on per department (`City.setAutopilot`) after it earns it (8 of its last 10 approved as written). It approves through the same `City.decide`; questions, fixes, new buildings and work the panel marked weak always wait; at most 20 a day; a new job turns it off. Never turn it on for the owner.
 - Departments never invent prices, dates or promises. Facts come from the owner's Settings or the message itself.
 - Never log, print, store in the page state, or commit a key, a password or the Google refresh token. The one exception is the lead link (`/hook/lead/<secret>`, `City.hookSecret`): the signed-in owner sees it to paste into forms, and it can only add leads (30 an hour).
+- Saved secrets (Gmail app password, Google pass, AI and Jev keys, page tokens, alert keys, sign-in secret) are locked with `CITY_SECRET_KEY` (`src/store.js` SEALED); a hosted city is claimed only with `SETUP_TOKEN` (its welcome link `?claim=`); wrong passwords count per address; `readSite` opens only public sites; autopilot leaves a reply for the owner when `pilotHold` finds orders in the message, another recipient, or a link, phone or price not in Settings (`test/security.test.js`).
 - Every failure the owner can fix gets a plain-English fix in `src/guide.js` (`FIXES`): one action per step, naming the exact button. Throw a `CityError` with that code.
 
 ## Working on it

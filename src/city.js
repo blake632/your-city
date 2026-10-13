@@ -1,7 +1,7 @@
 // The city: your settings, your agents, the cards waiting for you, what each agent did, and the clock that runs them.
 // Rules that never bend: nothing is sent, posted or deleted without your click. Agents write drafts and cards; you approve.
 // The one exception is yours to give: a department you put on autopilot approves its own work (see pilotFor).
-const crypto = require('node:crypto');
+const crypto = require('node:crypto'), dns = require('node:dns').promises, net = require('node:net');
 const { CityError, MODELS } = require('./ai');
 const guide = require('./guide');
 const { judge } = require('./judge');
@@ -47,6 +47,32 @@ const POSTS_SCHEMA = { type: 'object', additionalProperties: false, required: ['
   properties: { platform: { type: 'string' }, text: { type: 'string' }, photo: { type: 'string' } } } } } };
 const ROBOT = /no-?reply|notifications?@|mailer-daemon|postmaster|donotreply|bounce/i;
 const id = () => Date.now().toString(36) + crypto.randomBytes(3).toString('hex');
+// "Fill it in from my website" opens only public websites: never this server, the private network the city runs in, or a cloud's
+// metadata address. Every redirect is checked too. ponytail: the name is looked up twice (here and by fetch); a site that changes its
+// address in between could still slip through, so the reader only ever returns page words to the AI, never to the page.
+const PRIVATE = [/^0\./, /^10\./, /^127\./, /^169\.254\./, /^172\.(1[6-9]|2\d|3[01])\./, /^192\.168\./, /^100\.(6[4-9]|[7-9]\d|1[01]\d|12[0-7])\./, /^::1?$/, /^f[cd]/i, /^fe[89ab]/i, /^::ffff:/i];
+async function publicSite(u) {
+  if (!/^https?:$/.test(u.protocol) || u.username || u.password || /^(localhost|.*\.(local|internal|localhost))$/i.test(u.hostname)) return false;
+  const host = u.hostname.replace(/^\[|\]$/g, ''), addrs = net.isIP(host) ? [{ address: host }] : await dns.lookup(host, { all: true }).catch(() => []);
+  return addrs.length > 0 && !addrs.some(a => PRIVATE.some(r => r.test(a.address)));
+}
+// Autopilot's last look before it approves a reply for you (10/13): an email or lead message can carry words meant for the AI, so a reply
+// waits for you when the message tries to give orders, when the reply goes to anyone but the sender, or when the reply adds a link, an
+// email address, a phone number or a price that is not in your Settings. Returns why it waits, or ''.
+const ORDERS = /ignore (all |any |the )?(previous|prior|above|earlier) (instructions|messages)|disregard (your|the|all)|system prompt|you are (now )?(an? )?(ai|assistant|chatbot|language model)|new instructions|(forward|send|reply) (this|it|everything|all) to |developer mode|jailbreak/i;
+function pilotHold(c, settings) {
+  const body = String((c.email && c.email.body) || c.body || ''), came = String((c.came && c.came.text) || c.heard || (c.lead && c.lead.wants) || ''), mine = JSON.stringify(settings || {}).toLowerCase();
+  if (ORDERS.test(came) || ORDERS.test(body)) return 'their message reads like instructions to the AI';
+  const to = String((c.email && c.email.to) || '').toLowerCase(), them = String((c.lead && c.lead.email) || (c.came && c.came.from) || '').toLowerCase();
+  if (to && them && them.indexOf(to.replace(/^.*<|>.*$/g, '')) === -1) return 'the reply goes to someone other than the sender';
+  const odd = (body.match(/https?:\/\/[^\s)]+|www\.[^\s)]+|[\w.+-]+@[\w-]+(\.[\w-]+)+/gi) || []).find(x => mine.indexOf(x.toLowerCase().replace(/^https?:\/\/(www\.)?|^www\.|[/.]+$/g, '')) === -1);
+  if (odd) return 'the reply adds ' + odd + ', which is not in your Settings';
+  const digits = mine.replace(/\D/g, ''), phone = (body.match(/\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}/g) || []).find(x => digits.indexOf(x.replace(/\D/g, '')) === -1);
+  if (phone) return 'the reply adds a phone number that is not in your Settings';
+  const price = (body.match(/\$\s?\d[\d,]*(\.\d+)?/g) || []).find(x => mine.indexOf(x.replace(/\s/g, '').toLowerCase()) === -1);
+  if (price) return 'the reply names a price (' + price + ') that is not in your Settings';
+  return '';
+}
 const ago = ms => { const m = Math.round(ms / 6e4); return m < 60 ? m + ' min ago' : m < 2880 ? Math.round(m / 60) + ' hours ago' : Math.round(m / 1440) + ' days ago'; };
 
 class City {
@@ -145,6 +171,7 @@ class City {
     if (this.tier() && !this.tier().auto) return false;
     if (!D || !D.auto || !D.on || c.test || !AUTO_KINDS.includes(c.kind) || !(c.actions || []).includes('approve')) return false;
     if (c.judged && c.judged.panel && c.judged.panel.pass === false) return false;
+    const hold = pilotHold(c, this.settings()); if (hold) { c.note = (c.note ? c.note + ' ' : '') + 'Autopilot left this one for you: ' + hold + '.'; return false; }
     const today = new Date(this.now()).toDateString();
     return this.store.list('cards').filter(x => x.agent === c.agent && x.auto && new Date(x.ts).toDateString() === today).length < AUTO.perDay;
   }
@@ -444,7 +471,7 @@ class City {
     const drafted = () => { const dup = this.store.get('leadsDrafted', {}); dup[email || lead.phone] = this.now(); this.store.set('leadsDrafted', dup); };
     if (msg && this.google.connected()) {
       const d = await this.google.createDraft(msg); drafted();
-      this.addCard({ agent: D.id, kind: 'lead', title: 'Reply to ' + who + ', ready to send', lead, gmail, email: Object.assign({}, msg, d), judged, jev: { mode: this.jev.mode(), kind: 'customer' }, actions: ['approve', 'decline'] });
+      this.addCard({ agent: D.id, kind: 'lead', title: 'Reply to ' + who + ', ready to send', lead, gmail, heard: String(text).slice(0, 3000), email: Object.assign({}, msg, d), judged, jev: { mode: this.jev.mode(), kind: 'customer' }, actions: ['approve', 'decline'] });
     } else drafted(), this.addCard({ agent: D.id, kind: 'lead', title: 'New lead: ' + who + '. Your ' + (msg ? 'email' : 'text') + ' is written', lead, body: (msg ? 'To: ' + email + '\nSubject: ' + msg.subject + '\n\n' : '') + body,
       note: msg ? 'Connect Gmail in Settings and the city drafts it in Gmail, so one tap sends it.' : 'Copy it, then press Text to send it from your phone.', judged, jev: { mode: this.jev.mode(), kind: 'customer' }, actions: ['got_it'] });
     return true;
@@ -512,7 +539,13 @@ class City {
   async readSite(url) {
     url = String(url || '').trim(); if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
     let u; try { u = new URL(url); } catch (e) { throw new Error('That does not look like a website address.'); }
-    const r = await fetch(u, { redirect: 'follow', signal: AbortSignal.timeout(15000), headers: { 'user-agent': 'Mozilla/5.0 (compatible; YourCity)' } }).catch(() => null);
+    let r = null;
+    for (let hop = 0; hop < 5; hop++) {   // follow redirects by hand, checking each address
+      if (!(await (this.publicSite || publicSite)(u))) throw new Error('That is not a public website. Type your own site, like yourbusiness.com.');
+      r = await fetch(u, { redirect: 'manual', signal: AbortSignal.timeout(15000), headers: { 'user-agent': 'Mozilla/5.0 (compatible; YourCity)' } }).catch(() => null);
+      if (!r || r.status < 300 || r.status > 399 || !r.headers.get('location')) break;
+      try { u = new URL(r.headers.get('location'), u); } catch (e) { r = null; break; }
+    }
     if (!r || !r.ok) throw new Error('Could not open ' + u.host + '. Check the address and try again.');
     const text = (await r.text()).slice(0, 500000).replace(/<(script|style|noscript|svg|template)[\s\S]*?<\/\1>/gi, ' ').replace(/<[^>]+>/g, ' ')
       .replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&#39;|&rsquo;/g, "'").replace(/\s+/g, ' ').trim().slice(0, 12000);
@@ -625,4 +658,4 @@ class City {
   start(everyMs = 60e3) { const go = () => this.tick().catch(e => this.log.error('tick: ' + e.message)); setTimeout(go, 5000); this.timer = setInterval(go, everyMs); }
   stop() { clearInterval(this.timer); }
 }
-module.exports = { City, KINDS, PICKS, PLANS, GUIDE, EVERY, DEFAULT_SETTINGS, LABELS, SORT_SCHEMA, LEAD_REPLY, AUTO };
+module.exports = { City, KINDS, PICKS, PLANS, GUIDE, EVERY, DEFAULT_SETTINGS, LABELS, SORT_SCHEMA, LEAD_REPLY, AUTO, publicSite, pilotHold };

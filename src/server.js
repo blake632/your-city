@@ -23,7 +23,14 @@ function createServer({ city, password = () => process.env.CITY_PASSWORD, public
   const cookie = () => { const exp = String(Date.now() + 30 * 864e5); return 'sid=' + encodeURIComponent(exp + '.' + sign(exp)) + '; Path=/; HttpOnly; SameSite=Lax; Max-Age=' + 30 * 86400 + (/^https:/.test(publicUrl()) ? '; Secure' : ''); };
   const signedIn = req => { const m = /(?:^|;\s*)sid=([^;]+)/.exec(req.headers.cookie || ''); if (!m) return false; const [exp, mac] = decodeURIComponent(m[1]).split('.'); return !!mac && mac === sign(exp) && Number(exp) > Date.now(); };
   const origin = req => publicUrl() || ((req.headers['x-forwarded-proto'] || 'http').split(',')[0] + '://' + req.headers.host);
-  const states = new Map(); let fails = [];
+  const states = new Map(), fails = new Map();
+  // Wrong passwords are counted per address (Railway's proxy adds the caller's address last), so one stranger guessing can never lock
+  // the owner out: 10 tries in 10 minutes from one address, 100 from everyone together.
+  const who = req => String(String(req.headers['x-forwarded-for'] || '').split(',').pop() || (req.socket && req.socket.remoteAddress) || '').trim();   // a faked address only moves a guesser to the shared 100
+  const tries = k => (fails.get(k) || []).filter(t => t > Date.now() - 10 * 60e3);
+  // A hosted city is claimed with the one-time link from its welcome email (SETUP_TOKEN): before that no one can choose its password.
+  const claim = () => String(process.env.SETUP_TOKEN || '').trim();
+  const claimed = given => !claim() || crypto.timingSafeEqual(hash(given || ''), hash(claim()));
   // The owner's password: the CITY_PASSWORD variable if set, else the one chosen on first visit (stored as a salted hash).
   const envPw = () => (password() || '').trim(), owner = () => store.get('owner');
   const hasPassword = () => !!envPw() || !!(owner() && owner().hash);
@@ -56,19 +63,20 @@ function createServer({ city, password = () => process.env.CITY_PASSWORD, public
     if (!hasPassword()) {
       if (p === '/setup' && req.method === 'POST') {
         const b = await body(req), pw = String(b.password || '');
+        if (!claimed(b.claim)) return json(res, 403, { error: 'Open your city from the link in your welcome email.' });
         if (pw.length < 8) return json(res, 400, { error: 'Use at least 8 characters.' });
         if (hasPassword()) return json(res, 409, { error: 'This city already has a password.' });
         setPassword(pw); return json(res, 200, { ok: true }, { 'set-cookie': cookie() });
       }
       if (p.startsWith('/api/')) return json(res, 401, { error: 'Choose a password first.' });
-      res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' }); return res.end(firstRunPage());
+      res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' }); return res.end(claimed(url.searchParams.get('claim')) ? firstRunPage() : claimPage());
     }
     if (p === '/setup') return json(res, 409, { error: 'This city already has a password. Sign in instead.' });
     if (p === '/login' && req.method === 'POST') {
-      fails = fails.filter(t => t > Date.now() - 10 * 60e3);
-      if (fails.length >= 10) return json(res, 429, { error: 'Too many tries. Wait 10 minutes.' });
+      const ip = who(req), mine = tries(ip), all = tries('*');
+      if (mine.length >= 10 || all.length >= 100) return json(res, 429, { error: 'Too many tries. Wait 10 minutes.' });
       const b = await body(req);
-      if (!checkPassword(b.password)) { fails.push(Date.now()); return json(res, 401, { error: envPw() && !process.env.HOSTED_BY ? 'That password is not right. It is the CITY_PASSWORD variable in Railway.' : 'That password is not right.' }); }
+      if (!checkPassword(b.password)) { fails.set(ip, mine.concat([Date.now()])); fails.set('*', all.concat([Date.now()])); if (fails.size > 5000) fails.clear(); return json(res, 401, { error: envPw() && !process.env.HOSTED_BY ? 'That password is not right. It is the CITY_PASSWORD variable in Railway.' : 'That password is not right.' }); }
       return json(res, 200, { ok: true }, { 'set-cookie': cookie() });
     }
     if (!signedIn(req)) {
@@ -258,6 +266,11 @@ function firstRunPage() {
   return shell('Welcome', '<h1>Your <em>City</em></h1><p>Your city is running. Choose the password that opens it. Only you should see this page: the first person to choose a password becomes the owner.</p>' +
     '<form id=f><input id=pw type=password autocomplete=new-password placeholder="Choose a password (8 or more characters)" autofocus><input id=pw2 type=password autocomplete=new-password placeholder="Type it again"><button>Open my city</button></form><p id=m></p>',
     'document.getElementById("f").onsubmit=async e=>{e.preventDefault();const a=document.getElementById("pw").value,b=document.getElementById("pw2").value,m=document.getElementById("m");if(a!==b)return m.textContent="The two passwords are not the same.";' +
-    'const r=await fetch("/setup",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({password:a})});if(r.ok)return location.reload();m.textContent=(await r.json().catch(()=>({}))).error||"That did not work.";};');
+    'const r=await fetch("/setup",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({password:a,claim:new URLSearchParams(location.search).get("claim")||""})});if(r.ok)return location.reload();m.textContent=(await r.json().catch(()=>({}))).error||"That did not work.";};');
+}
+// A hosted city opened without its welcome link: nothing to do here but find the link.
+function claimPage() {
+  return shell('Welcome', '<h1>Your <em>City</em></h1><p>Open your city from the link in your welcome email. That link is the only way to choose its password.</p>' +
+    (process.env.HOSTED_HELP ? '<p class=muted>Lost the email? Write to ' + esc(process.env.HOSTED_HELP) + ' and a person sends it again.</p>' : ''));
 }
 module.exports = { createServer, state };
