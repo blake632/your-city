@@ -1234,7 +1234,9 @@ function updateCars(dt){ for(const c of cars){ c.s=(c.s+c.v*dt)%c.L; let sg=c.se
 // People are smooth, human-proportioned figures built in code (no downloaded models): a head about 1/7.5 of their height, a shaped
 // torso and hips, arms with elbows and hands, legs with knees, a simple face. Each person is ONE skinned mesh on a shared humanoid rig
 // (11 bones), so a person is one draw call. Geometries are shared by everyone with the same build, outfit and hair; colours come from
-// a tiny palette texture (skin, hair, top, pants, shoes, coat, neon trim, dark), and the trim glows in the department's colour.
+// a tiny palette texture (skin, hair, top, pants, shoes, coat, neon trim, dark, chrome, second neon); the trim glows in the department's
+// colour and the second neon in a street colour. Cyberpunk dress: light strips on pants and boot soles, visors, respirator masks,
+// mohawks, neon hair, shoulder armour and chrome cyber-arms, picked per person from a hash so everyone looks the same every visit.
 // Kids have kid proportions. Bones: 0 hips, 1 spine, 2 head, 3 armL, 4 elbowL, 5 armR, 6 elbowR, 7 legL, 8 kneeL, 9 legR, 10 kneeR.
 const RIGS={
   adult:{hipX:.095,hipY:1.17,thigh:.53,shin:.5,spine:1.22,neck:1.98,shX:.228,shY:1.86,upper:.33,fore:.29,head:[.125,.165,.145],hc:.19,sit:-.34,
@@ -1243,13 +1245,13 @@ const RIGS={
   kid:{hipX:.085,hipY:1.06,thigh:.47,shin:.46,spine:1.12,neck:1.82,shX:.19,shY:1.7,upper:.28,fore:.25,head:[.165,.2,.18],hc:.22,sit:-.3,
     pelvis:[[0,.94],[.11,.96],[.14,1.03],[.148,1.1],[.142,1.2],[.138,1.25]],
     chest:[[.136,1.18],[.138,1.3],[.145,1.45],[.16,1.58],[.165,1.68],[.13,1.76],[.06,1.81],[0,1.815]],dz:.72,arm:[.056,.048,.046,.038],leg:[.086,.066,.062,.048],hand:[.036,.058,.046]}};
-const SLOT={skin:0,hair:1,top:2,pants:3,shoes:4,coat:5,trim:6,dark:7};
-const CHG={};   // shared character geometries: build|outfit|hair|beard|visor
+const SLOT={skin:0,hair:1,top:2,pants:3,shoes:4,coat:5,trim:6,dark:7,chrome:8,neon:9}, PALN=10;
+const CHG={};   // shared character geometries: build|outfit|hair|beard|visor|mask|cyber
 const V2=(a)=>a.map(([r,y])=>new THREE.Vector2(r,y)), sstep=x=>x<=0?0:x>=1?1:x*x*(3-2*x);
 const rAt=(pr,y)=>{ for(let i=1;i<pr.length;i++){ const [r0,y0]=pr[i-1], [r1,y1]=pr[i]; if(y<=y1) return r0+(r1-r0)*clamp((y-y0)/(y1-y0||1),0,1); } return pr[pr.length-1][0]; };   // the torso's radius at a height
 function capsule(r1,r2,len,seg){ const pts=[]; for(let i=0;i<=3;i++){ const a=i/3*Math.PI/2; pts.push([r2*Math.sin(a),-len-r2*Math.cos(a)]); } for(let i=0;i<=3;i++){ const a=Math.PI/2-i/3*Math.PI/2; pts.push([r1*Math.sin(a),r1*Math.cos(a)]); }
   return new THREE.LatheGeometry(V2(pts),seg||8); }
-function charGeo(kid,fit,hs,beard,visor){ const key=[kid?1:0,fit,hs,beard,visor].join('|'); if(CHG[key]) return CHG[key];
+function charGeo(kid,fit,hs,beard,visor,mask,cyber){ const key=[kid?1:0,fit,hs,beard,visor,mask,cyber].join('|'); if(CHG[key]) return CHG[key];
   const R=kid?RIGS.kid:RIGS.adult, parts=[], M=new THREE.Matrix4(), Q=new THREE.Quaternion(), E=new THREE.Euler();
   const sleeve=fit==='coat'?SLOT.coat:SLOT.top, body=fit==='coat'?SLOT.coat:SLOT.top, hy=R.neck+R.hc, [hx,hh,hz]=R.head;
   // add(geometry, slot, skin, x,y,z, rx,ry,rz, sx,sy,sz): skin is a bone index or a function (x,y,z) -> [[bone,weight]...]
@@ -1269,6 +1271,8 @@ function charGeo(kid,fit,hs,beard,visor){ const key=[kid?1:0,fit,hs,beard,visor]
   add(sph(6,4),SLOT.skin,2,0,hy-.025,hz*.98,0,0,0,.022,.034,.026);   // nose
   add(new THREE.BoxGeometry(.05,.008,.012),SLOT.dark,2,0,hy-.075,hz*.95);   // mouth
   if(visor) add(new THREE.CylinderGeometry(1,1,1,16,1,true,-1,2),SLOT.trim,2,0,hy+.012,0,0,0,0,hx*1.1,.045,hz*1.08);   // a glowing visor
+  if(mask){ add(sph(10,6),SLOT.dark,2,0,hy-.07,.045,0,0,0,hx*.82,hh*.44,hz*.8);   // a respirator over mouth and nose, two lit filters
+    [-1,1].forEach(s=>add(new THREE.CylinderGeometry(.024,.024,.026,10),SLOT.neon,2,s*hx*.44,hy-.085,hz*.8,Math.PI/2,0,-s*.5)); }
   // hair
   const cap=(sc,tl,c)=>add(sph(12,6,0,TAU,0,Math.PI*tl),c==null?SLOT.hair:c,2,0,hy+.006,-.008,-.38,0,0,hx*sc,hh*sc,hz*sc);   // tilted back: the hairline sits above the brows
   const back=(sx,sy,sz,y,tl)=>add(sph(12,7,Math.PI-.5,Math.PI+1,0,Math.PI*(tl||.66)),SLOT.hair,2,0,y,-.01,0,0,0,hx*sx,hh*sy,hz*sz);
@@ -1283,6 +1287,8 @@ function charGeo(kid,fit,hs,beard,visor){ const key=[kid?1:0,fit,hs,beard,visor]
     case 'beanie': cap(1.12,.5,SLOT.coat); add(new THREE.TorusGeometry(hx*1.12,.014,6,20),SLOT.trim,2,0,hy+.03,-.03,Math.PI/2-.38,0,0,1,hz/hx,1); break;
     case 'cap': cap(1.1,.44,SLOT.coat); add(new THREE.BoxGeometry(.2,.014,.13),SLOT.dark,2,0,hy+hh*.5,hz*1.05,-.12); break;
     case 'bald': break;
+    case 'mohawk': cap(1.03,.46); for(let i=0;i<5;i++){ const z=hz*(.62-i*.34), y=hy+hh*Math.sqrt(Math.max(0,1-(z/hz)**2));   // shaved sides, a row of spikes
+      add(new THREE.ConeGeometry(.032,.15-i*.012,5),SLOT.hair,2,0,y+.04,z,-.25-i*.22); } break;
     default: cap(1.08,.5);
   }
   if(beard) add(sph(10,5,.25,Math.PI-.5,Math.PI*.56,Math.PI*.3),SLOT.hair,2,0,hy,0,0,0,0,hx*1.05,hh*1.04,hz*1.06);
@@ -1293,29 +1299,38 @@ function charGeo(kid,fit,hs,beard,visor){ const key=[kid?1:0,fit,hs,beard,visor]
     add(new THREE.LatheGeometry(V2([[.225,R.hipY-.56],[.205,R.hipY-.4],[.185,R.hipY-.2],[.17,R.spine],[.15,R.spine+.16]]),14),SLOT.coat,legW(.75),0,0,0,0,0,0,1,1,R.dz+.12);
     add(new THREE.TorusGeometry(.225,.012,4,14),SLOT.trim,legW(.75),0,R.hipY-.56,0,Math.PI/2,0,0,1,R.dz+.12,1);   // glowing hem
     add(new THREE.TorusGeometry(rAt(R.chest,R.spine+.1)+.008,.018,4,14),SLOT.dark,waist,0,R.spine+.1,0,Math.PI/2,0,0,1,R.dz,1);   // belt
-    add(sph(8,5),SLOT.top,1,0,R.shY-.1,rAt(R.chest,R.shY-.1)*R.dz,0,0,0,.07,.12,.02); }   // the shirt at the open front
+    add(sph(8,5),SLOT.top,1,0,R.shY-.1,rAt(R.chest,R.shY-.1)*R.dz,0,0,0,.07,.12,.02);
+    [-1,1].forEach(s=>add(new THREE.BoxGeometry(.01,.5,.01),SLOT.neon,1,s*.075,R.spine+.3,rAt(R.chest,R.spine+.3)*R.dz+.01)); }   // lit piping down the front   // the shirt at the open front
   else if(fit==='hoodie'){ add(sph(10,6,Math.PI-.3,Math.PI+.6,0,Math.PI*.7),SLOT.top,1,0,R.neck-.02,-.035,0,0,0,.13,.12,.12);   // the hood, down
     [-1,1].forEach(s=>add(new THREE.BoxGeometry(.008,.13,.008),SLOT.trim,1,s*.032,R.shY-.1,rAt(R.chest,R.shY-.1)*R.dz+.004));   // glowing drawstrings
-    add(new THREE.TorusGeometry(rAt(R.chest,R.spine+.06)+.006,.014,4,14),SLOT.trim,waist,0,R.spine+.06,0,Math.PI/2,0,0,1,R.dz,1); }
+    add(new THREE.TorusGeometry(rAt(R.chest,R.spine+.06)+.006,.014,4,14),SLOT.trim,waist,0,R.spine+.06,0,Math.PI/2,0,0,1,R.dz,1);
+    add(new THREE.BoxGeometry(.035,.62,.012),SLOT.dark,1,0,R.spine+.33,rAt(R.chest,R.spine+.33)*R.dz+.012,0,0,.62);   // a cross-body strap with a light line
+    add(new THREE.BoxGeometry(.008,.6,.006),SLOT.neon,1,0,R.spine+.33,rAt(R.chest,R.spine+.33)*R.dz+.02,0,0,.62); }
   else { collar(SLOT.top); add(new THREE.BoxGeometry(.012,.36,.012),SLOT.trim,1,0,R.shY-.26,rAt(R.chest,R.shY-.26)*R.dz+.003);   // a jacket with a lit zip
-    add(new THREE.TorusGeometry(rAt(R.chest,R.spine+.04)+.008,.016,4,14),SLOT.dark,waist,0,R.spine+.04,0,Math.PI/2,0,0,1,R.dz,1); }
+    add(new THREE.TorusGeometry(rAt(R.chest,R.spine+.04)+.008,.016,4,14),SLOT.dark,waist,0,R.spine+.04,0,Math.PI/2,0,0,1,R.dz,1);
+    if(!kid) [[-1,3],[1,5]].forEach(([s,b])=>{ add(sph(8,5,0,TAU,0,Math.PI/2),SLOT.chrome,b,s*R.shX,R.shY+.035,0,0,0,-s*.35,R.arm[0]*1.75,R.arm[0]*1.1,R.arm[0]*1.7);   // shoulder armour, lit edge
+      add(new THREE.TorusGeometry(R.arm[0]*1.72,.008,4,14),SLOT.neon,b,s*R.shX,R.shY+.035,0,Math.PI/2,-s*.35,0); }); }
   // arms: shoulder, upper arm, a neon cuff, forearm, hand
-  [[-1,3,4],[1,5,6]].forEach(([s,ub,eb])=>{ const x=s*R.shX, [a1,a2,f1,f2]=R.arm;
-    add(sph(8,5),sleeve,ub,x-s*.012,R.shY-.01,0,0,0,0,a1*1.12,a1*1.05,a1*1.12);
-    add(capsule(a1,a2,R.upper,8),sleeve,ub,x,R.shY,0);
-    add(capsule(f1,f2,R.fore-.03,8),sleeve,eb,x,R.shY-R.upper,0);
+  [[-1,3,4],[1,5,6]].forEach(([s,ub,eb])=>{ const x=s*R.shX, [a1,a2,f1,f2]=R.arm, cy=cyber&&s===1, sl=cy?SLOT.chrome:sleeve;   // a cyber-arm is chrome with lit joints
+    add(sph(8,5),sl,ub,x-s*.012,R.shY-.01,0,0,0,0,a1*1.12,a1*1.05,a1*1.12);
+    add(capsule(cy?a1*.85:a1,cy?a2*.8:a2,R.upper,8),sl,ub,x,R.shY,0);
+    add(capsule(cy?f1*.85:f1,cy?f2*.8:f2,R.fore-.03,8),sl,eb,x,R.shY-R.upper,0);
+    if(cy) [R.shY-R.upper,R.shY-.08].forEach((y,j)=>add(new THREE.TorusGeometry(a2*.95,.009,4,12),SLOT.neon,j?ub:eb,x,y,0,Math.PI/2));
     add(new THREE.CylinderGeometry(f2*1.12,f2*1.12,.026,8,1,true),SLOT.trim,eb,x,R.shY-R.upper-R.fore+.04,0);
-    add(sph(8,5),SLOT.skin,eb,x,R.shY-R.upper-R.fore-.04,.005,0,0,0,R.hand[0],R.hand[1],R.hand[2]); });
+    add(sph(8,5),cy?SLOT.chrome:SLOT.skin,eb,x,R.shY-R.upper-R.fore-.04,.005,0,0,0,R.hand[0],R.hand[1],R.hand[2]); });
   // legs: thigh, shin, a boot
   [[-1,7,8],[1,9,10]].forEach(([s,lb,kb])=>{ const x=s*R.hipX, [t1,t2,s1,s2]=R.leg, ky=R.hipY-R.thigh, ay=ky-R.shin;
     add(capsule(t1,t2,R.thigh,8),SLOT.pants,lb,x,R.hipY,0);
     add(capsule(s1,s2,R.shin-.06,8),SLOT.pants,kb,x,ky,0);
     add(new THREE.CylinderGeometry(s2*1.1,s2*1.2,.13,8,1,true),SLOT.shoes,kb,x,ay+.03,0);
-    add(sph(8,4,0,TAU,0,Math.PI/2),SLOT.shoes,kb,x,ay-.12,.045,0,0,0,.062,.09,.135); });
+    add(sph(8,4,0,TAU,0,Math.PI/2),SLOT.shoes,kb,x,ay-.12,.045,0,0,0,.062,.09,.135);
+    add(new THREE.BoxGeometry(.012,R.thigh*.8,.012),SLOT.neon,lb,x+s*(t1+t2)*.5,R.hipY-R.thigh*.5,0);   // light strips down the outside of each leg
+    add(new THREE.BoxGeometry(.012,(R.shin-.06)*.8,.012),SLOT.neon,kb,x+s*(s1+s2)*.5,ky-(R.shin-.06)*.5,0);
+    add(new THREE.TorusGeometry(1,.14,4,16),SLOT.trim,kb,x,ay-.118,.045,Math.PI/2,0,0,.066,.14,.066); });   // glowing soles
   // merge into one indexed geometry with a palette UV and bone weights
   let nv=0, ni=0; parts.forEach(p=>{ nv+=p.g.attributes.position.count; ni+=p.g.index?p.g.index.count:p.g.attributes.position.count; });
   const pos=new Float32Array(nv*3), nor=new Float32Array(nv*3), uv=new Float32Array(nv*2), si=new Uint16Array(nv*4), sw=new Float32Array(nv*4), idx=new Uint32Array(ni); let o=0, oi=0;
-  parts.forEach(p=>{ const g=p.g, P0=g.attributes.position, N0=g.attributes.normal, n=P0.count, u=(p.slot+.5)/8;
+  parts.forEach(p=>{ const g=p.g, P0=g.attributes.position, N0=g.attributes.normal, n=P0.count, u=(p.slot+.5)/PALN;
     for(let i=0;i<n;i++){ const x=P0.getX(i), y=P0.getY(i), z=P0.getZ(i), k=o+i; pos[k*3]=x; pos[k*3+1]=y; pos[k*3+2]=z; nor[k*3]=N0.getX(i); nor[k*3+1]=N0.getY(i); nor[k*3+2]=N0.getZ(i); uv[k*2]=u; uv[k*2+1]=.5;
       const w=typeof p.skin==='function'?p.skin(x,y,z):[[p.skin,1]]; for(let j=0;j<4;j++){ si[k*4+j]=w[j]?w[j][0]:0; sw[k*4+j]=w[j]?w[j][1]:0; } }
     if(g.index) for(let i=0;i<g.index.count;i++) idx[oi++]=g.index.getX(i)+o; else for(let i=0;i<n;i++) idx[oi++]=o+i;
@@ -1323,11 +1338,12 @@ function charGeo(kid,fit,hs,beard,visor){ const key=[kid?1:0,fit,hs,beard,visor]
   const geo=new THREE.BufferGeometry(); geo.setAttribute('position',new THREE.BufferAttribute(pos,3)); geo.setAttribute('normal',new THREE.BufferAttribute(nor,3)); geo.setAttribute('uv',new THREE.BufferAttribute(uv,2));
   geo.setAttribute('skinIndex',new THREE.Uint16BufferAttribute(si,4)); geo.setAttribute('skinWeight',new THREE.BufferAttribute(sw,4)); geo.setIndex(new THREE.BufferAttribute(idx,1)); geo.computeBoundingSphere(); geo.boundingSphere.radius+=.6;
   return CHG[key]=geo; }
-// one material per palette: 8 colours in an 8x1 texture, the trim slot also lights the emissive map
+// one material per palette: PALN colours in a PALNx1 texture, the two neon slots also light the emissive map
 const PALM={}, _pc=new THREE.Color(), _pd=new THREE.Color('#15171c');
+const VIVID=['#ff2e88','#00c8f0','#b8f020','#8f4dff','#ff6a1a','#e6e8f0','#141418'], NEON_HAIR=['#ff3fa4','#3ff0ff','#b46bff','#7dff5a','#f2f4ff','#ff7a2e'], STREET_NEON=['#ff2e88','#5fe6ff','#c8ff2e','#b46bff'];
 function palMat(cols){ const key=cols.join(); if(PALM[key]) return PALM[key];
-  const mk=(fill)=>{ const [c,x]=cvs(8,1); fill(x); const t=new THREE.CanvasTexture(c); t.magFilter=t.minFilter=THREE.NearestFilter; t.generateMipmaps=false; return t; };
-  const map=mk(x=>cols.forEach((col,i)=>{ x.fillStyle=col; x.fillRect(i,0,1,1); })), em=mk(x=>{ cols.forEach((col,i)=>{ x.fillStyle=col; x.fillRect(i,0,1,1); }); x.fillStyle='rgba(0,0,0,.84)'; x.fillRect(0,0,8,1); x.fillStyle=cols[SLOT.trim]; x.fillRect(SLOT.trim,0,1,1); });   // a little self-light so faces read at night; the trim glows
+  const mk=(fill)=>{ const [c,x]=cvs(PALN,1); fill(x); const t=new THREE.CanvasTexture(c); t.magFilter=t.minFilter=THREE.NearestFilter; t.generateMipmaps=false; return t; };
+  const map=mk(x=>cols.forEach((col,i)=>{ x.fillStyle=col; x.fillRect(i,0,1,1); })), em=mk(x=>{ cols.forEach((col,i)=>{ x.fillStyle=col; x.fillRect(i,0,1,1); }); x.fillStyle='rgba(0,0,0,.84)'; x.fillRect(0,0,PALN,1); [SLOT.trim,SLOT.neon].forEach(i=>{ x.fillStyle=cols[i]; x.fillRect(i,0,1,1); }); });   // a little self-light so faces read at night; the trim glows
   return PALM[key]=new THREE.MeshPhongMaterial({map,emissive:0xffffff,emissiveMap:em,shininess:28,specular:0x2a2f38}); }
 const docTex=(()=>{ const [c,x]=cvs(64,80); x.fillStyle='#fffaf0'; x.fillRect(6,4,52,72); x.fillStyle='#e8bd62'; x.fillRect(6,4,52,8); x.fillStyle='#b9b2a4'; for(let i=0;i<5;i++) x.fillRect(13,22+i*10,i===4?22:38,4); x.strokeStyle='#e8bd62'; x.lineWidth=3; x.strokeRect(6,4,52,72); return tex(c); })();
 const DOCMAT=new THREE.SpriteMaterial({map:docTex,depthWrite:false});
@@ -1335,9 +1351,11 @@ const cardTex=['2','3','4','5'].map(n=>{ const [c,x]=cvs(64,52); x.fillStyle='#f
 const pickables=[];
 function makeChar(L,acc,scale,info){
   const kid=!!(info&&info.life&&info.life.kind==='kid'), R=kid?RIGS.kid:RIGS.adult, h=fnv(String((info&&info.id)||L.id||'')+L.skin+L.hair+L.top);
-  const fit=kid?(h%2?'hoodie':'jacket'):['coat','coat','hoodie','jacket'][h%4], coat='#'+_pc.set(L.top).lerp(_pd,.38).getHexString();
+  const fit=kid?(h%2?'hoodie':'jacket'):['coat','coat','hoodie','jacket'][h%4], b=(n,m)=>(h>>>n)%m===0, pick=(n,a)=>a[(h>>>n)%a.length];
+  const dk=(c,f)=>'#'+_pc.set(c).lerp(_pd,f).getHexString(), top=b(13,3)?pick(15,VIVID):dk(L.top,.5), coat=dk(top,.38), hair=b(3,3)?pick(23,NEON_HAIR):L.hair;
+  const visor=L.glasses||b(7,4)?1:0, mask=!kid&&!visor&&b(9,5)?1:0, cyber=!kid&&b(11,5)?1:0, hs=!kid&&b(5,6)?'mohawk':L.hs||'short';
   const root=new THREE.Group(); root.scale.setScalar(scale||1);
-  const mesh=new THREE.SkinnedMesh(charGeo(kid,fit,L.hs||'short',L.beard?1:0,L.glasses?1:0),palMat([L.skin,L.hair,L.top,L.pants,L.shoes||'#17181c',coat,acc||'#5fe6ff','#121317']));
+  const mesh=new THREE.SkinnedMesh(charGeo(kid,fit,hs,L.beard&&!mask?1:0,visor,mask,cyber),palMat([L.skin,hair,top,dk(L.pants,.4),L.shoes||'#17181c',coat,acc||'#5fe6ff','#121317','#a9b4c2',pick(25,STREET_NEON)]));
   const bones=[], B=(par,x,y,z)=>{ const b=new THREE.Bone(); b.position.set(x,y,z); if(par) par.add(b); bones.push(b); return b; };
   const hips=B(null,0,0,0), spine=B(hips,0,R.spine,0), head=B(spine,0,R.neck-R.spine,0), armL=B(spine,-R.shX,R.shY-R.spine,0), elbowL=B(armL,0,-R.upper,0), armR=B(spine,R.shX,R.shY-R.spine,0), elbowR=B(armR,0,-R.upper,0),
     legL=B(hips,-R.hipX,R.hipY,0), kneeL=B(legL,0,-R.thigh,0), legR=B(hips,R.hipX,R.hipY,0), kneeR=B(legR,0,-R.thigh,0);
