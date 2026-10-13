@@ -27,8 +27,10 @@ const SAY = { cafe: ['Coffee first.', 'The usual, please.', 'This muffin is huge
   lake: ['What a sunset.', 'The water is calm today.'], gym: ['One more set.', 'Leg day.'], school: ['Time for class.', 'Recess!'], streets: ['Mail’s here!', 'Beautiful day.'],
   work: { leads: ['Watching for new customers.', 'Writing replies in your voice.'], mailroom: ['Sorting the mail.', 'Keeping the inbox tidy.'], social: ['Planning this week’s posts.', 'Writing a caption.'], own: ['On it.', 'Back to work.'],
     hall: ['Checking the city’s setup.', 'Planning the day.'], research: ['Reading about new tools.'], school: ['Grading practice work.'] },
-  win: ['We did it!', 'Cheers to the team!', 'Best day ever.'], bonfire: ['Pass the marshmallows.', 'Look at the stars.'], soccer: ['Go, go, go!', 'Nice kick!'],
-  birthday: ['Happy birthday!', 'Make a wish!'], halloween: ['Trick or treat!', 'Cool costume!'], lights: ['The lights look amazing.'], fireworks: ['Wow, look at that!'] };
+  win: ['We did it!', 'Cheers to the team!', 'Best day ever.', 'Look at those fireworks!', 'Drinks are on Leads!', 'What a week.'],
+  bonfire: ['Pass the marshmallows.', 'Look at the stars.', 'Who brought the guitar?', 'This fire is perfect.', 'Best part of the week.', 'More wood!'],
+  soccer: ['Go, go, go!', 'Nice kick!', 'Pass it!', 'Goal!', 'Great save!'], birthday: ['Happy birthday!', 'Make a wish!', 'Save me a slice.', 'Speech, speech!'],
+  halloween: ['Trick or treat!', 'Cool costume!', 'Boo!', 'Got any candy?'], lights: ['The lights look amazing.', 'So cozy.', 'Look at that tree!'], fireworks: ['Wow, look at that!', 'Ooh, a red one!'] };
 // Real holidays by date (month 1-12, day), as the town celebrates them.
 function holidayOf(d) {
   const m = d.getMonth() + 1, day = d.getDate(), dow = d.getDay(), thanks = m === 11 && dow === 4 && day >= 22 && day <= 28;
@@ -179,7 +181,8 @@ class Life {
     const now = this.city.now(), s = this.sync(this.state());
     const live = (s.events || []).filter(e => e.from <= now && e.until > now), hol = holidayOf(new Date(new Intl.DateTimeFormat('en-US', { timeZone: this.tz, year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(now))));
     const deptName = id => this.deptName(id), kindOf = id => CIVIC[id] ? id : ((this.city.department(id) || {}).kind || 'own');
-    const line = (p, w, ev) => { const h = hash(p.id + ':' + Math.floor(now / 36e5)); const list = ev ? SAY[ev.kind] : hol && SAY[hol] && w !== 'work' ? SAY[hol] : w === 'work' ? SAY.work[kindOf(p.dept)] : SAY[w]; return list && h % 3 === 0 ? pick(list, h >>> 3) : ''; };
+    const line = (p, w, ev) => { const h = hash(p.id + ':' + Math.floor(now / 36e5)); const list = ev ? SAY[ev.kind] : hol && SAY[hol] && w !== 'work' ? SAY[hol] : w === 'work' ? SAY.work[kindOf(p.dept)] : SAY[w]; if (!list || h % 3) return '';
+      return ev ? list[(ev.who.indexOf(p.id) + Math.floor(now / 36e5)) % list.length] : pick(list, h >>> 3); };   // at an event, neighbours never say the same line
     return { hour: this.hour(now), holiday: hol, places: PLACES,
       events: live.map(e => ({ id: e.id, kind: e.kind, place: e.place, who: e.who, until: e.until })),
       people: s.people.map(p => { const w = this.where(p, now, s), ev = live.find(e => e.who.includes(p.id) && e.place === w);
