@@ -9,6 +9,7 @@ const { Jev } = require('./jev');
 const { playbooksFor } = require('./school');
 const { addressOf, nameOf } = require('./google');
 const { Learn } = require('./learn');
+const { Life } = require('./life');
 
 const EVERY = { 10: 'every 10 minutes', 60: 'every hour', 1440: 'every day', 10080: 'every week' };
 const LEAD_REPLY = 'Thank them for reaching out. Ask the one question that matters most for their request (for example: when they want to start, or where the job is). If the signature has a phone number, offer a quick call. Under 80 words.';
@@ -81,7 +82,7 @@ class City {
   constructor({ store, ai, google, push = null, jev = null, now = () => Date.now(), log = console, wishTo = () => process.env.WISH_URL || '', post = (u, o) => fetch(u, o) }) {
     Object.assign(this, { store, ai, google, push, now, log, wishTo, post });
     this.jev = jev || new Jev({ ai, store });
-    this.running = new Set(); this.deciding = new Set(); this.timer = null; this.learn = new Learn(this); this.learning = Promise.resolve();
+    this.running = new Set(); this.deciding = new Set(); this.timer = null; this.learn = new Learn(this); this.learning = Promise.resolve(); this.life = new Life(this);
   }
   // ---- settings and agents ----
   settings() { return Object.assign({}, DEFAULT_SETTINGS, this.store.get('settings', {})); }
@@ -705,6 +706,7 @@ class City {
   }
   // Every minute: run what is due. Agents wait (no error) while their setup is missing or the day's budget is used.
   async tick() {
+    try { this.life.step(); } catch (e) { this.log.error('life: ' + e.message); }   // town life runs on code alone: free, even with no AI
     const ticks = this.store.get('ticks', {}), due = this.jobs().filter(j => !this.running.has(j.key) && this.now() - (ticks[j.key] || 0) >= j.every * 6e4 - 5e3);
     if (!due.length) return [];
     if (!this.ai.ready()) return [];

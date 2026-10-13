@@ -235,7 +235,7 @@ function cityData(city) {
   const judged = cards.concat(ups).filter(c => c.judged && c.judged.panel).sort((a, b) => b.ts - a.ts)[0], P = judged && judged.judged;
   const dist = P ? [1, 2, 3, 4, 5].map(n => P.panel.reactions.filter(r => r.score === n).length) : null;
   const post = cards.find(c => c.kind === 'post');
-  return { business: city.settings().business || '',
+  return { business: city.settings().business || '', life: city.life ? city.life.view() : null,
     hall: { need: problems, lines: lines('guide'), mayor: (m => m && city.department(m.id) ? { name: m.name, votes: m.votes, of: m.of, out: m.out || '' } : null)(city.store.get('mayor', null)) },
     research: { need: 0, live: now - last('research') < 15 * 60e3, lines: lines('research') },
     school: { need: cards.filter(c => c.agent === 'school').length, live: now - last('school') < 15 * 60e3, lines: lines('school') },
