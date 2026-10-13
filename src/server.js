@@ -170,6 +170,7 @@ function createServer({ city, password = () => process.env.CITY_PASSWORD, public
       if (p === '/api/wish' && req.method === 'POST') { const b = await body(req); return json(res, 200, await city.wish(b.text)); }
       if (p === '/api/won' && req.method === 'POST') { const b = await body(req); return json(res, 200, { ok: true, won: city.markWon(String(b.id || ''), b.undo ? null : b.amount) }); }
       if (p === '/api/testlead' && req.method === 'POST') return json(res, 200, await city.testLead());
+      if (p === '/api/quickstart' && req.method === 'POST') { const b = await body(req); return json(res, 200, Object.assign({ ok: true }, await city.quickStart({ url: b.url, business: b.business }))); }
       if (p === '/api/site' && req.method === 'POST') { const b = await body(req); return json(res, 200, { ok: true, found: await city.readSite(b.url) }); }
       if (p === '/api/run' && req.method === 'POST') { const b = await body(req); return json(res, 200, { ok: true, said: await city.runAgent(String(b.agent || '')) }); }
       if (p === '/api/ask' && req.method === 'POST') { const b = await body(req); return json(res, 200, await guide.ask(city, b.question, { redirect: city.redirect })); }
