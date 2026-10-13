@@ -24,11 +24,11 @@ test('type a website: the city builds itself, and each department asks for what 
     const people = store.get('life').people; assert(people.length >= 4 + 6, 'crews and regulars moved in');
     assert(store.get('life').news.some(n => n.text === 'Sam\'s Kitchens opened. Everyone moved in.'));
     const asks = city.waiting().filter(c => c.kind === 'connect');
-    assert.strictEqual(asks.length, 2, 'one ask per department');
+    assert.strictEqual(asks.length, 1, 'one of them asks for the AI, not every department');
     const lead = people.find(p => p.dept === city.byKind('leads').id).name.split(' ')[0];
     assert(asks.every(c => /I need a brain to think with/.test(c.title) && c.go === 'ai'), 'no AI yet: that is the first thing they ask for');
-    assert(asks.some(c => c.title.startsWith('I\'m ' + lead + ' from Leads.')));
-    city.connectAsks(); assert.strictEqual(city.waiting().filter(c => c.kind === 'connect').length, 2, 'asked once');
+    assert(/^I'm \w+ from (Leads|Mail room)\./.test(asks[0].title)); void lead;
+    city.connectAsks(); assert.strictEqual(city.waiting().filter(c => c.kind === 'connect').length, 1, 'asked once');
     // the AI is connected: those asks close, and Leads asks for the next thing, the forwarded leads
     city.ai.needs = () => '';
     city.connectAsks();

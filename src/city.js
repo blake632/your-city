@@ -542,6 +542,7 @@ class City {
     this.waiting().filter(c => c.kind === 'connect' && this.blockedBy(c.agent) !== c.need).forEach(c => { Object.assign(c, { status: 'done', decidedAt: this.now() }); this.store.put('cards', c.id, c); });
     for (const D of this.departments()) {
       const need = this.blockedBy(D.id), key = D.id + ':' + need; if (!need || asked[key]) continue;
+      if (/AI/.test(need) && this.waiting().some(c => c.kind === 'connect' && c.go === 'ai')) continue;   // one of them asks for the AI, not every department
       const who = (people.find(p => p.dept === D.id && p.kind === 'adult') || {}).name || '', me = (who ? 'I\'m ' + who.split(' ')[0] + ' from ' : 'This is ') + D.name + '.';
       const fwd = process.env.LEADS_ADDRESS, ask = /business/.test(need) ? { go: 'business', title: me + ' What does your business do?', body: 'Tell me in a few words, or type your website, and I start right away.' }
         : /AI/.test(need) ? { go: 'ai', title: me + ' I need a brain to think with.', body: 'Connect your AI once (one tap) and I start working. Until then I just hang around town.' }

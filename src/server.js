@@ -252,7 +252,7 @@ function cityData(city) {
 function state(city, redirect) {
   const s = city.settings();
   const week = city.results(7);
-  return { forwardTo: process.env.LEADS_ADDRESS || '', recentLeads: city.recentLeads(), results: Object.assign(week, { said: City.said(week) }), hookUrl: String(redirect || '').replace(/\/connect\/google\/callback$/, '') + '/hook/lead/' + city.hookSecret(), settings: s, firstRun: !s.business || !city.departments().length, agents: city.agents(), picks: city.picks(), plan: city.tier(), help: process.env.HOSTED_HELP || '', cards: city.waiting(), updates: city.updates().slice(0, 150), checks: guide.checks(city, { redirect }),
+  return { town: city.life ? city.life.view().news.slice(0, 8) : [], forwardTo: process.env.LEADS_ADDRESS || '', recentLeads: city.recentLeads(), results: Object.assign(week, { said: City.said(week) }), hookUrl: String(redirect || '').replace(/\/connect\/google\/callback$/, '') + '/hook/lead/' + city.hookSecret(), settings: s, firstRun: !s.business || !city.departments().length, agents: city.agents(), picks: city.picks(), plan: city.tier(), help: process.env.HOSTED_HELP || '', cards: city.waiting(), updates: city.updates().slice(0, 150), checks: guide.checks(city, { redirect }),
     social: city.accounts ? city.accounts.state() : {},
     pay: process.env.PAY_URL ? { url: process.env.PAY_URL, title: process.env.PAY_TITLE || 'Keep your city', text: process.env.PAY_TEXT || 'Like what it does? Keep it running.', button: process.env.PAY_BUTTON || 'Keep my city' } : null,
     google: { configured: city.google.configured(), connected: city.google.connected(), email: city.google.email(), mode: city.google.mode() }, redirect,

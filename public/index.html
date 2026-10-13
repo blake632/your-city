@@ -37,6 +37,9 @@ h1{font:400 2rem/1.1 var(--serif);margin:4px 0 6px}h2{font:600 13px/1.4 var(--sa
 .tabs2 button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--ink)}
 .tabs2 b{margin-left:6px;background:var(--accent);color:#fff;border-radius:999px;padding:0 7px;font-size:12px}.tabs2 b.zero{background:var(--lift);color:var(--dim)}
 .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px;box-shadow:var(--shadow)}
+.card.talk{position:relative;padding-left:76px;border-color:color-mix(in srgb,var(--accent) 45%,var(--line))}.card.talk .face{position:absolute;left:18px;top:18px;width:44px;height:44px;border-radius:50%;display:grid;place-items:center;font:600 15px/1 var(--sans);color:#14100d;background:var(--accent)}
+.card.talk .head{font-size:1.25rem}#asks{display:grid;gap:12px;margin:12px 0}#asks:empty{display:none}
+.town{padding:14px 16px;margin:0 0 12px}.town ul{list-style:none;margin:8px 0 0;padding:0;display:grid;gap:8px}.town li{display:flex;gap:10px;align-items:baseline;font-size:15px}.town li i{font-style:normal;flex:0 0 auto;width:1.4em;text-align:center}.town li small{margin-left:auto;color:var(--dim);white-space:nowrap}
 .card .place{font:600 11px/1.4 var(--sans);letter-spacing:.12em;text-transform:uppercase;color:var(--accent)}
 .card .head{font:400 1.5rem/1.2 var(--serif);margin:4px 0 12px}
 .lead{background:var(--tint);border-left:3px solid var(--accent);border-radius:0 12px 12px 0;padding:12px 16px;margin:0 0 12px}.lead b{font:400 1.25rem/1.2 var(--serif)}
@@ -99,8 +102,10 @@ label.ck{display:flex;gap:10px;align-items:flex-start;margin:14px 0 6px;font-wei
   <section id="t-depts">
     <div id="home">
       <div class="banner" id="startHere" hidden></div>
-      <div class="box res" id="results" hidden></div>
       <div class="c3box" id="c3box"><iframe id="city3d" title="Your city in 3D. Tap a building to go inside." src="/city3d"></iframe></div>
+      <div id="asks"></div>
+      <div class="box town" id="town" hidden></div>
+      <div class="box res" id="results" hidden></div>
       <div id="city2d" hidden>
         <h1>Your city</h1><p class="sub">Each building is a department you named. Tap one.</p>
         <div id="cityView"></div>
@@ -330,6 +335,12 @@ label.ck{display:flex;gap:10px;align-items:flex-start;margin:14px 0 6px;font-wei
       start.appendChild(el('div', { cls: 'chips' }, [el('a', { cls: 'chip strong', href: '#settings', text: 'Open Settings' }), el('a', { cls: 'chip strong', href: '#guide', text: 'Open the Guide' })]));
     } else start.hidden = true;
     renderResults();
+    var asks = $('asks'); asks.innerHTML = '';   // the team asking for what it needs, each in its own words
+    S.cards.filter(function (c) { return c.kind === 'connect'; }).forEach(function (c) { asks.appendChild(card(c, function () {})); });
+    var tn = $('town'), news = S.town || []; tn.innerHTML = ''; tn.hidden = !news.length;   // town news: what the people of the city did lately
+    if (news.length) { var ICON = { friends: '🤝', hang: '☕', dating: '💛', wedding: '💍', baby: '🍼', school: '🎒', grew: '🎓', opened: '🏙' }, ul = el('ul');
+      news.slice(0, 5).forEach(function (n) { ul.appendChild(el('li', {}, [el('i', { 'aria-hidden': 'true', text: ICON[n.kind] || '•' }), el('span', { text: n.text }), el('small', { text: ago(n.ts) })])); });
+      tn.appendChild(el('div', { cls: 'k', text: 'Town news' })); tn.appendChild(ul); }
     var cc = $('cityCards'); cc.innerHTML = '';   // plans from the Research desk and City Hall: new buildings waiting for your yes
     S.cards.filter(function (c) { return c.kind === 'propose' && (c.agent === 'research' || c.agent === 'guide'); }).forEach(function (c) { cc.appendChild(el('div', { style: 'margin-top:12px' }, [card(c, function () {})])); });
     var rk = S.ranks || [], M = S.mayor && S.agents.some(function (x) { return x.id === S.mayor.id; }) ? S.mayor : null; $('ranksBox').hidden = !rk.length && !M; $('ranks').innerHTML = '';
@@ -590,6 +601,7 @@ label.ck{display:flex;gap:10px;align-items:flex-start;margin:14px 0 6px;font-wei
     if (c.came) kids.push(el('details', { cls: 'mail' }, [el('summary', { text: 'They wrote: ' + c.came.subject }), el('div', { cls: 'body', text: c.came.text })]));
     var bodyEl = null;
     if (c.email) { bodyEl = el('div', { cls: 'body', text: c.email.body }); kids.push(el('div', { cls: 'mail' }, [el('div', { cls: 'h', text: 'To: ' + c.email.to }), el('div', { cls: 'h', text: 'Subject: ' + c.email.subject }), bodyEl])); }
+    else if (c.body && c.kind === 'connect') kids.push(el('p', { style: 'margin:0 0 14px', text: c.body }));   // the department talking, not a document
     else if (c.body) { bodyEl = el('div', { cls: 'body', text: c.body }); kids.push(el('div', { cls: 'mail' }, [bodyEl])); }
     if (c.photo) kids.push(el('p', { cls: 'muted', text: 'Photo to use: ' + c.photo }));
     if (c.note) kids.push(el('p', { cls: 'muted', text: c.note }));
@@ -614,13 +626,14 @@ label.ck{display:flex;gap:10px;align-items:flex-start;margin:14px 0 6px;font-wei
     fb.appendChild(ta); fb.appendChild(el('div', { cls: 'chips' }, [el('button', { cls: 'btn yes sm', text: 'Rewrite it', onclick: function (e) { var b = e.target; b.disabled = true; b.textContent = 'Rewriting…';
       api('/api/feedback', { id: c.id, note: ta.value }).then(function (r) { toast('Rewritten. Look it over.'); bodyEl.textContent = r.card.email ? r.card.email.body : r.card.body; fb.hidden = true; ta.value = ''; return load(); })
         .catch(function (err) { toast(err.message); }).then(function () { b.disabled = false; b.textContent = 'Rewrite it'; }); } })]));
-    kids.push(el('div', { cls: 'chips' }, [c.kind !== 'fix' && c.kind !== 'rule' && bodyEl ? el('button', { cls: 'chip', text: '✎ Needs feedback', onclick: function () { fb.hidden = !fb.hidden; if (!fb.hidden) ta.focus(); } }) : null,
+    if (c.kind !== 'connect') kids.push(el('div', { cls: 'chips' }, [c.kind !== 'fix' && c.kind !== 'rule' && bodyEl ? el('button', { cls: 'chip', text: '✎ Needs feedback', onclick: function () { fb.hidden = !fb.hidden; if (!fb.hidden) ta.focus(); } }) : null,
       c.gmail ? el('a', { cls: 'chip', href: c.gmail, target: '_blank', rel: 'noopener', text: 'Open in Gmail' }) : null,
       /^https:\/\//.test(c.link || '') ? el('a', { cls: 'chip strong', href: c.link, target: '_blank', rel: 'noopener', text: 'Confirm it' }) : null,
       bodyEl && (!c.email || c.test) ? el('button', { cls: 'chip', text: 'Copy', onclick: function () { copy(bodyEl.textContent); } }) : null,
       c.kind === 'fix' ? el('button', { cls: 'chip', text: '? Ask the guide', onclick: function () { $('q').value = 'I see "' + c.title + '". What do I do?'; location.hash = 'guide'; } }) : null,
       el('button', { cls: 'chip', text: 'Skip →', onclick: skip })]));
     kids.push(fb);
+    if (c.kind === 'connect') { var nm = (/^I'm (\S+)/.exec(c.title) || [])[1] || '?'; kids.unshift(el('div', { cls: 'face', 'aria-hidden': 'true', text: nm.slice(0, 1) })); return el('div', { cls: 'card talk' }, kids); }
     return el('div', { cls: 'card' }, kids);
   }
   // What Jev decided about this card, in a few chips.
