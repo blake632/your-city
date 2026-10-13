@@ -30,6 +30,12 @@ test('the 3D city page, its data and three.js', async () => {
     assert(!/<\/script><b>/.test(html.slice(html.indexOf('CITY_DATA'), html.indexOf('CITY_DATA') + 2000)), 'the business name cannot break out of the script');
     assert(!/secret-ai-key|cookieSecret/.test(html), 'no secrets in the page');
     assert(/\/vendor\/three\.min\.js/.test(html) && !/cdnjs/.test(html), 'three.js from the app itself');
+    // the town: its people ride along (a department's crew is its life people), and the page has town news, who's who and places
+    assert(data.life && data.life.people.filter(p => p.dept === L.id && p.kind === 'adult').length >= 2, 'each department has its crew in town life');
+    assert(['newsBtn', 'who', 'places', 'clock'].every(id => html.includes('id="' + id + '"')), 'town news, who is who, the places and the clock');
+    const src = html.slice(html.lastIndexOf('<script>') + 8, html.lastIndexOf('</script>'));
+    assert.doesNotThrow(() => new (require('node:vm').Script)(src), 'the page script parses');
+    assert(/crew\[0\]/.test(src) && /LIFE0\.people\.filter\(p=>p&&p\.dept===d\.id&&p\.kind==='adult'\)/.test(src), 'the first adult in town life speaks for the department');
     const live = await (await fetch(base + '/api/city3d', { headers: H })).json();
     assert.deepStrictEqual([live.business, live.departments.length, typeof live.hall.need], ['Sam\'s Kitchens </script><b>', 2, 'number']);
   } finally { srv.close(); }
