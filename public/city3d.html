@@ -217,7 +217,7 @@ body.town #hint{ bottom:58px; }
 (()=>{
 'use strict';
 // Sample mode for the public website (?demo=1 or window.CITY_DEMO): no server at all. It uses the page's CITY_DATA, or the sample town
-// in demo-data.json next to the page; it never polls the app or messages a parent, and a tap on a building shows its card only.
+// in demo-data.json next to the page; it never polls the app or messages a parent; you can still go inside every building.
 const DEMO=/[?&]demo=1/.test(location.search)||!!window.CITY_DEMO;
 if(DEMO&&!window.CITY_DATA) fetch('demo-data.json').then(r=>r.json()).then(j=>{ window.CITY_DATA=j; boot(); }).catch(()=>boot());
 else boot();
@@ -1788,7 +1788,7 @@ function setShellFade(d,k){ // k: 0 = building whole, 1 = opened
   b.roof.visible=op>0.01; b.shell.visible=b.shell.scale.y>0.021; }
 function prepFade(d){ if(d.b.prepped) return; d.b.prepped=true; d.b.roof.traverse(o=>{ if(o.material){ const ms=(Array.isArray(o.material)?o.material:[o.material]).map(m=>{ const c=m.clone(); c.userData.baseOp=m.opacity; c.transparent=true; return c; }); o.material=Array.isArray(o.material)?ms:ms[0]; } }); }
 function peopleOf(k){ return PEOPLE.filter(p=>p.d===k).map(p=>p.id); }
-function enter(k,instant){ const d=DK[k]; if(DEMO){ if(d) openCard(d); return; } if(!d||trans) return; if(mode==='inside'&&active===k) return; if(mode==='inside') exit(true);
+function enter(k,instant){ const d=DK[k]; if(!d||trans) return; if(mode==='inside'&&active===k) return; if(mode==='inside') exit(true);
   hideTag(); active=k; prepFade(d); if(!INT[k]){ INT[k]=buildInterior(d); INT[k].bubbleEls.forEach(el=>bubblesEl.appendChild(el)); }
   const I=INT[k]; I.g.visible=true; hideBlock(d.key,true); (d.extras||[]).forEach(o=>o.visible=false);
   peopleOf(k).forEach(id=>{ const c=cityChars[id]; if(c){ c.inHide=true; vis(c); } }); if(k===PANEL_HOME){ panelCity.forEach(c=>c.root.visible=false); benches.visible=false; }
@@ -2095,7 +2095,7 @@ function openWho(ch){ const p=ch.L.p, d=deptOfLife(p), all=LIFE&&Array.isArray(L
   const ev=p.event&&EVBY[p.event], evName=ev?(ev.kind==='birthday'&&ev.who[0]===p.id?'Their birthday party at the café':{win:'The party in the park',bonfire:'The beach bonfire',soccer:'Kids’ soccer in the park',birthday:'A birthday party at the café'}[ev.kind]||'')+(ev.who.length>1?', with '+(ev.who.length-1)+' more':''):'';
   fillRows([['Job',p.kind==='kid'?'Kid':p.role],['Now',ch.path?'Walking to '+placeWord(ch.L.key):p.doing],['Event',evName],['Pet',p.pet&&p.pet.name?p.pet.name+', a '+(p.pet.kind==='cat'?'cat':'dog'):''],['Married to',partner&&partner.name],[kids.length>1?'Kids':'Kid',kids.map(k=>firstName(k.name)).join(' and ')],
     ['Parents',par.map(x=>firstName(x.name)).join(' and ')],['Home','Number '+(homeOf(p)+1)+(mates.length?', with '+mates.map(x=>mates.some(y=>y!==x&&firstName(y.name)===firstName(x.name))||firstName(x.name)===firstName(p.name)?x.name:firstName(x.name)).join(', '):'')]]);
-  const go=$('whoGo'); go.hidden=!d||DEMO; if(d){ go.textContent='Visit '+d.short; go.onclick=()=>{ closeWho(); enter(d.k); }; }
+  const go=$('whoGo'); go.hidden=!d; if(d){ go.textContent='Visit '+d.short; go.onclick=()=>{ closeWho(); enter(d.k); }; }
   $('who').hidden=false; $('places').style.opacity=0; flyTo(ch.root.position.x,ch.root.position.z,SMALL?44:38); }
 function openHome(k){ const h=HOMES[k]; if(!h) return; closeNews(); hideMeet(); whoCh=null; $('who').style.setProperty('--c','#e8bd62'); $('whoK').textContent='Home'; $('whoName').textContent='Number '+(k+1);
   const ppl=LIFE&&Array.isArray(LIFE.people)?LIFE.people.filter(p=>p&&homeOf(p)===k):[], inN=ppl.filter(p=>p.place==='home').length;
